@@ -17,10 +17,12 @@
     "format": "prettier --write src/"
   },
   "dependencies": {
+    "ol": "^10.5.0",
+    "ol-contextmenu": "^5.5.0",
+    "ol-ext": "^4.0.30",
     "pinia": "^3.0.1",
     "vue": "^3.5.13",
-    "vue-router": "^4.5.0",
-    "vue3-openlayers": "^0.1.33"
+    "vue-router": "^4.5.0"
   },
   "devDependencies": {
     "@tsconfig/node22": "^22.0.1",

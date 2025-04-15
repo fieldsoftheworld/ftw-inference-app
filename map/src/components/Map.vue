@@ -26,9 +26,4 @@ onMounted(() => {
   <div id="map" class="map-container" />
 </template>
 
-<style scoped>
-#map {
-  width: 100%;
-  height: 100%;
-}
-</style>
+<style scoped></style>
