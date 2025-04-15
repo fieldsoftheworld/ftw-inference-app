@@ -23,7 +23,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <div id="map" class="map-container" />
+  <div id="map" class="map-container"></div>
 </template>
 
 <style scoped></style>
