@@ -3,6 +3,7 @@ import { ref, onMounted } from 'vue'
 import { Map, View } from 'ol'
 import TileLayer from 'ol/layer/Tile'
 import XYZ from 'ol/source/XYZ'
+import DataCabinet from './DataCabinet.vue'
 
 const map = ref<Map | null>(null)
 
@@ -28,37 +29,66 @@ onMounted(() => {
 </script>
 
 <template>
-  <div id="map" class="map-container"></div>
+  <div class="map-wrapper">
+    <div id="map" class="map-container"></div>
+    <DataCabinet />
+  </div>
 </template>
 
 <style scoped>
+.map-wrapper {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.map-container {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  width: 100%;
+  height: 100%;
+}
+
 :deep(.ol-zoom) {
   top: unset;
   bottom: 0.625rem;
   left: 0.625rem;
 }
-:deep(.ol-zoom button){
+
+:deep(.ol-zoom button) {
   background-color: rgba(0, 0, 0, 0.6);
   color: #FFF;
 }
-:deep(.ol-zoom button:hover){
+
+:deep(.ol-zoom button:hover) {
   background-color: rgba(0, 0, 0, 0.8);
   color: #FFF;
 }
-:deep(.ol-attribution button){
+
+:deep(.ol-attribution button) {
   background-color: rgba(0, 0, 0, 0.6);
   color: #FFF;
 }
-:deep(.ol-attribution){
+
+:deep(.ol-attribution) {
   background-color: rgba(0, 0, 0, 0.8);
   color: #FFF;
 }
-:deep(.ol-attribution ul){
+
+:deep(.ol-attribution ul) {
   color: #FFF;
   font-size: 0.875rem;
-  text-shadow: none
+  text-shadow: none;
 }
-:deep(.ol-attribution ul li a){
+
+:deep(.ol-attribution ul li a) {
   color: #FFF;
 }
 </style>
