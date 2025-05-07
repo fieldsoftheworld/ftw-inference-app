@@ -32,16 +32,25 @@ onMounted(() => {
 </template>
 
 <style scoped>
-:deep(.ol-control button){
+:deep(.ol-zoom) {
+  top: unset;
+  bottom: 0.625rem;
+  left: 0.625rem;
+}
+:deep(.ol-zoom button){
   background-color: rgba(0, 0, 0, 0.6);
   color: #FFF;
 }
-:deep(.ol-control button:hover){
+:deep(.ol-zoom button:hover){
   background-color: rgba(0, 0, 0, 0.8);
   color: #FFF;
 }
-:deep(.ol-attribution){
+:deep(.ol-attribution button){
   background-color: rgba(0, 0, 0, 0.6);
+  color: #FFF;
+}
+:deep(.ol-attribution){
+  background-color: rgba(0, 0, 0, 0.8);
   color: #FFF;
 }
 :deep(.ol-attribution ul){
