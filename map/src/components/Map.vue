@@ -4,10 +4,10 @@ import { Map, View } from 'ol'
 import TileLayer from 'ol/layer/Tile'
 import XYZ from 'ol/source/XYZ'
 import DataCabinet from './DataCabinet.vue'
-
+import createS2GridLayer from '../layers/S2-Grid-Layer'
 const map = ref<Map | null>(null)
 
-onMounted(() => {
+onMounted(async () => {
   map.value = new Map({
     target: 'map',
     layers: [
@@ -25,6 +25,7 @@ onMounted(() => {
       zoom: 2,
     }),
   })
+  await createS2GridLayer(map.value)
 })
 </script>
 

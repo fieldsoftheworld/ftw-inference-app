@@ -17,6 +17,7 @@
     "format": "prettier --write src/"
   },
   "dependencies": {
+    "jszip": "^3.10.1",
     "ol": "^10.5.0",
     "ol-contextmenu": "^5.5.0",
     "ol-ext": "^4.0.30",
