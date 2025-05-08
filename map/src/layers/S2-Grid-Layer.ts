@@ -1,12 +1,10 @@
 import GeoJSON from 'ol/format/GeoJSON.js';
 import VectorLayer from 'ol/layer/Vector.js';
 import VectorSource from 'ol/source/Vector.js';
-import Fill from 'ol/style/Fill.js';
-import Stroke from 'ol/style/Stroke.js';
-import Style from 'ol/style/Style.js';
+import { Fill, Stroke, Style } from 'ol/style.js';
 import JSZip from 'jszip';
-
-export default async function createS2GridLayer(map) {
+import { Map } from 'ol';
+export default async function createS2GridLayer(map: Map) {
 
     try {
       // Fetch the zipped GeoJSON file
@@ -21,13 +19,12 @@ export default async function createS2GridLayer(map) {
           throw new Error('No files found in the zip archive');
       }
       // Get the GeoJSON content
-      const geoJsonFile = zipContents.files[fileNames.find(name => name.endsWith('.geojson'))];
+      const geoJsonFile = zipContents.files[fileNames.find(name => name.endsWith('.geojson')) as string];
       if (!geoJsonFile) {
           throw new Error('No GeoJSON file found in the zip archive');
       }
       const geoJsonText = await geoJsonFile.async('text');
       const geoJson = JSON.parse(geoJsonText);
-
       const vectorSource = new VectorSource({
         features: new GeoJSON().readFeatures(geoJson),
       });
@@ -36,8 +33,8 @@ export default async function createS2GridLayer(map) {
         source: vectorSource,
         style: new Style({
           stroke: new Stroke({
-            color: 'rgba(0, 136, 136, 0.8)',  // Green color
-            width: 0.5,
+            color: 'rgba(0, 136, 136, 1)',  // Green color
+            width: 30,
           }),
           fill: new Fill({
             color: 'rgba(0, 136, 136, 0.8)'  // Very light green fill with transparency
@@ -46,8 +43,6 @@ export default async function createS2GridLayer(map) {
       });
 
       map.addLayer(vectorLayer);
-      console.log(vectorLayer);
-
     } catch (error) {
       console.error("Error loading S2 grid data:", error);
       setTimeout(() => {
