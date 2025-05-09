@@ -25,9 +25,8 @@ onMounted(async () => {
       zoom: 2,
     }),
   })
-  map.value.on('load', async () => {
-    await createS2GridLayer(map.value)
-  })
+
+  createS2GridLayer(map.value as Map)
 })
 </script>
 
