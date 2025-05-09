@@ -7,7 +7,7 @@ import DataCabinet from './DataCabinet.vue'
 import createS2GridLayer from '../layers/S2-Grid-Layer.ts'
 const map = ref<Map | null>(null)
 
-onMounted(async () => {
+onMounted(() => {
   map.value = new Map({
     target: 'map',
     layers: [
@@ -16,9 +16,11 @@ onMounted(async () => {
           url: 'https://tiles.maps.eox.at/wmts?layer=s2cloudless-2024_3857&style=default&tilematrixset=GoogleMapsCompatible&Service=WMTS&Request=GetTile&Version=1.0.0&Format=image%2Fjpeg&TileMatrix={z}&TileCol={x}&TileRow={y}',
           maxZoom: 19,
           tileSize: 256,
+          crossOrigin: 'anonymous',
           attributions: 'Sentinel-2 cloudless imagery by <a href="https://eox.at">EOX</a>'
         }),
       }),
+      createS2GridLayer()
     ],
     view: new View({
       center: [0, 0],
@@ -26,7 +28,6 @@ onMounted(async () => {
     }),
   })
 
-  createS2GridLayer(map.value as Map)
 })
 </script>
 
