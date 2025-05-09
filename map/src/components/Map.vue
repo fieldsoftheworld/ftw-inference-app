@@ -5,7 +5,9 @@ import TileLayer from 'ol/layer/Tile'
 import XYZ from 'ol/source/XYZ'
 import DataCabinet from './DataCabinet.vue'
 import createS2GridLayer from '../layers/S2-Grid-Layer.ts'
+
 const map = ref<Map | null>(null)
+const dataCabinetRef = ref<InstanceType<typeof DataCabinet> | null>(null)
 
 onMounted(() => {
   map.value = new Map({
@@ -19,22 +21,26 @@ onMounted(() => {
           crossOrigin: 'anonymous',
           attributions: 'Sentinel-2 cloudless imagery by <a href="https://eox.at">EOX</a>'
         }),
-      }),
-      createS2GridLayer()
+      })
     ],
     view: new View({
       center: [0, 0],
       zoom: 2,
     }),
-  })
+  });
 
+  // Add S2 Grid layer after map is initialized
+  if (map.value) {
+    const s2GridLayer = createS2GridLayer(map.value, dataCabinetRef);
+    map.value.addLayer(s2GridLayer);
+  }
 })
 </script>
 
 <template>
   <div class="map-wrapper">
     <div id="map" class="map-container"></div>
-    <DataCabinet />
+    <DataCabinet :map="map" ref="dataCabinetRef" />
   </div>
 </template>
 
