@@ -38,7 +38,6 @@ export default function createS2GridLayer(
       if (feature) {
         // Get the MGRS Tile ID from the feature properties
         const mgrsTileId = feature.get('Name') || '37PDN';
-        console.log("S2 Grid Layer: Found MGRS Tile ID:", mgrsTileId, "from property 'Name'");
 
         // Get the feature's extent
         const geometry = feature.getGeometry();
@@ -62,7 +61,6 @@ export default function createS2GridLayer(
 
           // Call the search function through the ref
           if (dataCabinetRef.value?.handleSearchResults) {
-            console.log('S2 Grid Layer: Calling handleSearchResults with', mgrsTileId);
             dataCabinetRef.value.handleSearchResults(mgrsTileId);
           } else {
             console.error('S2 Grid Layer: DataCabinet ref not available');

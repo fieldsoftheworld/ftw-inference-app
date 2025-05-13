@@ -67,8 +67,6 @@ export default async function searchStacApi(mgrsTileId: string, resetSearch = tr
             searchUrl += `&token=${encodeURIComponent(nextPageToken)}`;
         }
 
-        console.log("Search URL:", searchUrl);
-
         // Make the GET request
         const response = await fetch(searchUrl, {
             method: 'GET',
@@ -82,7 +80,6 @@ export default async function searchStacApi(mgrsTileId: string, resetSearch = tr
         }
 
         const data = await response.json();
-        console.log('STAC API response:', data);
 
         // Look for the "next" link which contains the pagination token
         let nextLink = null;
@@ -96,7 +93,6 @@ export default async function searchStacApi(mgrsTileId: string, resetSearch = tr
             const tokenMatch = nextLink.href.match(/token=([^&]+)/);
             if (tokenMatch && tokenMatch[1]) {
                 nextPageToken = decodeURIComponent(tokenMatch[1]);
-                console.log("Next page token:", nextPageToken);
                 // nextPageBtn.disabled = false;
             } else {
                 nextPageToken = null;
@@ -110,7 +106,6 @@ export default async function searchStacApi(mgrsTileId: string, resetSearch = tr
         // Process and sort the results
         const results = data.features
             .map((item: any): ProcessedResult => {
-                console.log('Processing STAC item:', item);
                 const result = {
                     id: item.id,
                     date: new Date(item.properties.datetime),
@@ -121,7 +116,6 @@ export default async function searchStacApi(mgrsTileId: string, resetSearch = tr
                         [item.bbox[0], item.bbox[1], item.bbox[3], item.bbox[4]] :
                         item.bbox) : null
                 };
-                console.log('Processed result:', result);
                 return result;
             })
             .sort((a: ProcessedResult, b: ProcessedResult) => {

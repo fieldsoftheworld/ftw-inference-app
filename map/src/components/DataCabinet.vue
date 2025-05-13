@@ -20,14 +20,12 @@ const isSelectedAccordionOpen = ref(false)
 
 // Function to handle search results
 const handleSearchResults = async (mgrsTileId: string) => {
-  console.log('DataCabinet: handleSearchResults called with', mgrsTileId)
   isLoading.value = true
   searchStatus.value = `Searching for Sentinel-2 images in tile ${mgrsTileId}...`
   currentMgrsTileId.value = mgrsTileId
 
   try {
     const { results, hasMore: moreResults } = await searchStacApi(mgrsTileId)
-    console.log('DataCabinet: Search results received:', results)
     searchResults.value = results
     hasMore.value = moreResults
     searchStatus.value = `Found ${results.length} images`
@@ -57,26 +55,20 @@ const loadMore = async () => {
 }
 
 const handleViewOnMap = (imageUrl: string, bounds: number[] | null, tileId: string, isSecondAccordion: boolean = false) => {
-  console.log('handleViewOnMap called with:', { imageUrl, bounds, tileId, isSecondAccordion });
-
   if (isSecondAccordion) {
     // Prevent selecting the same tile as the first accordion
     if (tileId === activeTileId.value) {
-      console.log('Cannot select the same tile as the first accordion');
       return;
     }
 
     if (secondActiveTileId.value === tileId) {
       // If clicking the active tile in second accordion, remove it
-      console.log('Removing second active tile:', tileId);
       removeStacLayer(props.map);
       secondActiveTileId.value = null;
     } else {
       // If clicking a different tile in second accordion
-      console.log('Switching to new second tile:', tileId);
       removeStacLayer(props.map);
       if (bounds) {
-        console.log('Bounds available, adding layer');
         addStacLayer(props.map, imageUrl, bounds);
         secondActiveTileId.value = tileId;
       } else {
@@ -86,7 +78,6 @@ const handleViewOnMap = (imageUrl: string, bounds: number[] | null, tileId: stri
   } else {
     if (activeTileId.value === tileId) {
       // If clicking the active tile in first accordion, remove it
-      console.log('Removing active tile:', tileId);
       removeStacLayer(props.map);
       activeTileId.value = null;
       // Also remove from second accordion if it was selected there
@@ -95,10 +86,8 @@ const handleViewOnMap = (imageUrl: string, bounds: number[] | null, tileId: stri
       }
     } else {
       // If clicking a different tile in first accordion
-      console.log('Switching to new tile:', tileId);
       removeStacLayer(props.map);
       if (bounds) {
-        console.log('Bounds available, adding layer');
         addStacLayer(props.map, imageUrl, bounds);
         activeTileId.value = tileId;
         // If this tile was selected in second accordion, remove it
@@ -226,7 +215,7 @@ defineExpose({
             <div v-for="result in searchResults" :key="result?.id"
                  class="result-item"
                  :class="{ 'active': secondActiveTileId === result?.id }"
-                 v-if="result?.id !== activeTileId && result?.id !== secondActiveTileId">
+                 v-if="result?.id !== activeTileId">
               <div class="result-thumbnail"
                    @click="handleViewOnMap(result.thumbnailUrl, result.bounds, result?.id, true)">
                 <img :src="result.thumbnailUrl" alt="Preview" @error="$event.target.style.display='none'">
