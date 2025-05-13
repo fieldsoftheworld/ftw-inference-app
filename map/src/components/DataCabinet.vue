@@ -13,6 +13,7 @@ const searchStatus = ref('')
 const isLoading = ref(false)
 const hasMore = ref(false)
 const currentMgrsTileId = ref<string | null>(null)
+const activeTileId = ref<string | null>(null)
 
 // Function to handle search results
 const handleSearchResults = async (mgrsTileId: string) => {
@@ -52,18 +53,30 @@ const loadMore = async () => {
   }
 }
 
-const handleViewOnMap = (imageUrl: string, bounds: number[] | null) => {
-  console.log('handleViewOnMap called with:', { imageUrl, bounds });
-  if (bounds) {
-    console.log('Bounds available, adding layer');
-    addStacLayer(props.map, imageUrl, bounds);
+const handleViewOnMap = (imageUrl: string, bounds: number[] | null, tileId: string) => {
+  console.log('handleViewOnMap called with:', { imageUrl, bounds, tileId });
+
+  if (activeTileId.value === tileId) {
+    // If clicking the active tile, remove it
+    console.log('Removing active tile:', tileId);
+    removeStacLayer(props.map);
+    activeTileId.value = null;
   } else {
-    console.error('No bounds available for this image');
+    // If clicking a different tile, remove current and add new
+    console.log('Switching to new tile:', tileId);
+    removeStacLayer(props.map);
+    if (bounds) {
+      console.log('Bounds available, adding layer');
+      addStacLayer(props.map, imageUrl, bounds);
+      activeTileId.value = tileId;
+    } else {
+      console.error('No bounds available for this image');
+    }
   }
 }
 
 const handleRemoveLayer = () => {
-  removeStacLayer(props.map)
+  removeStacLayer()
 }
 
 // Expose the search function to parent components
@@ -83,20 +96,15 @@ defineExpose({
     </div>
 
     <div v-else class="results">
-      <div v-for="result in searchResults" :key="result.id" class="result-item">
-        <div class="result-thumbnail">
+      <div v-for="result in searchResults" :key="result.id"
+           class="result-item"
+           :class="{ 'active': activeTileId === result.id }">
+        <div class="result-thumbnail"
+             @click="handleViewOnMap(result.thumbnailUrl, result.bounds, result.id)">
           <img :src="result.thumbnailUrl" alt="Preview" @error="$event.target.style.display='none'">
         </div>
         <div class="result-header">
           <h3>{{ result.id }}</h3>
-          <div class="result-actions">
-            <button @click="handleViewOnMap(result.thumbnailUrl, result.bounds)" class="action-button">
-              View on Map
-            </button>
-            <button @click="handleRemoveLayer" class="action-button">
-              Remove Layer
-            </button>
-          </div>
         </div>
         <div class="result-details">
           <div>Date: {{ result.date }}</div>
@@ -162,6 +170,18 @@ h2 {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
+  transition: all 0.2s ease;
+  border: 2px solid transparent;
+}
+
+.result-item:hover {
+  background-color: rgba(255, 255, 255, 0.2);
+}
+
+.result-item.active {
+  background-color: rgba(0, 136, 136, 0.2);
+  border-color: rgba(0, 136, 136, 0.8);
+  box-shadow: 0 0 10px rgba(0, 136, 136, 0.4);
 }
 
 .result-thumbnail {
@@ -170,6 +190,17 @@ h2 {
   overflow: hidden;
   border-radius: 4px;
   background-color: rgba(0, 0, 0, 0.2);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.result-thumbnail:hover {
+  transform: scale(1.02);
+}
+
+.result-thumbnail.active {
+  border-color: rgba(0, 136, 136, 0.8);
+  box-shadow: 0 0 10px rgba(0, 136, 136, 0.4);
 }
 
 .result-thumbnail img {
