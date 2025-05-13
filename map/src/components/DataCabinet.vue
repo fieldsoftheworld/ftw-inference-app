@@ -74,7 +74,8 @@ defineExpose({
 
 <template>
   <div class="data-cabinet">
-    <h2>Data Cabinet</h2>
+    <h2>Fields of the World: Inference App</h2>
+    <p v-if="searchStatus === ''">Select a grid cell to search for Sentinel-2 images</p>
     <div class="search-status">{{ searchStatus }}</div>
 
     <div v-if="isLoading" class="loading">
