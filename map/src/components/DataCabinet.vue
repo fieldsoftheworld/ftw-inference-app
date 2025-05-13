@@ -14,6 +14,9 @@ const isLoading = ref(false)
 const hasMore = ref(false)
 const currentMgrsTileId = ref<string | null>(null)
 const activeTileId = ref<string | null>(null)
+const secondActiveTileId = ref<string | null>(null)
+const isAccordionOpen = ref(true)
+const isSelectedAccordionOpen = ref(false)
 
 // Function to handle search results
 const handleSearchResults = async (mgrsTileId: string) => {
@@ -53,30 +56,94 @@ const loadMore = async () => {
   }
 }
 
-const handleViewOnMap = (imageUrl: string, bounds: number[] | null, tileId: string) => {
-  console.log('handleViewOnMap called with:', { imageUrl, bounds, tileId });
+const handleViewOnMap = (imageUrl: string, bounds: number[] | null, tileId: string, isSecondAccordion: boolean = false) => {
+  console.log('handleViewOnMap called with:', { imageUrl, bounds, tileId, isSecondAccordion });
 
-  if (activeTileId.value === tileId) {
-    // If clicking the active tile, remove it
-    console.log('Removing active tile:', tileId);
-    removeStacLayer(props.map);
-    activeTileId.value = null;
-  } else {
-    // If clicking a different tile, remove current and add new
-    console.log('Switching to new tile:', tileId);
-    removeStacLayer(props.map);
-    if (bounds) {
-      console.log('Bounds available, adding layer');
-      addStacLayer(props.map, imageUrl, bounds);
-      activeTileId.value = tileId;
+  if (isSecondAccordion) {
+    // Prevent selecting the same tile as the first accordion
+    if (tileId === activeTileId.value) {
+      console.log('Cannot select the same tile as the first accordion');
+      return;
+    }
+
+    if (secondActiveTileId.value === tileId) {
+      // If clicking the active tile in second accordion, remove it
+      console.log('Removing second active tile:', tileId);
+      removeStacLayer(props.map);
+      secondActiveTileId.value = null;
     } else {
-      console.error('No bounds available for this image');
+      // If clicking a different tile in second accordion
+      console.log('Switching to new second tile:', tileId);
+      removeStacLayer(props.map);
+      if (bounds) {
+        console.log('Bounds available, adding layer');
+        addStacLayer(props.map, imageUrl, bounds);
+        secondActiveTileId.value = tileId;
+      } else {
+        console.error('No bounds available for this image');
+      }
+    }
+  } else {
+    if (activeTileId.value === tileId) {
+      // If clicking the active tile in first accordion, remove it
+      console.log('Removing active tile:', tileId);
+      removeStacLayer(props.map);
+      activeTileId.value = null;
+      // Also remove from second accordion if it was selected there
+      if (secondActiveTileId.value === tileId) {
+        secondActiveTileId.value = null;
+      }
+    } else {
+      // If clicking a different tile in first accordion
+      console.log('Switching to new tile:', tileId);
+      removeStacLayer(props.map);
+      if (bounds) {
+        console.log('Bounds available, adding layer');
+        addStacLayer(props.map, imageUrl, bounds);
+        activeTileId.value = tileId;
+        // If this tile was selected in second accordion, remove it
+        if (secondActiveTileId.value === tileId) {
+          secondActiveTileId.value = null;
+        }
+      } else {
+        console.error('No bounds available for this image');
+      }
     }
   }
 }
 
 const handleRemoveLayer = () => {
   removeStacLayer()
+  activeTileId.value = null
+  secondActiveTileId.value = null
+}
+
+const toggleAccordion = () => {
+  isAccordionOpen.value = !isAccordionOpen.value
+}
+
+const toggleSelectedAccordion = () => {
+  if (activeTileId.value) {
+    isSelectedAccordionOpen.value = !isSelectedAccordionOpen.value
+  }
+}
+
+const getActiveTileThumbnail = (isSecond: boolean = false) => {
+  const tileId = isSecond ? secondActiveTileId.value : activeTileId.value
+  const activeTile = searchResults.value.find(result => result?.id === tileId)
+  return activeTile?.thumbnailUrl
+}
+
+const getActiveTileDate = (isSecond: boolean = false) => {
+  const tileId = isSecond ? secondActiveTileId.value : activeTileId.value
+  const activeTile = searchResults.value.find(result => result?.id === tileId)
+  return activeTile?.date
+}
+
+const getActiveTileCloudCover = (isSecond: boolean = false) => {
+  const tileId = isSecond ? secondActiveTileId.value : activeTileId.value
+  const activeTile = searchResults.value.find(result => result?.id === tileId)
+  return activeTile?.cloudCover
 }
 
 // Expose the search function to parent components
@@ -95,31 +162,86 @@ defineExpose({
       Loading...
     </div>
 
-    <div v-else class="results">
-      <div v-for="result in searchResults" :key="result.id"
-           class="result-item"
-           :class="{ 'active': activeTileId === result.id }">
-        <div class="result-thumbnail"
-             @click="handleViewOnMap(result.thumbnailUrl, result.bounds, result.id)">
-          <img :src="result.thumbnailUrl" alt="Preview" @error="$event.target.style.display='none'">
-        </div>
-        <div class="result-header">
-          <h3>{{ result.id }}</h3>
-        </div>
-        <div class="result-details">
-          <div>Date: {{ result.date }}</div>
-          <div>Cloud Cover: {{ result.cloudCover }}%</div>
-        </div>
+    <div v-else-if="searchResults.length > 0" class="results-container">
+      <div class="selected-tile-header">{{ currentMgrsTileId }} Results</div>
+      <div class="accordion-header" @click="toggleAccordion">
+        <h3 class="active-tile-id">{{ activeTileId ? activeTileId : 'Select a tile' }}</h3>
+        <span class="accordion-icon" :class="{ 'open': isAccordionOpen }">▼</span>
       </div>
 
-      <button
-        v-if="hasMore"
-        @click="loadMore"
-        class="load-more-button"
-        :disabled="isLoading"
-      >
-        Load More
-      </button>
+      <transition name="accordion">
+        <div v-show="isAccordionOpen" class="results">
+          <div v-for="result in searchResults" :key="result?.id"
+               class="result-item"
+               :class="{ 'active': activeTileId === result?.id }"
+               v-if="result?.id !== secondActiveTileId">
+            <div class="result-thumbnail"
+                 @click="handleViewOnMap(result.thumbnailUrl, result.bounds, result?.id, false)">
+              <img :src="result.thumbnailUrl" alt="Preview" @error="$event.target.style.display='none'">
+            </div>
+            <div class="result-header">
+              <h3>{{ result?.id }}</h3>
+            </div>
+            <div class="result-details">
+              <div>Date: {{ result.date }}</div>
+              <div>Cloud Cover: {{ result.cloudCover }}%</div>
+            </div>
+          </div>
+
+          <button
+            v-if="hasMore"
+            @click="loadMore"
+            class="load-more-button"
+            :disabled="isLoading"
+          >
+            Load More
+          </button>
+        </div>
+      </transition>
+
+      <!-- Second Accordion for Selected Results -->
+      <div class="selected-results-section" :class="{ 'disabled': !activeTileId }">
+        <div class="accordion-header" @click="toggleSelectedAccordion" :class="{ 'disabled': !activeTileId }">
+          <h3 class="active-tile-id">{{ secondActiveTileId ? secondActiveTileId : 'Select a Second Tile' }}</h3>
+          <span class="accordion-icon" :class="{ 'open': isSelectedAccordionOpen }">▼</span>
+        </div>
+
+        <transition name="accordion">
+          <div v-show="isSelectedAccordionOpen && activeTileId" class="results">
+            <!-- Show first accordion's active tile first -->
+            <div v-if="activeTileId" class="result-item active disabled">
+              <div class="result-thumbnail">
+                <img :src="getActiveTileThumbnail(false)" alt="Preview" @error="$event.target.style.display='none'">
+              </div>
+              <div class="result-header">
+                <h3>{{ activeTileId }}</h3>
+              </div>
+              <div class="result-details">
+                <div>Date: {{ getActiveTileDate(false) }}</div>
+                <div>Cloud Cover: {{ getActiveTileCloudCover(false) }}%</div>
+              </div>
+            </div>
+
+            <!-- Show other results -->
+            <div v-for="result in searchResults" :key="result?.id"
+                 class="result-item"
+                 :class="{ 'active': secondActiveTileId === result?.id }"
+                 v-if="result?.id !== activeTileId && result?.id !== secondActiveTileId">
+              <div class="result-thumbnail"
+                   @click="handleViewOnMap(result.thumbnailUrl, result.bounds, result?.id, true)">
+                <img :src="result.thumbnailUrl" alt="Preview" @error="$event.target.style.display='none'">
+              </div>
+              <div class="result-header">
+                <h3>{{ result?.id }}</h3>
+              </div>
+              <div class="result-details">
+                <div>Date: {{ result.date }}</div>
+                <div>Cloud Cover: {{ result.cloudCover }}%</div>
+              </div>
+            </div>
+          </div>
+        </transition>
+      </div>
     </div>
   </div>
 </template>
@@ -157,10 +279,69 @@ h2 {
   color: rgba(255, 255, 255, 0.8);
 }
 
-.results {
+.results-container {
+  margin-top: 1rem;
+  height: calc(100vh - 200px);
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+}
+
+.selected-tile-header {
+  padding: 0.75rem;
+  color: white;
+  font-weight: 500;
+  margin-bottom: 0.5rem;
+}
+
+.accordion-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem;
+  background-color: rgba(0, 136, 136, 0.2);
+  border: 1px solid rgba(0, 136, 136, 0.8);
+  border-radius: 4px;
+  cursor: pointer;
+  margin-bottom: 0.5rem;
+}
+
+.accordion-header h3 {
+  margin: 0;
+  font-size: 1rem;
+  color: white;
+}
+
+.active-tile-id {
+  max-width: 200px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.accordion-icon {
+  color: white;
+  transition: transform 0.3s ease;
+  font-size: 0.75rem;
+}
+
+.accordion-icon.open {
+  transform: rotate(180deg);
+}
+
+.results {
+  flex: 1;
+  overflow-y: auto;
+  transition: opacity 0.3s ease;
+}
+
+.accordion-enter-active,
+.accordion-leave-active {
+  transition: opacity 0.3s ease;
+}
+
+.accordion-enter-from,
+.accordion-leave-to {
+  opacity: 0;
 }
 
 .result-item {
@@ -275,6 +456,29 @@ h2 {
 
 .load-more-button:disabled {
   background-color: rgba(0, 136, 136, 0.4);
+  cursor: not-allowed;
+}
+
+.selected-results-section {
+  margin-top: 1rem;
+}
+
+.selected-results-section.disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.accordion-header.disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.result-item.disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.result-item.disabled .result-thumbnail {
   cursor: not-allowed;
 }
 </style>
