@@ -4,9 +4,9 @@ import VectorSource from 'ol/source/Vector.js';
 import { Fill, Stroke, Style } from 'ol/style.js';
 import s2GridData from '../data/s2-grid.json';
 import { Map } from 'ol';
-import { Extent } from 'ol/extent';
 import type { Ref } from 'vue';
 import type DataCabinet from '../components/DataCabinet.vue';
+import handleMapClick from '../functions/handle-map-click';
 
 export default function createS2GridLayer(
   map: Map,
@@ -32,42 +32,7 @@ export default function createS2GridLayer(
     });
 
     // Add click handler
-    map?.on('click', (event) => {
-      const feature = map.forEachFeatureAtPixel(event.pixel, (feature) => feature);
-
-      if (feature) {
-        // Get the MGRS Tile ID from the feature properties
-        const mgrsTileId = feature.get('Name') || '37PDN';
-
-        // Get the feature's extent
-        const geometry = feature.getGeometry();
-        if (geometry) {
-          const extent = geometry.getExtent();
-
-          // Add padding to the extent
-          const padding = 50;
-          const paddedExtent: Extent = [
-            extent[0] - padding,
-            extent[1] - padding,
-            extent[2] + padding,
-            extent[3] + padding
-          ];
-
-          // Fit the view to the extent
-          map.getView().fit(paddedExtent, {
-            duration: 1000,
-            maxZoom: 13
-          });
-
-          // Call the search function through the ref
-          if (dataCabinetRef.value?.handleSearchResults) {
-            dataCabinetRef.value.handleSearchResults(mgrsTileId);
-          } else {
-            console.error('S2 Grid Layer: DataCabinet ref not available');
-          }
-        }
-      }
-    });
+    map?.on('click', (event) => handleMapClick(event, map, dataCabinetRef));
 
     return layer;
 }

@@ -4,11 +4,19 @@ import searchStacApi from '../functions/search-stac-api'
 import { addStacLayer, removeStacLayer } from '../functions/add-stac-layer'
 import type { Map } from 'ol'
 
+interface SearchResult {
+  id: string
+  date: string
+  cloudCover: number | string
+  thumbnailUrl: string
+  bounds: number[] | null
+}
+
 const props = defineProps<{
   map: Map
 }>()
 
-const searchResults = ref<any[]>([])
+const searchResults = ref<SearchResult[]>([])
 const searchStatus = ref('')
 const isLoading = ref(false)
 const hasMore = ref(false)
@@ -25,13 +33,15 @@ const handleSearchResults = async (mgrsTileId: string) => {
   currentMgrsTileId.value = mgrsTileId
 
   try {
-    const { results, hasMore: moreResults } = await searchStacApi(mgrsTileId)
-    searchResults.value = results
-    hasMore.value = moreResults
-    searchStatus.value = `Found ${results.length} images`
-  } catch (error) {
+    const response = await searchStacApi(mgrsTileId)
+    if (response) {
+      searchResults.value = response.results
+      hasMore.value = response.hasMore
+      searchStatus.value = `Found ${response.results.length} images`
+    }
+  } catch (error: unknown) {
     console.error('DataCabinet: Error searching:', error)
-    searchStatus.value = `Error searching: ${error.message}`
+    searchStatus.value = `Error searching: ${error instanceof Error ? error.message : 'Unknown error'}`
   } finally {
     isLoading.value = false
   }
@@ -43,12 +53,14 @@ const loadMore = async () => {
 
   isLoading.value = true
   try {
-    const { results, hasMore: moreResults } = await searchStacApi(currentMgrsTileId.value, false)
-    searchResults.value = [...searchResults.value, ...results]
-    hasMore.value = moreResults
-  } catch (error) {
+    const response = await searchStacApi(currentMgrsTileId.value, false)
+    if (response) {
+      searchResults.value = [...searchResults.value, ...response.results]
+      hasMore.value = response.hasMore
+    }
+  } catch (error: unknown) {
     console.error('Error loading more results:', error)
-    searchStatus.value = `Error loading more results: ${error.message}`
+    searchStatus.value = `Error loading more results: ${error instanceof Error ? error.message : 'Unknown error'}`
   } finally {
     isLoading.value = false
   }
@@ -99,12 +111,6 @@ const handleViewOnMap = (imageUrl: string, bounds: number[] | null, tileId: stri
       }
     }
   }
-}
-
-const handleRemoveLayer = () => {
-  removeStacLayer()
-  activeTileId.value = null
-  secondActiveTileId.value = null
 }
 
 const toggleAccordion = () => {
@@ -160,22 +166,24 @@ defineExpose({
 
       <transition name="accordion">
         <div v-show="isAccordionOpen" class="results">
-          <div v-for="result in searchResults" :key="result?.id"
-               class="result-item"
-               :class="{ 'active': activeTileId === result?.id }"
-               v-if="result?.id !== secondActiveTileId">
-            <div class="result-thumbnail"
-                 @click="handleViewOnMap(result.thumbnailUrl, result.bounds, result?.id, false)">
-              <img :src="result.thumbnailUrl" alt="Preview" @error="$event.target.style.display='none'">
+          <template v-for="result in searchResults" :key="result?.id">
+            <div
+                class="result-item"
+                :class="{ 'active': activeTileId === result?.id }"
+                v-if="result?.id !== secondActiveTileId">
+              <div class="result-thumbnail"
+                  @click="handleViewOnMap(result.thumbnailUrl, result.bounds, result?.id, false)">
+                <img :src="result.thumbnailUrl" alt="Preview" @error="($event.target as HTMLImageElement).style.display='none'">
+              </div>
+              <div class="result-header">
+                <h3>{{ result?.id }}</h3>
+              </div>
+              <div class="result-details">
+                <div>Date: {{ result.date }}</div>
+                <div>Cloud Cover: {{ result.cloudCover }}%</div>
+              </div>
             </div>
-            <div class="result-header">
-              <h3>{{ result?.id }}</h3>
-            </div>
-            <div class="result-details">
-              <div>Date: {{ result.date }}</div>
-              <div>Cloud Cover: {{ result.cloudCover }}%</div>
-            </div>
-          </div>
+        </template>
 
           <button
             v-if="hasMore"
@@ -200,7 +208,7 @@ defineExpose({
             <!-- Show first accordion's active tile first -->
             <div v-if="activeTileId" class="result-item active disabled">
               <div class="result-thumbnail">
-                <img :src="getActiveTileThumbnail(false)" alt="Preview" @error="$event.target.style.display='none'">
+                <img :src="getActiveTileThumbnail(false)" alt="Preview" @error="($event.target as HTMLImageElement).style.display='none'">
               </div>
               <div class="result-header">
                 <h3>{{ activeTileId }}</h3>
@@ -212,23 +220,25 @@ defineExpose({
             </div>
 
             <!-- Show other results -->
-            <div v-for="result in searchResults" :key="result?.id"
-                 class="result-item"
-                 :class="{ 'active': secondActiveTileId === result?.id }"
-                 v-if="result?.id !== activeTileId">
-              <div class="result-thumbnail"
-                   @click="handleViewOnMap(result.thumbnailUrl, result.bounds, result?.id, true)">
-                <img :src="result.thumbnailUrl" alt="Preview" @error="$event.target.style.display='none'">
-              </div>
-              <div class="result-header">
-                <h3>{{ result?.id }}</h3>
-              </div>
-              <div class="result-details">
-                <div>Date: {{ result.date }}</div>
-                <div>Cloud Cover: {{ result.cloudCover }}%</div>
-              </div>
+              <template v-for="result in searchResults" :key="result?.id">
+                <div
+                    class="result-item"
+                    :class="{ 'active': secondActiveTileId === result?.id }"
+                    v-if="result?.id !== activeTileId">
+                  <div class="result-thumbnail"
+                      @click="handleViewOnMap(result.thumbnailUrl, result.bounds, result?.id, true)">
+                    <img :src="result.thumbnailUrl" alt="Preview" @error="($event.target as HTMLImageElement).style.display='none'">
+                  </div>
+                  <div class="result-header">
+                    <h3>{{ result?.id }}</h3>
+                  </div>
+                  <div class="result-details">
+                    <div>Date: {{ result.date }}</div>
+                    <div>Cloud Cover: {{ result.cloudCover }}%</div>
+                  </div>
+                </div>
+              </template>
             </div>
-          </div>
         </transition>
       </div>
     </div>
@@ -280,6 +290,30 @@ h2 {
   color: white;
   font-weight: 500;
   margin-bottom: 0.5rem;
+}
+
+.selected-tile-preview {
+  margin-bottom: 1rem;
+  background-color: rgba(0, 136, 136, 0.2);
+  border: 1px solid rgba(0, 136, 136, 0.8);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.selected-tile-preview img {
+  width: 100%;
+  height: 200px;
+  object-fit: cover;
+}
+
+.selected-tile-info {
+  padding: 0.75rem;
+  color: white;
+  font-size: 0.875rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  background-color: rgba(0, 0, 0, 0.3);
 }
 
 .accordion-header {

@@ -17,13 +17,41 @@ interface ProcessedResult extends Omit<SearchResult, 'date'> {
   formattedDate: string;
 }
 
+interface SearchResponse {
+  results: SearchResult[];
+  hasMore: boolean;
+  totalFound: number;
+}
+
+interface StacFeature {
+  id: string;
+  properties: {
+    datetime: string;
+    "eo:cloud_cover": number;
+  };
+  assets?: {
+    rendered_preview?: {
+      href: string;
+    };
+  };
+  bbox?: number[];
+}
+
+interface StacResponse {
+  features: StacFeature[];
+  links?: Array<{
+    rel: string;
+    href: string;
+  }>;
+}
+
 // References to DOM elements
 const searchResults = document.getElementById('search-results');
 const searchStatus = document.getElementById('search-status');
 const nextPageBtn = document.getElementById('next-page-btn');
 
 // Function to search the STAC API
-export default async function searchStacApi(mgrsTileId: string, resetSearch = true) {
+export default async function searchStacApi(mgrsTileId: string, resetSearch = true): Promise<SearchResponse | undefined> {
   // Store the current MGRS tile ID for pagination
   currentMgrsTileId = mgrsTileId;
   const startDate = (document.getElementById('start-date') as HTMLInputElement)?.value;
@@ -79,12 +107,12 @@ export default async function searchStacApi(mgrsTileId: string, resetSearch = tr
             throw new Error(`API request failed: ${response.status} ${response.statusText}`);
         }
 
-        const data = await response.json();
+        const data = await response.json() as StacResponse;
 
         // Look for the "next" link which contains the pagination token
         let nextLink = null;
         if (data.links) {
-            nextLink = data.links.find((link: { rel: string; }) => link.rel === 'next');
+            nextLink = data.links.find((link) => link.rel === 'next');
         }
 
         // Store the pagination token if available
@@ -105,7 +133,7 @@ export default async function searchStacApi(mgrsTileId: string, resetSearch = tr
 
         // Process and sort the results
         const results = data.features
-            .map((item: any): ProcessedResult => {
+            .map((item: StacFeature): ProcessedResult => {
                 const result = {
                     id: item.id,
                     date: new Date(item.properties.datetime),
@@ -143,6 +171,7 @@ export default async function searchStacApi(mgrsTileId: string, resetSearch = tr
         console.error("Error searching STAC API:", error);
         // searchStatus.innerHTML = `Error searching STAC API: ${error.message}`;
 //         nextPageBtn.disabled = true;
+        throw error; // Re-throw the error to be handled by the caller
     }
 }
 

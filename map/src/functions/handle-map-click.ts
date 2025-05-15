@@ -1,8 +1,9 @@
 import { MapBrowserEvent, Map } from "ol";
 import { Extent } from "ol/extent";
-import searchStacApi from "./search-stac-api.ts";
+import DataCabinet from "../components/DataCabinet.vue";
+import type { Ref } from "vue";
 
-export default function handleMapClick(event: MapBrowserEvent, map: Map) {
+export default function handleMapClick(event: MapBrowserEvent, map: Map, dataCabinetRef: Ref<InstanceType<typeof DataCabinet> | null>) {
   const feature = map.forEachFeatureAtPixel(event.pixel, (feature) => feature);
 
   if (feature) {
@@ -29,13 +30,12 @@ export default function handleMapClick(event: MapBrowserEvent, map: Map) {
         maxZoom: 13
       });
 
-      // Update the sidebar with selected grid cell info
-      const selectionInfo = document.getElementById('selection-info');
-      if (selectionInfo) {
-        selectionInfo.innerHTML = `<strong>Selected Grid Cell:</strong> ${mgrsTileId}`;
+      // Call the search function through the ref
+      if (dataCabinetRef.value?.handleSearchResults) {
+        dataCabinetRef.value.handleSearchResults(mgrsTileId);
+      } else {
+        console.error('S2 Grid Layer: DataCabinet ref not available');
       }
-
-      searchStacApi(mgrsTileId, true);
     }
   }
 }
