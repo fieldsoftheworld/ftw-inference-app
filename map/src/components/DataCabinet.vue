@@ -10,6 +10,7 @@ interface SearchResult {
   cloudCover: number | string
   thumbnailUrl: string
   bounds: number[] | null
+  tiffUrl: string
 }
 
 const props = defineProps<{
@@ -25,6 +26,9 @@ const activeTileId = ref<string | null>(null)
 const secondActiveTileId = ref<string | null>(null)
 const isAccordionOpen = ref(true)
 const isSelectedAccordionOpen = ref(false)
+const isCreatingProject = ref(false)
+const projectMessage = ref<{ type: 'success' | 'error' | 'loading', text: string } | null>(null)
+const projectTitle = ref(new Date().toISOString())
 
 // Function to handle search results
 const handleSearchResults = async (mgrsTileId: string) => {
@@ -141,6 +145,138 @@ const getActiveTileCloudCover = (isSecond: boolean = false) => {
   return activeTile?.cloudCover
 }
 
+const handleCompareTiles = async () => {
+  if (!activeTileId.value || !secondActiveTileId.value) return
+
+  isCreatingProject.value = true
+  projectMessage.value = null
+
+  try {
+    const firstTile = searchResults.value.find(result => result.id === activeTileId.value)
+    const secondTile = searchResults.value.find(result => result.id === secondActiveTileId.value)
+
+    if (!firstTile || !secondTile) {
+      throw new Error('Could not find selected tiles')
+    }
+
+    projectMessage.value = {
+      type: 'loading',
+      text: 'Creating project...'
+    }
+
+    // Create project
+    const createResponse = await fetch('http://127.0.0.1:8080/projects', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        title: projectTitle.value,
+        firstTile: {
+          id: firstTile.id,
+          date: firstTile.date,
+          cloudCover: firstTile.cloudCover,
+          thumbnailUrl: firstTile.thumbnailUrl,
+          bounds: firstTile.bounds
+        },
+        secondTile: {
+          id: secondTile.id,
+          date: secondTile.date,
+          cloudCover: secondTile.cloudCover,
+          thumbnailUrl: secondTile.thumbnailUrl,
+          bounds: secondTile.bounds
+        }
+      })
+    })
+
+    if (!createResponse.ok) {
+      throw new Error(`Failed to create project: ${createResponse.statusText}`)
+    }
+
+    projectMessage.value = {
+      type: 'success',
+      text: 'Project created'
+    }
+
+    const projectData = await createResponse.json()
+    const projectId = projectData.id
+
+    // Upload images
+    projectMessage.value = {
+      type: 'loading',
+      text: 'Uploading images...'
+    }
+
+    const uploadPromises = [
+      (async () => {
+        const imageResponse = await fetch(firstTile.tiffUrl)
+        const imageBlob = await imageResponse.blob()
+        return fetch(`http://127.0.0.1:8080/projects/${projectId}/images/a`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'image/tiff',
+          },
+          body: imageBlob
+        })
+      })(),
+      (async () => {
+        const imageResponse = await fetch(secondTile.tiffUrl)
+        const imageBlob = await imageResponse.blob()
+        return fetch(`http://127.0.0.1:8080/projects/${projectId}/images/b`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'image/tiff',
+          },
+          body: imageBlob
+        })
+      })()
+    ]
+
+    const uploadResponses = await Promise.all(uploadPromises)
+    const uploadErrors = uploadResponses.filter(response => !response.ok)
+
+    if (uploadErrors.length > 0) {
+      throw new Error('Failed to upload one or more images')
+    }
+
+    projectMessage.value = {
+      type: 'loading',
+      text: 'Running inference...'
+    }
+
+    // Run inference
+    const inferenceResponse = await fetch(`http://127.0.0.1:8080/projects/${projectId}/inference`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      }
+    })
+
+    if (!inferenceResponse.ok) {
+      throw new Error(`Failed to run inference: ${inferenceResponse.statusText}`)
+    }
+
+    projectMessage.value = {
+      type: 'success',
+      text: 'Inference completed'
+    }
+
+    // Clear message after 3 seconds
+    setTimeout(() => {
+      projectMessage.value = null
+    }, 3000)
+
+  } catch (error) {
+    console.error('Error:', error)
+    projectMessage.value = {
+      type: 'error',
+      text: error instanceof Error ? error.message : 'Failed to create project or upload images'
+    }
+  } finally {
+    isCreatingProject.value = false
+  }
+}
+
 // Expose the search function to parent components
 defineExpose({
   handleSearchResults
@@ -159,6 +295,32 @@ defineExpose({
 
     <div v-else-if="searchResults.length > 0" class="results-container">
       <div class="selected-tile-header">{{ currentMgrsTileId }} Results</div>
+
+      <!-- Action buttons section -->
+      <div class="action-buttons">
+        <div class="title-input">
+          <label for="project-title" class="input-label">Project Title</label>
+          <input
+            id="project-title"
+            type="text"
+            v-model="projectTitle"
+            placeholder="Enter project title"
+            class="project-title-input"
+          />
+        </div>
+        <div v-if="projectMessage" :class="['message', projectMessage.type]">
+          {{ projectMessage.text }}
+        </div>
+        <button
+          class="action-button"
+          :disabled="!activeTileId || !secondActiveTileId || isCreatingProject"
+          @click="handleCompareTiles"
+        >
+          <span v-if="isCreatingProject">Creating Project...</span>
+          <span v-else>Run Inference</span>
+        </button>
+      </div>
+
       <div class="accordion-header" @click="toggleAccordion">
         <h3 class="active-tile-id">{{ activeTileId ? activeTileId : 'Select a tile' }}</h3>
         <span class="accordion-icon" :class="{ 'open': isAccordionOpen }">▼</span>
@@ -503,5 +665,91 @@ h2 {
 
 .result-item.disabled .result-thumbnail {
   cursor: not-allowed;
+}
+
+.action-buttons {
+  margin-bottom: 1rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  width: 100%;
+}
+
+.message {
+  margin-bottom: 0.75rem;
+  padding: 0.75rem;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  text-align: center;
+}
+
+.message.success {
+  background-color: rgba(0, 255, 0, 0.1);
+  border: 1px solid rgba(0, 255, 0, 0.3);
+  color: #00ff00;
+}
+
+.message.error {
+  background-color: rgba(255, 0, 0, 0.1);
+  border: 1px solid rgba(255, 0, 0, 0.3);
+  color: #ff0000;
+}
+
+.action-button {
+  width: 100%;
+  padding: 0.75rem;
+  background-color: rgba(0, 136, 136, 0.8);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.875rem;
+  transition: all 0.2s ease;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 2.5rem;
+}
+
+.action-button:hover:not(:disabled) {
+  background-color: rgba(0, 136, 136, 1);
+}
+
+.action-button:disabled {
+  background-color: rgba(0, 136, 136, 0.4);
+  cursor: not-allowed;
+}
+
+.title-input {
+  margin-bottom: 0.75rem;
+  width: 100%;
+}
+
+.input-label {
+  display: block;
+  margin-bottom: 0.5rem;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 0.875rem;
+}
+
+.project-title-input {
+  width: 100%;
+  padding: 0.75rem;
+  background-color: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  color: white;
+  font-size: 0.875rem;
+  transition: all 0.2s ease;
+  box-sizing: border-box;
+}
+
+.project-title-input:focus {
+  outline: none;
+  border-color: rgba(0, 136, 136, 0.8);
+  background-color: rgba(255, 255, 255, 0.15);
+}
+
+.project-title-input::placeholder {
+  color: rgba(255, 255, 255, 0.5);
 }
 </style>

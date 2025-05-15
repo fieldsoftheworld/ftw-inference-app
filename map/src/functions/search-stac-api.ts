@@ -9,6 +9,7 @@ interface SearchResult {
   date: string;
   cloudCover: number | string;
   thumbnailUrl: string;
+  tiffUrl: string;
   bounds: number[] | null;
 }
 
@@ -31,6 +32,9 @@ interface StacFeature {
   };
   assets?: {
     rendered_preview?: {
+      href: string;
+    };
+    B02?: {
       href: string;
     };
   };
@@ -140,6 +144,7 @@ export default async function searchStacApi(mgrsTileId: string, resetSearch = tr
                     formattedDate: new Date(item.properties.datetime).toLocaleDateString(),
                     cloudCover: item.properties["eo:cloud_cover"] || "N/A",
                     thumbnailUrl: item.assets?.rendered_preview?.href || '#',
+                    tiffUrl: item.assets?.B02?.href || '#',
                     bounds: item.bbox ? (item.bbox.length === 6 ?
                         [item.bbox[0], item.bbox[1], item.bbox[3], item.bbox[4]] :
                         item.bbox) : null
