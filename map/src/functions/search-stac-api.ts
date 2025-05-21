@@ -1,8 +1,6 @@
 // Store the currently selected feature
-let selectedFeature = null;
 let currentMgrsTileId = null;
 let nextPageToken: string | null = null;
-let currentStacLayerId = null;
 
 interface SearchResult {
   id: string;
@@ -49,33 +47,13 @@ interface StacResponse {
   }>;
 }
 
-// References to DOM elements
-const searchResults = document.getElementById('search-results');
-const searchStatus = document.getElementById('search-status');
-const nextPageBtn = document.getElementById('next-page-btn');
-
 // Function to search the STAC API
 export default async function searchStacApi(mgrsTileId: string, resetSearch = true): Promise<SearchResponse | undefined> {
-  // Store the current MGRS tile ID for pagination
   currentMgrsTileId = mgrsTileId;
   const startDate = (document.getElementById('start-date') as HTMLInputElement)?.value;
   const endDate = (document.getElementById('end-date') as HTMLInputElement)?.value;
   const cloudCover = (document.getElementById('cloud-cover') as HTMLInputElement)?.value || 10;
 
-  // If resetting search, clear previous results and token
-  // if (resetSearch) {
-  //   searchResults.innerHTML = '';
-  //   nextPageToken = null;
-  // }
-
-  //   // Show status
-  //   searchStatus.innerHTML = resetSearch ?
-  //       // Get values from the form
-  //   c`Searching for Sentinel-2 images in tile ${mgrsTileId}...` :
-  //       'Loading more results...';
-
-  //   // Disable next button while loading
-  //   nextPageBtn.disabled = true;
 
     try {
         // Build the date constraint if dates are provided
@@ -174,39 +152,6 @@ export default async function searchStacApi(mgrsTileId: string, resetSearch = tr
 
     } catch (error) {
         console.error("Error searching STAC API:", error);
-        // searchStatus.innerHTML = `Error searching STAC API: ${error.message}`;
-//         nextPageBtn.disabled = true;
         throw error; // Re-throw the error to be handled by the caller
     }
 }
-
-// // Add event listener for the Next button
-// document.addEventListener('DOMContentLoaded', () => {
-//     nextPageBtn.addEventListener('click', () => {
-//         if (currentMgrsTileId) {
-//             searchStacApi(currentMgrsTileId, false);
-//         }
-//     });
-
-//     // Add event listeners for the date inputs (to trigger immediate search when changed)
-//     document.getElementById('start-date').addEventListener('change', () => {
-//         if (currentMgrsTileId) {
-//             searchStacApi(currentMgrsTileId, true);
-//         }
-//     });
-
-//     document.getElementById('end-date').addEventListener('change', () => {
-//         if (currentMgrsTileId) {
-//             searchStacApi(currentMgrsTileId, true);
-//         }
-//     });
-
-//     document.getElementById('cloud-cover').addEventListener('change', () => {
-//         if (currentMgrsTileId) {
-//             searchStacApi(currentMgrsTileId, true);
-//         }
-//     });
-// });
-
-// Make searchStacApi globally available
-// window.searchStacApi = searchStacApi;

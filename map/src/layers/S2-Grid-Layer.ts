@@ -6,7 +6,6 @@ import s2GridData from '../data/s2-grid.json';
 import { Map } from 'ol';
 import type { Ref } from 'vue';
 import type DataCabinet from '../components/DataCabinet.vue';
-import handleMapClick from '../functions/handle-map-click';
 import { Extent } from 'ol/extent';
 
 export default function createS2GridLayer(

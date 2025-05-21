@@ -9,6 +9,7 @@ import ExtentInteraction from 'ol/interaction/Extent'
 import { shiftKeyOnly } from 'ol/events/condition'
 import { Extent } from 'ol/extent'
 import { Style, Fill, Stroke } from 'ol/style'
+import createCloudlessLayer from '../layers/S2-Cloudless-Layer.ts'
 
 const map = ref<Map | null>(null)
 const dataCabinetRef = ref<InstanceType<typeof DataCabinet> | null>(null)
@@ -17,9 +18,6 @@ let extentInteraction: ExtentInteraction | null = null
 
 // Function to handle extent changes
 const handleExtentChange = (extent: Extent) => {
-  // You can handle the extent here, for example:
-  // - Pass it to the DataCabinet component
-  // - Use it for filtering or processing
   if (dataCabinetRef.value) {
     dataCabinetRef.value.setDrawnExtent(extent)
   }
@@ -73,15 +71,7 @@ onMounted(() => {
   map.value = new Map({
     target: 'map',
     layers: [
-      new TileLayer({
-        source: new XYZ({
-          url: 'https://tiles.maps.eox.at/wmts?layer=s2cloudless-2024_3857&style=default&tilematrixset=GoogleMapsCompatible&Service=WMTS&Request=GetTile&Version=1.0.0&Format=image%2Fjpeg&TileMatrix={z}&TileCol={x}&TileRow={y}',
-          maxZoom: 19,
-          tileSize: 256,
-          crossOrigin: 'anonymous',
-          attributions: 'Sentinel-2 cloudless imagery by <a href="https://eox.at">EOX</a>'
-        }),
-      })
+      createCloudlessLayer()
     ],
     view: new View({
       center: [0, 0],

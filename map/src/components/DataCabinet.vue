@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onUnmounted } from 'vue'
 import searchStacApi from '../functions/search-stac-api'
 import { addStacLayer, removeStacLayer } from '../functions/add-stac-layer'
 import type { Map } from 'ol'
@@ -256,15 +256,55 @@ const handleCompareTiles = async () => {
       throw new Error(`Failed to run inference: ${inferenceResponse.statusText}`)
     }
 
-    projectMessage.value = {
-      type: 'success',
-      text: 'Inference completed'
-    }
+    // Start polling for project status
+    const pollInterval = setInterval(async () => {
+      try {
+        const statusResponse = await fetch(`http://0.0.0.0:8000/projects/${projectId}`)
+        if (!statusResponse.ok) {
+          throw new Error(`Failed to fetch project status: ${statusResponse.statusText}`)
+        }
 
-    // Clear message after 3 seconds
-    setTimeout(() => {
-      projectMessage.value = null
-    }, 3000)
+        const projectStatus = await statusResponse.json()
+
+        if (projectStatus.status === 'completed') {
+          clearInterval(pollInterval)
+
+          // Fetch inference results
+          const resultsResponse = await fetch(`http://0.0.0.0:8000/projects/${projectId}/inference`)
+          if (!resultsResponse.ok) {
+            throw new Error(`Failed to fetch inference results: ${resultsResponse.statusText}`)
+          }
+
+          const results = await resultsResponse.json()
+          console.log('Inference results:', results)
+
+          projectMessage.value = {
+            type: 'success',
+            text: 'Inference completed'
+          }
+          // Clear message after 3 seconds
+          setTimeout(() => {
+            projectMessage.value = null
+          }, 3000)
+        } else if (projectStatus.status === 'failed') {
+          clearInterval(pollInterval)
+          projectMessage.value = {
+            type: 'error',
+            text: 'Inference Failed to Process'
+          }
+          throw new Error('Project processing failed')
+        }
+        // If status is 'pending' or 'processing', continue polling
+      } catch (error) {
+        clearInterval(pollInterval)
+        throw error
+      }
+    }, 10000) // Poll every 10 seconds
+
+    // Clean up interval if component is unmounted
+    onUnmounted(() => {
+      clearInterval(pollInterval)
+    })
 
   } catch (error) {
     console.error('Error:', error)
