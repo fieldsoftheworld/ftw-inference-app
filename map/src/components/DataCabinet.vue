@@ -3,6 +3,7 @@ import { ref } from 'vue'
 import searchStacApi from '../functions/search-stac-api'
 import { addStacLayer, removeStacLayer } from '../functions/add-stac-layer'
 import type { Map } from 'ol'
+import { Extent } from 'ol/extent'
 
 interface SearchResult {
   id: string
@@ -29,6 +30,7 @@ const isSelectedAccordionOpen = ref(false)
 const isCreatingProject = ref(false)
 const projectMessage = ref<{ type: 'success' | 'error' | 'loading', text: string } | null>(null)
 const projectTitle = ref(new Date().toISOString())
+const drawnExtent = ref<Extent | null>(null)
 
 // Function to handle search results
 const handleSearchResults = async (mgrsTileId: string) => {
@@ -145,6 +147,11 @@ const getActiveTileCloudCover = (isSecond: boolean = false) => {
   return activeTile?.cloudCover
 }
 
+// Function to set the drawn extent
+const setDrawnExtent = (extent: Extent) => {
+  drawnExtent.value = extent
+}
+
 const handleCompareTiles = async () => {
   if (!activeTileId.value || !secondActiveTileId.value) return
 
@@ -165,27 +172,13 @@ const handleCompareTiles = async () => {
     }
 
     // Create project
-    const createResponse = await fetch('http://127.0.0.1:8080/projects', {
+    const createResponse = await fetch('http://0.0.0.0:8000/projects', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
         title: projectTitle.value,
-        firstTile: {
-          id: firstTile.id,
-          date: firstTile.date,
-          cloudCover: firstTile.cloudCover,
-          thumbnailUrl: firstTile.thumbnailUrl,
-          bounds: firstTile.bounds
-        },
-        secondTile: {
-          id: secondTile.id,
-          date: secondTile.date,
-          cloudCover: secondTile.cloudCover,
-          thumbnailUrl: secondTile.thumbnailUrl,
-          bounds: secondTile.bounds
-        }
       })
     })
 
@@ -209,25 +202,27 @@ const handleCompareTiles = async () => {
 
     const uploadPromises = [
       (async () => {
-        const imageResponse = await fetch(firstTile.tiffUrl)
+        const imageResponse = await fetch(firstTile.thumbnailUrl)
         const imageBlob = await imageResponse.blob()
-        return fetch(`http://127.0.0.1:8080/projects/${projectId}/images/a`, {
+
+        const formData = new FormData()
+        formData.append('file', imageBlob)
+
+        return fetch(`http://0.0.0.0:8000/projects/${projectId}/images/a`, {
           method: 'PUT',
-          headers: {
-            'Content-Type': 'image/tiff',
-          },
-          body: imageBlob
+          body: formData
         })
       })(),
       (async () => {
-        const imageResponse = await fetch(secondTile.tiffUrl)
+        const imageResponse = await fetch(secondTile.thumbnailUrl)
         const imageBlob = await imageResponse.blob()
-        return fetch(`http://127.0.0.1:8080/projects/${projectId}/images/b`, {
+
+        const formData = new FormData()
+        formData.append('file', imageBlob)
+
+        return fetch(`http://0.0.0.0:8000/projects/${projectId}/images/b`, {
           method: 'PUT',
-          headers: {
-            'Content-Type': 'image/tiff',
-          },
-          body: imageBlob
+          body: formData
         })
       })()
     ]
@@ -243,13 +238,18 @@ const handleCompareTiles = async () => {
       type: 'loading',
       text: 'Running inference...'
     }
-
+    const { models: [{ id: modelId }] } = await fetch(`http://0.0.0.0:8000`).then(res => res.json())
     // Run inference
-    const inferenceResponse = await fetch(`http://127.0.0.1:8080/projects/${projectId}/inference`, {
+    const inferenceResponse = await fetch(`http://0.0.0.0:8000/projects/${projectId}/inference`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
-      }
+      },
+      body: JSON.stringify({
+        model: modelId,
+        bbox: drawnExtent.value ?? [0,0,0,0],
+        images: [firstTile.thumbnailUrl, secondTile.thumbnailUrl]
+      })
     })
 
     if (!inferenceResponse.ok) {
@@ -277,9 +277,10 @@ const handleCompareTiles = async () => {
   }
 }
 
-// Expose the search function to parent components
+// Expose methods to parent components
 defineExpose({
-  handleSearchResults
+  handleSearchResults,
+  setDrawnExtent
 })
 </script>
 

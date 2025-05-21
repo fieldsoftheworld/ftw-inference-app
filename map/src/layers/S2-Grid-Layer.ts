@@ -7,10 +7,13 @@ import { Map } from 'ol';
 import type { Ref } from 'vue';
 import type DataCabinet from '../components/DataCabinet.vue';
 import handleMapClick from '../functions/handle-map-click';
+import { Extent } from 'ol/extent';
 
 export default function createS2GridLayer(
   map: Map,
-  dataCabinetRef: Ref<InstanceType<typeof DataCabinet> | null>
+  dataCabinetRef: Ref<InstanceType<typeof DataCabinet> | null>,
+  setSelectedTileExtent: (extent: Extent) => void,
+  clearSelectedTile: () => void
 ) {
     const layer = new VectorLayer({
       source: new VectorSource({
@@ -32,7 +35,48 @@ export default function createS2GridLayer(
     });
 
     // Add click handler
-    map?.on('click', (event) => handleMapClick(event, map, dataCabinetRef));
+    map?.on('click', (event) => {
+      const feature = map.forEachFeatureAtPixel(event.pixel, (feature) => feature);
+
+      if (feature) {
+        // Get the MGRS Tile ID from the feature properties
+        const mgrsTileId = feature.get('Name') || '37PDN';
+
+        // Get the feature's extent
+        const geometry = feature.getGeometry();
+        if (geometry) {
+          const extent = geometry.getExtent();
+
+          // Add padding to the extent
+          const padding = 50;
+          const paddedExtent: Extent = [
+            extent[0] - padding,
+            extent[1] - padding,
+            extent[2] + padding,
+            extent[3] + padding
+          ];
+
+          // Fit the view to the extent
+          map.getView().fit(paddedExtent, {
+            duration: 1000,
+            maxZoom: 13
+          });
+
+          // Set the selected tile extent
+          setSelectedTileExtent(extent);
+
+          // Call the search function through the ref
+          if (dataCabinetRef.value?.handleSearchResults) {
+            dataCabinetRef.value.handleSearchResults(mgrsTileId);
+          } else {
+            console.error('S2 Grid Layer: DataCabinet ref not available');
+          }
+        }
+      } else {
+        // If clicked outside a feature, clear the selection
+        clearSelectedTile();
+      }
+    });
 
     return layer;
 }
