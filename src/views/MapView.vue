@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import Map from '../components/Map.vue'
+import MapComponent from '../components/MapComponent.vue'
 </script>
 
 <template>
   <div class="map-view">
-    <Map />
+    <MapComponent />
   </div>
 </template>
 

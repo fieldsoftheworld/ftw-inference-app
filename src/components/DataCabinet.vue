@@ -28,7 +28,7 @@ const secondActiveTileId = ref<string | null>(null)
 const isAccordionOpen = ref(true)
 const isSelectedAccordionOpen = ref(false)
 const isCreatingProject = ref(false)
-const projectMessage = ref<{ type: 'success' | 'error' | 'loading', text: string } | null>(null)
+const projectMessage = ref<{ type: 'success' | 'error' | 'loading'; text: string } | null>(null)
 const projectTitle = ref(new Date().toISOString())
 const drawnExtent = ref<Extent | null>(null)
 
@@ -72,48 +72,53 @@ const loadMore = async () => {
   }
 }
 
-const handleViewOnMap = (imageUrl: string, bounds: number[] | null, tileId: string, isSecondAccordion: boolean = false) => {
+const handleViewOnMap = (
+  imageUrl: string,
+  bounds: number[] | null,
+  tileId: string,
+  isSecondAccordion: boolean = false,
+) => {
   if (isSecondAccordion) {
     // Prevent selecting the same tile as the first accordion
     if (tileId === activeTileId.value) {
-      return;
+      return
     }
 
     if (secondActiveTileId.value === tileId) {
       // If clicking the active tile in second accordion, remove it
-      removeStacLayer(props.map);
-      secondActiveTileId.value = null;
+      removeStacLayer(props.map)
+      secondActiveTileId.value = null
     } else {
       // If clicking a different tile in second accordion
-      removeStacLayer(props.map);
+      removeStacLayer(props.map)
       if (bounds) {
-        addStacLayer(props.map, imageUrl, bounds);
-        secondActiveTileId.value = tileId;
+        addStacLayer(props.map, imageUrl, bounds)
+        secondActiveTileId.value = tileId
       } else {
-        console.error('No bounds available for this image');
+        console.error('No bounds available for this image')
       }
     }
   } else {
     if (activeTileId.value === tileId) {
       // If clicking the active tile in first accordion, remove it
-      removeStacLayer(props.map);
-      activeTileId.value = null;
+      removeStacLayer(props.map)
+      activeTileId.value = null
       // Also remove from second accordion if it was selected there
       if (secondActiveTileId.value === tileId) {
-        secondActiveTileId.value = null;
+        secondActiveTileId.value = null
       }
     } else {
       // If clicking a different tile in first accordion
-      removeStacLayer(props.map);
+      removeStacLayer(props.map)
       if (bounds) {
-        addStacLayer(props.map, imageUrl, bounds);
-        activeTileId.value = tileId;
+        addStacLayer(props.map, imageUrl, bounds)
+        activeTileId.value = tileId
         // If this tile was selected in second accordion, remove it
         if (secondActiveTileId.value === tileId) {
-          secondActiveTileId.value = null;
+          secondActiveTileId.value = null
         }
       } else {
-        console.error('No bounds available for this image');
+        console.error('No bounds available for this image')
       }
     }
   }
@@ -131,19 +136,19 @@ const toggleSelectedAccordion = () => {
 
 const getActiveTileThumbnail = (isSecond: boolean = false) => {
   const tileId = isSecond ? secondActiveTileId.value : activeTileId.value
-  const activeTile = searchResults.value.find(result => result?.id === tileId)
+  const activeTile = searchResults.value.find((result) => result?.id === tileId)
   return activeTile?.thumbnailUrl
 }
 
 const getActiveTileDate = (isSecond: boolean = false) => {
   const tileId = isSecond ? secondActiveTileId.value : activeTileId.value
-  const activeTile = searchResults.value.find(result => result?.id === tileId)
+  const activeTile = searchResults.value.find((result) => result?.id === tileId)
   return activeTile?.date
 }
 
 const getActiveTileCloudCover = (isSecond: boolean = false) => {
   const tileId = isSecond ? secondActiveTileId.value : activeTileId.value
-  const activeTile = searchResults.value.find(result => result?.id === tileId)
+  const activeTile = searchResults.value.find((result) => result?.id === tileId)
   return activeTile?.cloudCover
 }
 
@@ -159,8 +164,8 @@ const handleCompareTiles = async () => {
   projectMessage.value = null
 
   try {
-    const firstTile = searchResults.value.find(result => result.id === activeTileId.value)
-    const secondTile = searchResults.value.find(result => result.id === secondActiveTileId.value)
+    const firstTile = searchResults.value.find((result) => result.id === activeTileId.value)
+    const secondTile = searchResults.value.find((result) => result.id === secondActiveTileId.value)
 
     if (!firstTile || !secondTile) {
       throw new Error('Could not find selected tiles')
@@ -168,7 +173,7 @@ const handleCompareTiles = async () => {
 
     projectMessage.value = {
       type: 'loading',
-      text: 'Creating project...'
+      text: 'Creating project...',
     }
 
     // Create project
@@ -179,7 +184,7 @@ const handleCompareTiles = async () => {
       },
       body: JSON.stringify({
         title: projectTitle.value,
-      })
+      }),
     })
 
     if (!createResponse.ok) {
@@ -188,7 +193,7 @@ const handleCompareTiles = async () => {
 
     projectMessage.value = {
       type: 'success',
-      text: 'Project created'
+      text: 'Project created',
     }
 
     const projectData = await createResponse.json()
@@ -197,7 +202,7 @@ const handleCompareTiles = async () => {
     // Upload images
     projectMessage.value = {
       type: 'loading',
-      text: 'Uploading images...'
+      text: 'Uploading images...',
     }
 
     const uploadPromises = [
@@ -210,7 +215,7 @@ const handleCompareTiles = async () => {
 
         return fetch(`http://0.0.0.0:8000/projects/${projectId}/images/a`, {
           method: 'PUT',
-          body: formData
+          body: formData,
         })
       })(),
       (async () => {
@@ -222,13 +227,13 @@ const handleCompareTiles = async () => {
 
         return fetch(`http://0.0.0.0:8000/projects/${projectId}/images/b`, {
           method: 'PUT',
-          body: formData
+          body: formData,
         })
-      })()
+      })(),
     ]
 
     const uploadResponses = await Promise.all(uploadPromises)
-    const uploadErrors = uploadResponses.filter(response => !response.ok)
+    const uploadErrors = uploadResponses.filter((response) => !response.ok)
 
     if (uploadErrors.length > 0) {
       throw new Error('Failed to upload one or more images')
@@ -236,9 +241,11 @@ const handleCompareTiles = async () => {
 
     projectMessage.value = {
       type: 'loading',
-      text: 'Running inference...'
+      text: 'Running inference...',
     }
-    const { models: [{ id: modelId }] } = await fetch(`http://0.0.0.0:8000`).then(res => res.json())
+    const {
+      models: [{ id: modelId }],
+    } = await fetch(`http://0.0.0.0:8000`).then((res) => res.json())
     // Run inference
     const inferenceResponse = await fetch(`http://0.0.0.0:8000/projects/${projectId}/inference`, {
       method: 'PUT',
@@ -247,9 +254,9 @@ const handleCompareTiles = async () => {
       },
       body: JSON.stringify({
         model: modelId,
-        bbox: drawnExtent.value ?? [0,0,0,0],
-        images: [firstTile.thumbnailUrl, secondTile.thumbnailUrl]
-      })
+        bbox: drawnExtent.value ?? [0, 0, 0, 0],
+        images: [firstTile.thumbnailUrl, secondTile.thumbnailUrl],
+      }),
     })
 
     if (!inferenceResponse.ok) {
@@ -280,7 +287,7 @@ const handleCompareTiles = async () => {
 
           projectMessage.value = {
             type: 'success',
-            text: 'Inference completed'
+            text: 'Inference completed',
           }
           // Clear message after 3 seconds
           setTimeout(() => {
@@ -290,7 +297,7 @@ const handleCompareTiles = async () => {
           clearInterval(pollInterval)
           projectMessage.value = {
             type: 'error',
-            text: 'Inference Failed to Process'
+            text: 'Inference Failed to Process',
           }
           throw new Error('Project processing failed')
         }
@@ -305,12 +312,11 @@ const handleCompareTiles = async () => {
     onUnmounted(() => {
       clearInterval(pollInterval)
     })
-
   } catch (error) {
     console.error('Error:', error)
     projectMessage.value = {
       type: 'error',
-      text: error instanceof Error ? error.message : 'Failed to create project or upload images'
+      text: error instanceof Error ? error.message : 'Failed to create project or upload images',
     }
   } finally {
     isCreatingProject.value = false
@@ -320,7 +326,8 @@ const handleCompareTiles = async () => {
 // Expose methods to parent components
 defineExpose({
   handleSearchResults,
-  setDrawnExtent
+  setDrawnExtent,
+  currentMgrsTileId,
 })
 </script>
 
@@ -330,9 +337,7 @@ defineExpose({
     <p v-if="searchStatus === ''">Select a grid cell to search for Sentinel-2 images</p>
     <div class="search-status">{{ searchStatus }}</div>
 
-    <div v-if="isLoading" class="loading">
-      Loading...
-    </div>
+    <div v-if="isLoading" class="loading">Loading...</div>
 
     <div v-else-if="searchResults.length > 0" class="results-container">
       <div class="selected-tile-header">{{ currentMgrsTileId }} Results</div>
@@ -364,19 +369,26 @@ defineExpose({
 
       <div class="accordion-header" @click="toggleAccordion">
         <h3 class="active-tile-id">{{ activeTileId ? activeTileId : 'Select a tile' }}</h3>
-        <span class="accordion-icon" :class="{ 'open': isAccordionOpen }">▼</span>
+        <span class="accordion-icon" :class="{ open: isAccordionOpen }">▼</span>
       </div>
 
       <transition name="accordion">
         <div v-show="isAccordionOpen" class="results">
           <template v-for="result in searchResults" :key="result?.id">
             <div
-                class="result-item"
-                :class="{ 'active': activeTileId === result?.id }"
-                v-if="result?.id !== secondActiveTileId">
-              <div class="result-thumbnail"
-                  @click="handleViewOnMap(result.thumbnailUrl, result.bounds, result?.id, false)">
-                <img :src="result.thumbnailUrl" alt="Preview" @error="($event.target as HTMLImageElement).style.display='none'">
+              class="result-item"
+              :class="{ active: activeTileId === result?.id }"
+              v-if="result?.id !== secondActiveTileId"
+            >
+              <div
+                class="result-thumbnail"
+                @click="handleViewOnMap(result.thumbnailUrl, result.bounds, result?.id, false)"
+              >
+                <img
+                  :src="result.thumbnailUrl"
+                  alt="Preview"
+                  @error="($event.target as HTMLImageElement).style.display = 'none'"
+                />
               </div>
               <div class="result-header">
                 <h3>{{ result?.id }}</h3>
@@ -386,24 +398,25 @@ defineExpose({
                 <div>Cloud Cover: {{ result.cloudCover }}%</div>
               </div>
             </div>
-        </template>
+          </template>
 
-          <button
-            v-if="hasMore"
-            @click="loadMore"
-            class="load-more-button"
-            :disabled="isLoading"
-          >
+          <button v-if="hasMore" @click="loadMore" class="load-more-button" :disabled="isLoading">
             Load More
           </button>
         </div>
       </transition>
 
       <!-- Second Accordion for Selected Results -->
-      <div class="selected-results-section" :class="{ 'disabled': !activeTileId }">
-        <div class="accordion-header" @click="toggleSelectedAccordion" :class="{ 'disabled': !activeTileId }">
-          <h3 class="active-tile-id">{{ secondActiveTileId ? secondActiveTileId : 'Select a Second Tile' }}</h3>
-          <span class="accordion-icon" :class="{ 'open': isSelectedAccordionOpen }">▼</span>
+      <div class="selected-results-section" :class="{ disabled: !activeTileId }">
+        <div
+          class="accordion-header"
+          @click="toggleSelectedAccordion"
+          :class="{ disabled: !activeTileId }"
+        >
+          <h3 class="active-tile-id">
+            {{ secondActiveTileId ? secondActiveTileId : 'Select a Second Tile' }}
+          </h3>
+          <span class="accordion-icon" :class="{ open: isSelectedAccordionOpen }">▼</span>
         </div>
 
         <transition name="accordion">
@@ -411,7 +424,11 @@ defineExpose({
             <!-- Show first accordion's active tile first -->
             <div v-if="activeTileId" class="result-item active disabled">
               <div class="result-thumbnail">
-                <img :src="getActiveTileThumbnail(false)" alt="Preview" @error="($event.target as HTMLImageElement).style.display='none'">
+                <img
+                  :src="getActiveTileThumbnail(false)"
+                  alt="Preview"
+                  @error="($event.target as HTMLImageElement).style.display = 'none'"
+                />
               </div>
               <div class="result-header">
                 <h3>{{ activeTileId }}</h3>
@@ -423,25 +440,32 @@ defineExpose({
             </div>
 
             <!-- Show other results -->
-              <template v-for="result in searchResults" :key="result?.id">
+            <template v-for="result in searchResults" :key="result?.id">
+              <div
+                class="result-item"
+                :class="{ active: secondActiveTileId === result?.id }"
+                v-if="result?.id !== activeTileId"
+              >
                 <div
-                    class="result-item"
-                    :class="{ 'active': secondActiveTileId === result?.id }"
-                    v-if="result?.id !== activeTileId">
-                  <div class="result-thumbnail"
-                      @click="handleViewOnMap(result.thumbnailUrl, result.bounds, result?.id, true)">
-                    <img :src="result.thumbnailUrl" alt="Preview" @error="($event.target as HTMLImageElement).style.display='none'">
-                  </div>
-                  <div class="result-header">
-                    <h3>{{ result?.id }}</h3>
-                  </div>
-                  <div class="result-details">
-                    <div>Date: {{ result.date }}</div>
-                    <div>Cloud Cover: {{ result.cloudCover }}%</div>
-                  </div>
+                  class="result-thumbnail"
+                  @click="handleViewOnMap(result.thumbnailUrl, result.bounds, result?.id, true)"
+                >
+                  <img
+                    :src="result.thumbnailUrl"
+                    alt="Preview"
+                    @error="($event.target as HTMLImageElement).style.display = 'none'"
+                  />
                 </div>
-              </template>
-            </div>
+                <div class="result-header">
+                  <h3>{{ result?.id }}</h3>
+                </div>
+                <div class="result-details">
+                  <div>Date: {{ result.date }}</div>
+                  <div>Cloud Cover: {{ result.cloudCover }}%</div>
+                </div>
+              </div>
+            </template>
+          </div>
         </transition>
       </div>
     </div>
