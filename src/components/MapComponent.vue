@@ -2,8 +2,9 @@
 import { ref, onMounted } from 'vue'
 import { Map, View } from 'ol'
 import DataCabinet from './DataCabinet.vue'
-import createS2GridLayer from '../layers/S2-Grid-Layer.ts'
-import createCloudlessLayer from '../layers/S2-Cloudless-Layer.ts'
+import createS2GridLayer from '../layers/S2-Grid-Layer'
+import createCloudlessLayer from '../layers/S2-Cloudless-Layer'
+// @ts-expect-error - No declaration file found
 import Drag from '../functions/drag-interaction.js'
 import { defaults as defaultInteractions } from 'ol/interaction/defaults.js'
 
@@ -23,22 +24,16 @@ onMounted(() => {
 
   // Add S2 Grid layer after map is initialized
   if (map.value) {
-    const s2GridLayer = createS2GridLayer(map.value, dataCabinetRef)
+    const s2GridLayer = createS2GridLayer(map.value as Map, dataCabinetRef)
     map.value.addLayer(s2GridLayer)
   }
 })
-
-// Expose methods to parent components
-//TODO BUG: USER CAN DRAG S2 GRID LAYER
-//TODO BUG: RESTRICT BBOX SIZE WORKS SPORADICALLY
-//TODO BUG USER CAN DRAG OUTSIDE OF SELECTED TILE
-defineExpose({})
 </script>
 
 <template>
   <div class="map-wrapper">
     <div id="map" class="map-container"></div>
-    <DataCabinet :map="map" ref="dataCabinetRef" />
+    <DataCabinet :map="map as Map" ref="dataCabinetRef" />
   </div>
 </template>
 

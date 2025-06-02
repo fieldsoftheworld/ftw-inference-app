@@ -31,7 +31,6 @@ function isPolygonWithinExtent(polygon: Polygon, extent: Extent): boolean {
 function calculateArea(geometry: Polygon): number {
   // Transform to EPSG:4326 for accurate area calculation
   const area = getArea(geometry.clone(), { projection: 'EPSG:3857' })
-  console.log(area / 1000000)
   return area / 1000000 // Convert to square kilometers
 }
 
@@ -179,7 +178,12 @@ export default function createS2GridLayer(
         })
 
         // Store the initial feature
-        currentFeature = drawVectorsource.getFeatures()[0] as Feature<Polygon>
+        modify.on('modifystart', (event) => {
+          const features = event.features.getArray()
+          if (features.length > 0) {
+            currentFeature = features[0].clone() as Feature<Polygon>
+          }
+        })
 
         modify.on('modifyend', (event) => {
           const features = event.features.getArray()
@@ -187,7 +191,6 @@ export default function createS2GridLayer(
             const geometry = features[0].getGeometry() as Polygon
             const area = calculateArea(geometry)
             const isWithinExtent = isPolygonWithinExtent(geometry, currentGridExtent)
-
             // Check if the polygon is within the grid extent and under size limit
             if (area > 500 || !isWithinExtent) {
               // If area exceeds 500 sq km or is outside grid, revert to the last valid state
