@@ -29,6 +29,9 @@ onMounted(() => {
 })
 
 // Expose methods to parent components
+//TODO BUG: USER CAN DRAG S2 GRID LAYER
+//TODO BUG: RESTRICT BBOX SIZE WORKS SPORADICALLY
+//TODO BUG USER CAN DRAG OUTSIDE OF SELECTED TILE
 defineExpose({})
 </script>
 

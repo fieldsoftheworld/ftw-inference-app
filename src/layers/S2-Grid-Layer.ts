@@ -17,7 +17,7 @@ import { getArea } from 'ol/sphere'
 import { containsCoordinate } from 'ol/extent'
 
 let snap: Interaction | null = null
-let drawVectorLayer: VectorLayer | null = null
+const drawVectorLayer: VectorLayer | null = null
 let currentFeature: Feature<Polygon> | null = null
 let currentGridExtent: Extent | null = null
 
@@ -29,7 +29,9 @@ function isPolygonWithinExtent(polygon: Polygon, extent: Extent): boolean {
 
 // Function to calculate area in square kilometers
 function calculateArea(geometry: Polygon): number {
-  const area = getArea(geometry)
+  // Transform to EPSG:4326 for accurate area calculation
+  const area = getArea(geometry.clone(), { projection: 'EPSG:3857' })
+  console.log(area / 1000000)
   return area / 1000000 // Convert to square kilometers
 }
 
@@ -118,27 +120,33 @@ export default function createS2GridLayer(
 
         // Create vector source with the initial bounding box
         const drawVectorsource = new VectorSource({
-          features: [new Feature(bboxPolygon)],
-        })
-
-        // Create and add the draw vector layer
-        drawVectorLayer = new VectorLayer({
-          source: drawVectorsource,
-          properties: {
-            name: 'drawVectorLayer',
-          },
-          extent: currentGridExtent,
-          style: new Style({
-            stroke: new Stroke({
-              color: 'rgba(0, 136, 136, 1)',
-              width: 2,
-            }),
-            fill: new Fill({
-              color: 'rgba(0, 136, 136, 0.1)',
-            }),
+            features: [
+              new Feature({
+                geometry: bboxPolygon,
+                properties: {
+                  name: 'drawVectorLayer',
+                },
+              }),
+            ],
           }),
-          zIndex: 1001,
-        })
+          // Create and add the draw vector layer
+          drawVectorLayer = new VectorLayer({
+            source: drawVectorsource,
+            properties: {
+              name: 'drawVectorLayer',
+            },
+            extent: currentGridExtent,
+            style: new Style({
+              stroke: new Stroke({
+                color: 'rgba(0, 136, 136, 1)',
+                width: 2,
+              }),
+              fill: new Fill({
+                color: 'rgba(0, 136, 136, 0.1)',
+              }),
+            }),
+            zIndex: 1001,
+          })
 
         // Add padding to the extent for view fitting
         const padding = 50
@@ -178,13 +186,40 @@ export default function createS2GridLayer(
           if (features.length > 0 && currentGridExtent) {
             const geometry = features[0].getGeometry() as Polygon
             const area = calculateArea(geometry)
+            const isWithinExtent = isPolygonWithinExtent(geometry, currentGridExtent)
 
             // Check if the polygon is within the grid extent and under size limit
-            if (area > 500 || !isPolygonWithinExtent(geometry, currentGridExtent)) {
+            if (area > 500 || !isWithinExtent) {
               // If area exceeds 500 sq km or is outside grid, revert to the last valid state
               if (currentFeature) {
+                // Create a new feature from the current valid state
+                const validFeature = currentFeature.clone()
                 drawVectorsource.clear()
-                drawVectorsource.addFeature(currentFeature)
+                drawVectorsource.addFeature(validFeature)
+
+                // Update the current feature reference
+                currentFeature = validFeature
+              } else {
+                // If no valid state exists, reset to the initial bounding box
+                const bboxExtent = calculateBoundingBox(currentGridExtent)
+                const bboxPolygon = new Polygon([
+                  [
+                    [bboxExtent[0], bboxExtent[1]],
+                    [bboxExtent[2], bboxExtent[1]],
+                    [bboxExtent[2], bboxExtent[3]],
+                    [bboxExtent[0], bboxExtent[3]],
+                    [bboxExtent[0], bboxExtent[1]],
+                  ],
+                ])
+                const newFeature = new Feature({
+                  geometry: bboxPolygon,
+                  properties: {
+                    name: 'drawVectorLayer',
+                  },
+                })
+                drawVectorsource.clear()
+                drawVectorsource.addFeature(newFeature)
+                currentFeature = newFeature
               }
             } else {
               // Update the current valid state

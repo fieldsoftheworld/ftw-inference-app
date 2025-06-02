@@ -4,6 +4,7 @@ import searchStacApi from '../functions/search-stac-api'
 import { addStacLayer, removeStacLayer } from '../functions/add-stac-layer'
 import type { Map } from 'ol'
 import { Extent } from 'ol/extent'
+import { generateJWT } from '../functions/generate-jwt'
 
 interface SearchResult {
   id: string
@@ -176,11 +177,15 @@ const handleCompareTiles = async () => {
       text: 'Creating project...',
     }
 
+    const token = generateJWT()
+
     // Create project
     const createResponse = await fetch('http://0.0.0.0:8000/projects', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*',
+        Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify({
         title: projectTitle.value,
@@ -215,6 +220,10 @@ const handleCompareTiles = async () => {
 
         return fetch(`http://0.0.0.0:8000/projects/${projectId}/images/a`, {
           method: 'PUT',
+          headers: {
+            'Access-Control-Allow-Origin': '*',
+            Authorization: `Bearer ${token}`,
+          },
           body: formData,
         })
       })(),
@@ -227,6 +236,10 @@ const handleCompareTiles = async () => {
 
         return fetch(`http://0.0.0.0:8000/projects/${projectId}/images/b`, {
           method: 'PUT',
+          headers: {
+            'Access-Control-Allow-Origin': '*',
+            Authorization: `Bearer ${token}`,
+          },
           body: formData,
         })
       })(),
@@ -245,12 +258,18 @@ const handleCompareTiles = async () => {
     }
     const {
       models: [{ id: modelId }],
-    } = await fetch(`http://0.0.0.0:8000`).then((res) => res.json())
+    } = await fetch(`http://0.0.0.0:8000`, {
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        Authorization: `Bearer ${token}`,
+      },
+    }).then((res) => res.json())
     // Run inference
     const inferenceResponse = await fetch(`http://0.0.0.0:8000/projects/${projectId}/inference`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify({
         model: modelId,
@@ -266,7 +285,12 @@ const handleCompareTiles = async () => {
     // Start polling for project status
     const pollInterval = setInterval(async () => {
       try {
-        const statusResponse = await fetch(`http://0.0.0.0:8000/projects/${projectId}`)
+        const statusResponse = await fetch(`http://0.0.0.0:8000/projects/${projectId}`, {
+          headers: {
+            'Access-Control-Allow-Origin': '*',
+            Authorization: `Bearer ${token}`,
+          },
+        })
         if (!statusResponse.ok) {
           throw new Error(`Failed to fetch project status: ${statusResponse.statusText}`)
         }
@@ -277,7 +301,15 @@ const handleCompareTiles = async () => {
           clearInterval(pollInterval)
 
           // Fetch inference results
-          const resultsResponse = await fetch(`http://0.0.0.0:8000/projects/${projectId}/inference`)
+          const resultsResponse = await fetch(
+            `http://0.0.0.0:8000/projects/${projectId}/inference`,
+            {
+              headers: {
+                'Access-Control-Allow-Origin': '*',
+                Authorization: `Bearer ${token}`,
+              },
+            },
+          )
           if (!resultsResponse.ok) {
             throw new Error(`Failed to fetch inference results: ${resultsResponse.statusText}`)
           }

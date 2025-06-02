@@ -46,7 +46,7 @@ function handleDownEvent(evt) {
     return feature
   })
 
-  if (feature) {
+  if (feature && feature.getProperties()?.properties?.name === 'drawVectorLayer') {
     this.coordinate_ = evt.coordinate
     this.feature_ = feature
   }
@@ -58,11 +58,13 @@ function handleDownEvent(evt) {
  * @param {import('ol/MapBrowserEvent.js').default} evt Map browser event.
  */
 function handleDragEvent(evt) {
+  if (!this.coordinate_) return
+
   const deltaX = evt.coordinate[0] - this.coordinate_[0]
   const deltaY = evt.coordinate[1] - this.coordinate_[1]
 
-  const geometry = this.feature_.getGeometry()
-  geometry.translate(deltaX, deltaY)
+  const geometry = this.feature_ && this.feature_.getGeometry()
+  geometry?.translate(deltaX, deltaY)
 
   this.coordinate_[0] = evt.coordinate[0]
   this.coordinate_[1] = evt.coordinate[1]
