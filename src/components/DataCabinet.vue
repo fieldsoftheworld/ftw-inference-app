@@ -510,13 +510,14 @@ defineExpose({
   top: 1rem;
   right: 1rem;
   width: 300px;
-  max-height: calc(100vh - 2rem);
+  height: 90vh;
   background-color: rgba(0, 0, 0, 0.8);
   color: white;
   padding: 1rem;
   border-radius: 4px;
-  overflow-y: auto;
   z-index: 1000;
+  display: flex;
+  flex-direction: column;
 }
 
 h2 {
@@ -526,7 +527,6 @@ h2 {
 }
 
 .search-status {
-  margin-bottom: 1rem;
   font-style: italic;
   color: rgba(255, 255, 255, 0.8);
 }
@@ -539,16 +539,17 @@ h2 {
 
 .results-container {
   margin-top: 1rem;
-  height: calc(100vh - 200px);
   display: flex;
   flex-direction: column;
+  flex: 1;
+  min-height: 0; /* Important for nested flex scrolling */
+  overflow: hidden; /* Contain all scrolling children */
 }
 
 .selected-tile-header {
-  padding: 0.75rem;
+  padding: 0.25rem;
   color: white;
   font-weight: 500;
-  margin-bottom: 0.5rem;
 }
 
 .selected-tile-preview {
@@ -579,12 +580,12 @@ h2 {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0.75rem;
+  padding: 0.5rem;
   background-color: rgba(0, 136, 136, 0.2);
   border: 1px solid rgba(0, 136, 136, 0.8);
   border-radius: 4px;
   cursor: pointer;
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.125rem;
 }
 
 .accordion-header h3 {
@@ -611,9 +612,10 @@ h2 {
 }
 
 .results {
-  flex: 1;
+  flex: 5;
   overflow-y: auto;
   transition: opacity 0.3s ease;
+  min-height: 0; /* Important for nested flex scrolling */
 }
 
 .accordion-enter-active,
@@ -743,6 +745,16 @@ h2 {
 
 .selected-results-section {
   margin-top: 1rem;
+  flex: 1;
+  min-height: 0; /* Important for nested flex scrolling */
+  display: flex;
+  flex-direction: column;
+}
+
+.selected-results-section .results {
+  flex: 1;
+  min-height: 0; /* Important for nested flex scrolling */
+  overflow-y: auto;
 }
 
 .selected-results-section.disabled {
@@ -765,15 +777,16 @@ h2 {
 }
 
 .action-buttons {
-  margin-bottom: 1rem;
-  padding-bottom: 1rem;
+  margin-bottom: 0.25rem;
+  padding-bottom: 0.25rem;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   width: 100%;
+  flex-shrink: 0; /* Prevent shrinking */
 }
 
 .message {
-  margin-bottom: 0.75rem;
-  padding: 0.75rem;
+  margin-bottom: 0.5rem;
+  padding: 0.25rem;
   border-radius: 4px;
   font-size: 0.875rem;
   text-align: center;
@@ -793,7 +806,6 @@ h2 {
 
 .action-button {
   width: 100%;
-  padding: 0.75rem;
   background-color: rgba(0, 136, 136, 0.8);
   color: white;
   border: none;
@@ -826,11 +838,12 @@ h2 {
   margin-bottom: 0.5rem;
   color: rgba(255, 255, 255, 0.8);
   font-size: 0.875rem;
+  padding: 0.25rem;
 }
 
 .project-title-input {
   width: 100%;
-  padding: 0.75rem;
+  padding: 0.5rem;
   background-color: rgba(255, 255, 255, 0.1);
   border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: 4px;
