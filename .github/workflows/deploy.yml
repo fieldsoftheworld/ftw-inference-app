@@ -35,13 +35,15 @@ jobs:
 
       - name: Build
         run: npm run build
-        env:
-          VITE_BASE_URL: '/inference-app/'
 
-      - name: Deploy
-        id: deployment
-        uses: JamesIves/github-pages-deploy-action@v4
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
         with:
-          folder: dist
-          branch: gh-pages
-          clean: true
+          path: './build'
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

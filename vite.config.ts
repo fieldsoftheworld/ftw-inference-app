@@ -21,6 +21,11 @@ export default defineConfig(({ mode }) => {
     optimizeDeps: {
       include: ['ol/ol.css'],
     },
+    build: {
+      sourcemap: false,
+      outDir: '../build',
+      emptyOutDir: true,
+    },
     server: {
       port: 5173,
       host: true,
