@@ -51,7 +51,7 @@ function handleDownEvent(evt) {
     this.feature_ = feature
   }
 
-  return !!feature
+  return feature.getProperties()?.properties?.name === 'drawVectorLayer'
 }
 
 /**
