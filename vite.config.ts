@@ -17,13 +17,20 @@ export default defineConfig(({ mode }) => {
         '@': fileURLToPath(new URL('./src', import.meta.url)),
       },
     },
-    base: env.VITE_BASE_URL || '/',
+    base: mode === 'production' ? '/ftw-inference-app/' : '/',
     optimizeDeps: {
       include: ['ol/ol.css'],
     },
     server: {
       port: 5173,
       host: true,
+      proxy: {
+        '/api': {
+          target: env.VITE_API_BASE_URL,
+          changeOrigin: true,
+          rewrite: (path) => path.replace(/^\/api/, ''),
+        },
+      },
     },
   }
 })
