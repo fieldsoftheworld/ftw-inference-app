@@ -8,7 +8,7 @@ import type { Ref } from 'vue'
 import type DataCabinet from '../components/DataCabinet.vue'
 import { Extent } from 'ol/extent'
 import { transformExtent } from 'ol/proj'
-import { Polygon } from 'ol/geom'
+import { Geometry, Polygon } from 'ol/geom'
 import Feature from 'ol/Feature'
 import Snap from 'ol/interaction/Snap'
 import Modify from 'ol/interaction/Modify'
@@ -17,7 +17,7 @@ import { getArea } from 'ol/sphere'
 import { containsCoordinate } from 'ol/extent'
 
 let snap: Interaction | null = null
-const drawVectorLayer: VectorLayer | null = null
+const drawVectorLayer: VectorLayer<VectorSource> | null = null
 let currentFeature: Feature<Polygon> | null = null
 let currentGridExtent: Extent | null = null
 
@@ -70,7 +70,7 @@ export default function createS2GridLayer(
       features: new GeoJSON({
         dataProjection: 'urn:ogc:def:crs:OGC:1.3:CRS84',
         featureProjection: 'EPSG:3857',
-      }).readFeatures(s2GridData),
+      }).readFeatures(s2GridData) as Feature<Geometry>[],
     }),
     zIndex: 1000,
     style: new Style({
@@ -162,9 +162,13 @@ export default function createS2GridLayer(
           maxZoom: 13,
         })
 
-        // Call the search function through the ref
+        // Call the search function through the ref and open the Run Inference accordion
         if (dataCabinetRef.value?.handleSearchResults) {
           dataCabinetRef.value.handleSearchResults(mgrsTileId)
+          // Open the Run Inference accordion
+          if (dataCabinetRef.value?.handleInferenceToggle) {
+            dataCabinetRef.value.handleInferenceToggle(true)
+          }
         } else {
           console.error('S2 Grid Layer: DataCabinet ref not available')
         }
@@ -202,6 +206,13 @@ export default function createS2GridLayer(
 
                 // Update the current feature reference
                 currentFeature = validFeature
+
+                // Show notification if area was too large
+                if (area > 500) {
+                  dataCabinetRef.value?.handleBboxSizeWarning(
+                    'Bounding box area exceeds 500 square kilometers. Resizing to last valid state.',
+                  )
+                }
               } else {
                 // If no valid state exists, reset to the initial bounding box
                 const bboxExtent = calculateBoundingBox(currentGridExtent)
@@ -223,6 +234,13 @@ export default function createS2GridLayer(
                 drawVectorsource.clear()
                 drawVectorsource.addFeature(newFeature)
                 currentFeature = newFeature
+
+                // Show notification for reset to initial bbox
+                if (area > 500) {
+                  dataCabinetRef.value?.handleBboxSizeWarning(
+                    'Bounding box area exceeds 500 square kilometers. Resetting to initial size.',
+                  )
+                }
               }
             } else {
               // Update the current valid state

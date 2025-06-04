@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { generateJWT } from '../functions/generate-jwt'
-import type { Map } from 'ol'
+import type { Feature, Map } from 'ol'
 import { fromLonLat } from 'ol/proj'
 import VectorSource from 'ol/source/Vector'
 import VectorLayer from 'ol/layer/Vector'
 import GeoJSON from 'ol/format/GeoJSON'
 import type { Extent } from 'ol/extent'
+import { Geometry } from 'ol/geom'
 
 interface GeoJSONResponse {
   type: 'FeatureCollection'
@@ -72,7 +73,7 @@ const displayGeoJSON = (geojson: GeoJSONResponse) => {
   })
 
   const layer = new VectorLayer({
-    source: source,
+    source: source as VectorSource<Feature<Geometry>>,
     style: {
       'fill-color': 'rgba(0, 136, 136, 0.1)',
       'stroke-color': 'rgba(0, 136, 136, 1)',
@@ -90,7 +91,7 @@ const handleExampleRequest = async () => {
 
   try {
     const token = generateJWT()
-    const response = await fetch('http://127.0.0.1:8000/example', {
+    const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/example`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',

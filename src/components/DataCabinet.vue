@@ -26,6 +26,8 @@ defineExpose({
     runInferenceRef.value?.handleSearchResults(mgrsTileId),
   setDrawnExtent: (extent: Extent) => runInferenceRef.value?.setDrawnExtent(extent),
   currentMgrsTileId: runInferenceRef.value?.currentMgrsTileId,
+  handleBboxSizeWarning: (message: string) => runInferenceRef.value?.handleBboxSizeWarning(message),
+  handleInferenceToggle: (isOpen: boolean) => handleInferenceToggle(isOpen),
 })
 </script>
 

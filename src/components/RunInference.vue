@@ -179,7 +179,7 @@ const handleCompareTiles = async () => {
     const token = generateJWT()
 
     // Create project
-    const createResponse = await fetch('http://0.0.0.0:8000/projects', {
+    const createResponse = await fetch(`${import.meta.env.VITE_API_BASE_URL}/projects`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -217,7 +217,7 @@ const handleCompareTiles = async () => {
         const formData = new FormData()
         formData.append('file', imageBlob)
 
-        return fetch(`http://0.0.0.0:8000/projects/${projectId}/images/a`, {
+        return fetch(`${import.meta.env.VITE_API_BASE_URL}/projects/${projectId}/images/a`, {
           method: 'PUT',
           headers: {
             'Access-Control-Allow-Origin': '*',
@@ -233,7 +233,7 @@ const handleCompareTiles = async () => {
         const formData = new FormData()
         formData.append('file', imageBlob)
 
-        return fetch(`http://0.0.0.0:8000/projects/${projectId}/images/b`, {
+        return fetch(`${import.meta.env.VITE_API_BASE_URL}/projects/${projectId}/images/b`, {
           method: 'PUT',
           headers: {
             'Access-Control-Allow-Origin': '*',
@@ -257,7 +257,7 @@ const handleCompareTiles = async () => {
     }
     const {
       models: [{ id: modelId }],
-    } = await fetch(`http://0.0.0.0:8000`, {
+    } = await fetch(`${import.meta.env.VITE_API_BASE_URL}`, {
       headers: {
         'Access-Control-Allow-Origin': '*',
         Authorization: `Bearer ${token}`,
@@ -265,18 +265,21 @@ const handleCompareTiles = async () => {
     }).then((res) => res.json())
 
     // Run inference
-    const inferenceResponse = await fetch(`http://0.0.0.0:8000/projects/${projectId}/inference`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
+    const inferenceResponse = await fetch(
+      `${import.meta.env.VITE_API_BASE_URL}/projects/${projectId}/inference`,
+      {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          model: modelId,
+          bbox: drawnExtent.value ?? [0, 0, 0, 0],
+          images: [firstTile.thumbnailUrl, secondTile.thumbnailUrl],
+        }),
       },
-      body: JSON.stringify({
-        model: modelId,
-        bbox: drawnExtent.value ?? [0, 0, 0, 0],
-        images: [firstTile.thumbnailUrl, secondTile.thumbnailUrl],
-      }),
-    })
+    )
 
     if (!inferenceResponse.ok) {
       throw new Error(`Failed to run inference: ${inferenceResponse.statusText}`)
@@ -285,12 +288,15 @@ const handleCompareTiles = async () => {
     // Start polling for project status
     const pollInterval = setInterval(async () => {
       try {
-        const statusResponse = await fetch(`http://0.0.0.0:8000/projects/${projectId}`, {
-          headers: {
-            'Access-Control-Allow-Origin': '*',
-            Authorization: `Bearer ${token}`,
+        const statusResponse = await fetch(
+          `${import.meta.env.VITE_API_BASE_URL}/projects/${projectId}`,
+          {
+            headers: {
+              'Access-Control-Allow-Origin': '*',
+              Authorization: `Bearer ${token}`,
+            },
           },
-        })
+        )
         if (!statusResponse.ok) {
           throw new Error(`Failed to fetch project status: ${statusResponse.statusText}`)
         }
@@ -302,7 +308,7 @@ const handleCompareTiles = async () => {
 
           // Fetch inference results
           const resultsResponse = await fetch(
-            `http://0.0.0.0:8000/projects/${projectId}/inference`,
+            `${import.meta.env.VITE_API_BASE_URL}/projects/${projectId}/inference`,
             {
               headers: {
                 'Access-Control-Allow-Origin': '*',
@@ -354,11 +360,19 @@ const handleCompareTiles = async () => {
   }
 }
 
+const handleBboxSizeWarning = (message: string) => {
+  projectMessage.value = {
+    type: 'error',
+    text: message,
+  }
+}
+
 // Expose methods to parent components
 defineExpose({
   handleSearchResults,
   setDrawnExtent,
   currentMgrsTileId,
+  handleBboxSizeWarning,
 })
 </script>
 
