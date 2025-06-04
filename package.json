@@ -6,10 +6,7 @@
   "scripts": {
     "dev": "vite",
     "dev:local": "vite --mode development",
-    "dev:staging": "vite --mode staging",
     "build": "vite build",
-    "build:staging": "vite build --mode staging",
-    "build:prod": "vite build --mode prod",
     "preview": "vite preview",
     "test:unit": "vitest",
     "type-check": "vue-tsc --noEmit -p tsconfig.app.json --composite false"
