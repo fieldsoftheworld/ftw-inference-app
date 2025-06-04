@@ -179,7 +179,7 @@ const handleCompareTiles = async () => {
     const token = generateJWT()
 
     // Create project
-    const apiBaseUrl = import.meta.env.PROD ? import.meta.env.VITE_API_BASE_URL : '/api'
+    const apiBaseUrl = import.meta.env.VITE_API_BASE_URL
 
     const createResponse = await fetch(`${apiBaseUrl}/projects`, {
       method: 'POST',
