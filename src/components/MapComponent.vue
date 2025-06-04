@@ -33,7 +33,7 @@ onMounted(() => {
 <template>
   <div class="map-wrapper">
     <div id="map" class="map-container"></div>
-    <DataCabinet :map="map as Map" ref="dataCabinetRef" />
+    <DataCabinet v-if="map" :map="map as Map" ref="dataCabinetRef" />
   </div>
 </template>
 

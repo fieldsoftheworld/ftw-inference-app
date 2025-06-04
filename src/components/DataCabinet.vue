@@ -33,10 +33,13 @@ defineExpose({
   <div class="data-cabinet">
     <h2>Fields of the World: Inference App</h2>
     <PrecomputedExamples
+      v-if="props.map"
       :is-open="activeAccordion === 'precomputed'"
       @update:is-open="handlePrecomputedToggle"
+      :map="props.map"
     />
     <RunInference
+      v-if="props.map"
       :map="props.map"
       :is-open="activeAccordion === 'inference'"
       @update:is-open="handleInferenceToggle"
