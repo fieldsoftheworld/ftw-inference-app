@@ -12,9 +12,4 @@ const app = createApp(App)
 app.use(createPinia())
 app.use(router)
 
-console.log('Environment variables:', {
-  VITE_API_BASE_URL: import.meta.env.VITE_API_BASE_URL,
-  VITE_BASE_URL: import.meta.env.VITE_BASE_URL,
-})
-
 app.mount('#app')
