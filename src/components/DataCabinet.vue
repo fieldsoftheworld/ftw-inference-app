@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Extent } from 'ol/extent'
+import type { Extent } from 'ol/extent'
 import type { Map } from 'ol'
 import { ref } from 'vue'
 import PrecomputedExamples from './PrecomputedExamples.vue'

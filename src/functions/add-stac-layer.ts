@@ -1,7 +1,8 @@
 import ImageLayer from 'ol/layer/Image'
 import ImageStatic from 'ol/source/ImageStatic'
 import { Map } from 'ol'
-import { Extent } from 'ol/extent'
+import { transform } from 'ol/proj'
+import type { Extent } from 'ol/extent'
 import { transformExtent } from 'ol/proj'
 
 let currentStacLayer: ImageLayer<ImageStatic> | null = null
