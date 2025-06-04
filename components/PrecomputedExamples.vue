@@ -88,7 +88,7 @@ const displayGeoJSON = (geojson: GeoJSONResponse) => {
 const handleExampleRequest = async () => {
   isProcessing.value = true
   message.value = { type: 'loading', text: 'Processing example...' }
-  const apiBaseUrl = import.meta.env.PROD ? import.meta.env.VITE_API_BASE_URL : '/api'
+  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL
   try {
     const token = generateJWT()
     const response = await fetch(`${apiBaseUrl}/example`, {
