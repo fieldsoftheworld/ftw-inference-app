@@ -11,6 +11,11 @@ export default defineConfig({
       '@': fileURLToPath(new URL('./src', import.meta.url)),
     },
   },
+  build: {
+    sourcemap: false,
+    outDir: './build',
+    emptyOutDir: true,
+  },
   base: process.env.VITE_BASE_API_URL || '/',
   optimizeDeps: {
     include: ['ol/ol.css'],

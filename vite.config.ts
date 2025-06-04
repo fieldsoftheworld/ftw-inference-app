@@ -23,7 +23,7 @@ export default defineConfig(({ mode }) => {
     },
     build: {
       sourcemap: false,
-      outDir: '../build',
+      outDir: './build',
       emptyOutDir: true,
     },
     server: {
