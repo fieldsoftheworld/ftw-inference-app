@@ -17,14 +17,9 @@ export default defineConfig(({ mode }) => {
         '@': fileURLToPath(new URL('./src', import.meta.url)),
       },
     },
-    base: mode === 'production' ? '/ftw-inference-app/' : '/',
+    base: '/',
     optimizeDeps: {
       include: ['ol/ol.css'],
-    },
-    build: {
-      sourcemap: false,
-      outDir: './build',
-      emptyOutDir: true,
     },
     server: {
       port: 5173,
