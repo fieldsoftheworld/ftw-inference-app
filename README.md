@@ -1,61 +1,55 @@
-# map
+# FTW Inference App
 
-This template should help get you started developing with Vue 3 in Vite.
+A Vue 3 application for running inference on satellite imagery using the FTW API.
 
-## Recommended IDE Setup
+## Prerequisites
 
-[VSCode](https://code.visualstudio.com/) + [Volar](https://marketplace.visualstudio.com/items?itemName=Vue.volar) (and disable Vetur).
+- Node.js (v16 or higher)
+- npm (v7 or higher)
 
-## Type Support for `.vue` Imports in TS
+## Environment Setup
 
-TypeScript cannot handle type information for `.vue` imports by default, so we replace the `tsc` CLI with `vue-tsc` for type checking. In editors, we need [Volar](https://marketplace.visualstudio.com/items?itemName=Vue.volar) to make the TypeScript language service aware of `.vue` types.
+1. Create a `.env.development` file in the project root with the following variables or copy one of the existing example files:
 
-## Customize configuration
+```env
+VITE_API_BASE_URL=https://4k6wlmocxk.execute-api.us-west-2.amazonaws.com/v1/
+```
 
-See [Vite Configuration Reference](https://vite.dev/config/).
+Replace the URL with your actual API endpoint if different.
 
 ## Project Setup
 
 ```sh
+# Install dependencies
 npm install
 ```
 
-### Compile and Hot-Reload for Development
+### Development
 
 ```sh
-npm run dev
+# Start the development server
+npm run dev:local
 ```
 
-### Type-Check, Compile and Minify for Production
+The app will be available at `http://localhost:5173` by default.
+
+### Production Build
 
 ```sh
+# Build for production
 npm run build
 ```
 
-### Run Unit Tests with [Vitest](https://vitest.dev/)
+### Type Checking
 
 ```sh
-npm run test:unit
+# Run type checking
+npm run type-check
 ```
 
-### Run End-to-End Tests with [Cypress](https://www.cypress.io/)
+### Linting
 
 ```sh
-npm run test:e2e:dev
-```
-
-This runs the end-to-end tests against the Vite development server.
-It is much faster than the production build.
-
-But it's still recommended to test the production build with `test:e2e` before deploying (e.g. in CI environments):
-
-```sh
-npm run build
-npm run test:e2e
-```
-
-### Lint with [ESLint](https://eslint.org/)
-
-```sh
+# Run ESLint
 npm run lint
 ```

@@ -7,11 +7,13 @@ import createCloudlessLayer from '../layers/S2-Cloudless-Layer'
 // @ts-expect-error - No declaration file found
 import Drag from '../functions/drag-interaction.js'
 import { defaults as defaultInteractions } from 'ol/interaction/defaults.js'
+import { generateJWT } from '../functions/generate-jwt'
 
 const map = ref<Map | null>(null)
 const dataCabinetRef = ref<InstanceType<typeof DataCabinet> | null>(null)
+const areaValues = ref<{ min_area_km2: number; max_area_km2: number } | null>(null)
 
-onMounted(() => {
+onMounted(async () => {
   map.value = new Map({
     interactions: defaultInteractions().extend([new Drag()]),
     target: 'map',
@@ -22,9 +24,35 @@ onMounted(() => {
     }),
   })
 
+  // Get area values from API
+  try {
+    const token = generateJWT()
+    const apiBaseUrl = import.meta.env.VITE_API_BASE_URL
+    const response = await fetch(`${apiBaseUrl}`, {
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+    })
+    if (!response.ok) {
+      throw new Error(`Failed to fetch area values: ${response.statusText}`)
+    }
+    const data = await response.json()
+    areaValues.value = {
+      min_area_km2: data.min_area_km2 ?? 500,
+      max_area_km2: data.max_area_km2 ?? 100,
+    }
+  } catch (error) {
+    areaValues.value = {
+      min_area_km2: 500,
+      max_area_km2: 100,
+    }
+    console.error('Error fetching area values:', error)
+  }
+
   // Add S2 Grid layer after map is initialized
   if (map.value) {
-    const s2GridLayer = createS2GridLayer(map.value as Map, dataCabinetRef)
+    const s2GridLayer = createS2GridLayer(map.value as Map, dataCabinetRef, areaValues.value)
     map.value.addLayer(s2GridLayer)
   }
 })

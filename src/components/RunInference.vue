@@ -181,11 +181,10 @@ const handleCompareTiles = async () => {
     // Create project
     const apiBaseUrl = import.meta.env.VITE_API_BASE_URL
 
-    const createResponse = await fetch(`${apiBaseUrl}/projects`, {
+    const createResponse = await fetch(`${apiBaseUrl}projects`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*',
         Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify({
@@ -219,10 +218,10 @@ const handleCompareTiles = async () => {
         const formData = new FormData()
         formData.append('file', imageBlob)
 
-        return fetch(`${apiBaseUrl}/projects/${projectId}/images/a`, {
+        return fetch(`${apiBaseUrl}/projects/${projectId}images/a`, {
           method: 'PUT',
           headers: {
-            'Access-Control-Allow-Origin': '*',
+            'Content-Type': 'multipart/form-data',
             Authorization: `Bearer ${token}`,
           },
           body: formData,
@@ -235,10 +234,10 @@ const handleCompareTiles = async () => {
         const formData = new FormData()
         formData.append('file', imageBlob)
 
-        return fetch(`${apiBaseUrl}/projects/${projectId}/images/b`, {
+        return fetch(`${apiBaseUrl}/projects/${projectId}images/b`, {
           method: 'PUT',
           headers: {
-            'Access-Control-Allow-Origin': '*',
+            'Content-Type': 'multipart/form-data',
             Authorization: `Bearer ${token}`,
           },
           body: formData,
@@ -261,13 +260,13 @@ const handleCompareTiles = async () => {
       models: [{ id: modelId }],
     } = await fetch(`${apiBaseUrl}`, {
       headers: {
-        'Access-Control-Allow-Origin': '*',
+        'Content-Type': 'application/json',
         Authorization: `Bearer ${token}`,
       },
     }).then((res) => res.json())
 
     // Run inference
-    const inferenceResponse = await fetch(`${apiBaseUrl}/projects/${projectId}/inference`, {
+    const inferenceResponse = await fetch(`${apiBaseUrl}projects/${projectId}/inference`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -287,9 +286,9 @@ const handleCompareTiles = async () => {
     // Start polling for project status
     const pollInterval = setInterval(async () => {
       try {
-        const statusResponse = await fetch(`${apiBaseUrl}/projects/${projectId}`, {
+        const statusResponse = await fetch(`${apiBaseUrl}projects/${projectId}`, {
           headers: {
-            'Access-Control-Allow-Origin': '*',
+            'Content-Type': 'application/json',
             Authorization: `Bearer ${token}`,
           },
         })
@@ -303,9 +302,9 @@ const handleCompareTiles = async () => {
           clearInterval(pollInterval)
 
           // Fetch inference results
-          const resultsResponse = await fetch(`${apiBaseUrl}/projects/${projectId}/inference`, {
+          const resultsResponse = await fetch(`${apiBaseUrl}projects/${projectId}/inference`, {
             headers: {
-              'Access-Control-Allow-Origin': '*',
+              'Content-Type': 'application/json',
               Authorization: `Bearer ${token}`,
             },
           })

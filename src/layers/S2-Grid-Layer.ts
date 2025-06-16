@@ -34,8 +34,11 @@ function calculateArea(geometry: Polygon): number {
   return area / 1000000 // Convert to square kilometers
 }
 
-// Function to calculate a 500 sq. km. bounding box within the selected grid
-function calculateBoundingBox(extent: Extent): Extent {
+// Function to calculate a bounding box within the selected grid based on area values
+function calculateBoundingBox(
+  extent: Extent,
+  areaValues: { min_area_km2: number; max_area_km2: number },
+): Extent {
   // Convert extent to EPSG:4326 for area calculation
   const wgs84Extent = transformExtent(extent, 'EPSG:3857', 'EPSG:4326')
 
@@ -45,8 +48,9 @@ function calculateBoundingBox(extent: Extent): Extent {
 
   // Calculate the size of the box in degrees
   // At the equator, 1 degree is approximately 111.32 km
-  // We want 500 sq. km., so we'll use a square root to get the side length
-  const sideLengthKm = Math.sqrt(500)
+  // Use the min area value if available, otherwise use 500 sq km
+  const targetArea = areaValues?.min_area_km2 ?? 500
+  const sideLengthKm = Math.sqrt(targetArea)
   const sideLengthDegrees = sideLengthKm / 111.32
 
   // Create the new extent
@@ -64,6 +68,7 @@ function calculateBoundingBox(extent: Extent): Extent {
 export default function createS2GridLayer(
   map: Map,
   dataCabinetRef: Ref<InstanceType<typeof DataCabinet> | null>,
+  areaValues: { min_area_km2: number; max_area_km2: number },
 ) {
   const layer = new VectorLayer({
     source: new VectorSource({
@@ -103,8 +108,8 @@ export default function createS2GridLayer(
         const extent = geometry.getExtent()
         currentGridExtent = extent // Store the current grid extent
 
-        // Calculate the 500 sq. km. bounding box
-        const bboxExtent = calculateBoundingBox(extent)
+        // Calculate the bounding box based on area values
+        const bboxExtent = calculateBoundingBox(extent, areaValues)
 
         // Create a polygon feature for the bounding box
         const bboxPolygon = new Polygon([
@@ -119,33 +124,34 @@ export default function createS2GridLayer(
 
         // Create vector source with the initial bounding box
         const drawVectorsource = new VectorSource({
-            features: [
-              new Feature({
-                geometry: bboxPolygon,
-                properties: {
-                  name: 'drawVectorLayer',
-                },
-              }),
-            ],
-          }),
-          // Create and add the draw vector layer
-          drawVectorLayer = new VectorLayer({
-            source: drawVectorsource,
-            properties: {
-              name: 'drawVectorLayer',
-            },
-            extent: currentGridExtent,
-            style: new Style({
-              stroke: new Stroke({
-                color: 'rgba(0, 136, 136, 1)',
-                width: 2,
-              }),
-              fill: new Fill({
-                color: 'rgba(0, 136, 136, 0.1)',
-              }),
+          features: [
+            new Feature({
+              geometry: bboxPolygon,
+              properties: {
+                name: 'drawVectorLayer',
+              },
             }),
-            zIndex: 1001,
-          })
+          ],
+        })
+
+        // Create and add the draw vector layer
+        const drawVectorLayer = new VectorLayer({
+          source: drawVectorsource,
+          properties: {
+            name: 'drawVectorLayer',
+          },
+          extent: currentGridExtent,
+          style: new Style({
+            stroke: new Stroke({
+              color: 'rgba(0, 136, 136, 1)',
+              width: 2,
+            }),
+            fill: new Fill({
+              color: 'rgba(0, 136, 136, 0.1)',
+            }),
+          }),
+          zIndex: 1001,
+        })
 
         // Add padding to the extent for view fitting
         const padding = 50
@@ -195,9 +201,13 @@ export default function createS2GridLayer(
             const geometry = features[0].getGeometry() as Polygon
             const area = calculateArea(geometry)
             const isWithinExtent = isPolygonWithinExtent(geometry, currentGridExtent)
-            // Check if the polygon is within the grid extent and under size limit
-            if (area > 500 || !isWithinExtent) {
-              // If area exceeds 500 sq km or is outside grid, revert to the last valid state
+            // Check if the polygon is within the grid extent and within size limits
+            if (
+              area > areaValues?.max_area_km2 ||
+              area < areaValues?.min_area_km2 ||
+              !isWithinExtent
+            ) {
+              // If area exceeds limits or is outside grid, revert to the last valid state
               if (currentFeature) {
                 // Create a new feature from the current valid state
                 const validFeature = currentFeature.clone()
@@ -207,15 +217,19 @@ export default function createS2GridLayer(
                 // Update the current feature reference
                 currentFeature = validFeature
 
-                // Show notification if area was too large
-                if (area > 500) {
+                // Show notification if area was too large or too small
+                if (area > areaValues?.max_area_km2) {
                   dataCabinetRef.value?.handleBboxSizeWarning(
-                    'Bounding box area exceeds 500 square kilometers. Resizing to last valid state.',
+                    `Bounding box area exceeds ${areaValues?.max_area_km2} square kilometers. Resizing to last valid state.`,
+                  )
+                } else if (area < areaValues?.min_area_km2) {
+                  dataCabinetRef.value?.handleBboxSizeWarning(
+                    `Bounding box area is less than ${areaValues?.min_area_km2} square kilometers. Resizing to last valid state.`,
                   )
                 }
               } else {
                 // If no valid state exists, reset to the initial bounding box
-                const bboxExtent = calculateBoundingBox(currentGridExtent)
+                const bboxExtent = calculateBoundingBox(currentGridExtent, areaValues)
                 const bboxPolygon = new Polygon([
                   [
                     [bboxExtent[0], bboxExtent[1]],
@@ -236,9 +250,13 @@ export default function createS2GridLayer(
                 currentFeature = newFeature
 
                 // Show notification for reset to initial bbox
-                if (area > 500) {
+                if (area > areaValues?.max_area_km2) {
                   dataCabinetRef.value?.handleBboxSizeWarning(
-                    'Bounding box area exceeds 500 square kilometers. Resetting to initial size.',
+                    `Bounding box area exceeds ${areaValues?.max_area_km2} square kilometers. Resetting to initial size.`,
+                  )
+                } else if (area < areaValues?.min_area_km2) {
+                  dataCabinetRef.value?.handleBboxSizeWarning(
+                    `Bounding box area is less than ${areaValues?.min_area_km2} square kilometers. Resetting to initial size.`,
                   )
                 }
               }
