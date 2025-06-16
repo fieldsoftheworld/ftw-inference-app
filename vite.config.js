@@ -22,7 +22,7 @@ export default defineConfig(({ mode }) => {
       sourcemap: false,
       outDir: './ftw-inference-app',
       rollupOptions: {
-        input: '/ftw-inference-app/index.html', // Entry point for the build
+        input: './ftw-inference-app/index.html', // Entry point for the build
       },
       emptyOutDir: true,
     },

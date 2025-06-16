@@ -8,13 +8,13 @@ pnpm-debug.log*
 lerna-debug.log*
 
 node_modules
+ftw-inference-app
 .DS_Store
 dist
 dist-ssr
 coverage
 *.local
 .env.development
-
 
 /cypress/videos/
 /cypress/screenshots/
