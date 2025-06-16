@@ -17,10 +17,10 @@ export default defineConfig(({ mode }) => {
         '@': fileURLToPath(new URL('./src', import.meta.url)),
       },
     },
-    base: '/',
+    base: '/ftw-inference-app/',
     build: {
       sourcemap: false,
-      outDir: './ftw-inference-app/',
+      outDir: './ftw-inference-app',
       emptyOutDir: true,
     },
     optimizeDeps: {
