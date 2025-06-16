@@ -17,7 +17,7 @@ export default defineConfig(({ mode }) => {
         '@': fileURLToPath(new URL('./src', import.meta.url)),
       },
     },
-    base: '/ftw-inference-app',
+    base: '/ftw-inference-app/',
     build: {
       sourcemap: false,
       outDir: './ftw-inference-app',
@@ -36,6 +36,9 @@ export default defineConfig(({ mode }) => {
           rewrite: (path) => path.replace(/^\/api/, ''),
         },
       },
+    },
+    define: {
+      'process.env': env,
     },
   }
 })
