@@ -14,7 +14,7 @@ export default defineConfig(({ mode }) => {
     plugins: [vue(), vueJsx(), vueDevTools()],
     resolve: {
       alias: {
-        '@': fileURLToPath(new URL('./src', import.meta.url)),
+        '@': resolve(__dirname, 'src'),
       },
     },
     base: '/ftw-inference-app/',
@@ -22,7 +22,7 @@ export default defineConfig(({ mode }) => {
       sourcemap: false,
       outDir: './ftw-inference-app',
       rollupOptions: {
-        input: './ftw-inference-app/index.html', // Entry point for the build
+        input: resolve(__dirname, 'index.html'), // Entry point for the build
       },
       emptyOutDir: true,
     },

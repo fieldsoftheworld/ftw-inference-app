@@ -44,10 +44,10 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: ftw-inference-app/
+          path: ./ftw-inference-app
 
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
         with:
-          publish_dir: ftw-inference-app/
+          publish_dir: ./ftw-inference-app
