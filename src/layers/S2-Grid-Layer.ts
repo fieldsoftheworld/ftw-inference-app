@@ -102,6 +102,13 @@ export default function createS2GridLayer(
         return
       }
 
+      // Clear any existing drawVectorLayer
+      map.getLayers().forEach((layer) => {
+        if (layer.get('name') === 'drawVectorLayer') {
+          map.removeLayer(layer)
+        }
+      })
+
       // Get the feature's extent
       const geometry = feature.getGeometry()
       if (geometry) {
