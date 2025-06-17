@@ -357,6 +357,16 @@ const handleBboxSizeWarning = (message: string) => {
     type: 'error',
     text: message,
   }
+  // Auto-dismiss after 3 seconds
+  setTimeout(() => {
+    if (projectMessage.value?.type === 'error') {
+      projectMessage.value = null
+    }
+  }, 3000)
+}
+
+const dismissMessage = () => {
+  projectMessage.value = null
 }
 
 // Expose methods to parent components
@@ -399,6 +409,13 @@ defineExpose({
             </div>
             <div v-if="projectMessage" :class="['message', projectMessage.type]">
               {{ projectMessage.text }}
+              <button
+                v-if="projectMessage.type === 'error'"
+                class="close-button"
+                @click="dismissMessage"
+              >
+                ×
+              </button>
             </div>
             <button
               class="action-button"
@@ -620,10 +637,35 @@ defineExpose({
 
 .message {
   margin-bottom: 0.5rem;
-  padding: 0.25rem;
+  padding: 0.25rem 0.5rem;
   border-radius: 4px;
   font-size: 0.875rem;
-  text-align: center;
+  text-align: left;
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.close-button {
+  position: absolute;
+  right: 0.25rem;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: inherit;
+  font-size: 1.25rem;
+  cursor: pointer;
+  padding: 0 0.5rem;
+  line-height: 1;
+  opacity: 0.7;
+  transition: opacity 0.2s ease;
+}
+
+.close-button:hover {
+  opacity: 1;
 }
 
 .message.success {
