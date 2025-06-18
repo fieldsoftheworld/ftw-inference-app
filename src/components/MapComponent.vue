@@ -39,8 +39,8 @@ onMounted(async () => {
     }
     const data = await response.json()
     areaValues.value = {
-      min_area_km2: data.min_area_km2 ?? 500,
-      max_area_km2: data.max_area_km2 ?? 100,
+      min_area_km2: data.min_area_km2 ?? 100,
+      max_area_km2: data.max_area_km2 ?? 500,
     }
   } catch (error) {
     areaValues.value = {

@@ -148,15 +148,36 @@ export default function createS2GridLayer(
             name: 'drawVectorLayer',
           },
           extent: currentGridExtent,
-          style: new Style({
-            stroke: new Stroke({
-              color: 'rgba(0, 136, 136, 1)',
-              width: 2,
-            }),
-            fill: new Fill({
-              color: 'rgba(0, 136, 136, 0.1)',
-            }),
-          }),
+          style: (feature) => {
+            const area = calculateArea(feature.getGeometry() as Polygon)
+            const isWithinExtent = isPolygonWithinExtent(
+              feature.getGeometry() as Polygon,
+              currentGridExtent as Extent,
+            )
+
+            if (
+              area > areaValues?.max_area_km2 ||
+              area < areaValues?.min_area_km2 ||
+              !isWithinExtent
+            ) {
+              return new Style({
+                stroke: new Stroke({
+                  color: 'rgba(255, 255, 0, 1)',
+                  width: 2,
+                }),
+              })
+            } else {
+              return new Style({
+                stroke: new Stroke({
+                  color: 'rgba(0, 136, 136, 1)',
+                  width: 2,
+                }),
+                fill: new Fill({
+                  color: 'rgba(0, 136, 136, 0.1)',
+                }),
+              })
+            }
+          },
           zIndex: 1001,
         })
 
