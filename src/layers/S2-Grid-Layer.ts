@@ -154,7 +154,6 @@ export default function createS2GridLayer(
               feature.getGeometry() as Polygon,
               currentGridExtent as Extent,
             )
-
             if (
               area > areaValues?.max_area_km2 ||
               area < areaValues?.min_area_km2 ||
@@ -164,6 +163,9 @@ export default function createS2GridLayer(
                 stroke: new Stroke({
                   color: 'rgba(255, 255, 0, 1)',
                   width: 2,
+                }),
+                fill: new Fill({
+                  color: 'rgba(255, 255, 0, 0.1)',
                 }),
               })
             } else {
