@@ -32,7 +32,10 @@ const currentMgrsTileId = ref<string | null>(null)
 const activeTileId = ref<string | null>(null)
 const secondActiveTileId = ref<string | null>(null)
 const isCreatingProject = ref(false)
-const projectMessage = ref<{ type: 'success' | 'error' | 'loading'; text: string } | null>(null)
+const projectMessage = ref<{
+  type: 'success' | 'error' | 'loading' | 'warning'
+  text: string
+} | null>(null)
 const projectTitle = ref(new Date().toISOString())
 const drawnExtent = ref<Extent | null>(null)
 const isFirstResultsOpen = ref(false)
@@ -161,7 +164,10 @@ const handleCompareTiles = async () => {
   if (!activeTileId.value || !secondActiveTileId.value) return
 
   isCreatingProject.value = true
-  projectMessage.value = null
+  projectMessage.value = {
+    type: 'warning',
+    text: 'Inference may take up to 30 seconds to complete...',
+  }
 
   try {
     const firstTile = searchResults.value.find((result) => result.id === activeTileId.value)
@@ -637,15 +643,39 @@ defineExpose({
 
 .message {
   margin-bottom: 0.5rem;
-  padding: 0.25rem 0.5rem;
+  padding: 0.25rem;
   border-radius: 4px;
   font-size: 0.875rem;
-  text-align: left;
+  text-align: center;
   position: relative;
   display: flex;
   justify-content: center;
   align-items: center;
   gap: 0.5rem;
+}
+
+.message.success {
+  background-color: rgba(0, 255, 0, 0.1);
+  border: 1px solid rgba(0, 255, 0, 0.3);
+  color: #00ff00;
+}
+
+.message.error {
+  background-color: rgba(255, 0, 0, 0.1);
+  border: 1px solid rgba(255, 0, 0, 0.3);
+  color: #ff0000;
+}
+
+.message.warning {
+  background-color: rgba(255, 255, 0, 0.1);
+  border: 1px solid rgba(255, 255, 0, 0.3);
+  color: #ffff00;
+}
+
+.message.loading {
+  background-color: rgba(0, 136, 136, 0.1);
+  border: 1px solid rgba(0, 136, 136, 0.3);
+  color: #00ffff;
 }
 
 .close-button {
@@ -666,18 +696,6 @@ defineExpose({
 
 .close-button:hover {
   opacity: 1;
-}
-
-.message.success {
-  background-color: rgba(0, 255, 0, 0.1);
-  border: 1px solid rgba(0, 255, 0, 0.3);
-  color: #00ff00;
-}
-
-.message.error {
-  background-color: rgba(255, 0, 0, 0.1);
-  border: 1px solid rgba(255, 0, 0, 0.3);
-  color: #ff0000;
 }
 
 .action-button {

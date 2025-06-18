@@ -48,8 +48,8 @@ function calculateBoundingBox(
 
   // Calculate the size of the box in degrees
   // At the equator, 1 degree is approximately 111.32 km
-  // Use the min area value if available, otherwise use 500 sq km
-  const targetArea = areaValues?.min_area_km2 ?? 500
+  // Use the min area value if available, otherwise use 200 sq km
+  const targetArea = areaValues?.min_area_km2 ?? 200
   const sideLengthKm = Math.sqrt(targetArea)
   const sideLengthDegrees = sideLengthKm / 111.32
 
