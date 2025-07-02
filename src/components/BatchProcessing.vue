@@ -40,6 +40,7 @@ const projectTitle = ref(new Date().toISOString())
 const drawnExtent = ref<Extent | null>(null)
 const isFirstResultsOpen = ref(false)
 const isSecondResultsOpen = ref(false)
+const retryTimeout = ref<number | null>(null)
 
 const toggleAccordion = () => {
   emit('update:isOpen', !props.isOpen)
@@ -198,6 +199,26 @@ const handleCompareTiles = async () => {
       }),
     })
 
+    if (createResponse.status === 503) {
+      // Server is busy, schedule retry
+      projectMessage.value = {
+        type: 'error',
+        text: 'Server is busy. Retrying in 15 seconds...',
+      }
+      isCreatingProject.value = false
+
+      // Clear any existing timeout
+      if (retryTimeout.value) {
+        clearTimeout(retryTimeout.value)
+      }
+
+      // Schedule retry after 15 seconds
+      retryTimeout.value = window.setTimeout(() => {
+        handleCompareTiles()
+      }, 15000)
+      return
+    }
+
     if (!createResponse.ok) {
       throw new Error(`Failed to create project: ${createResponse.statusText}`)
     }
@@ -252,6 +273,29 @@ const handleCompareTiles = async () => {
     ]
 
     const uploadResponses = await Promise.all(uploadPromises)
+
+    // Check for 503 errors in upload responses
+    const upload503Errors = uploadResponses.filter((response) => response.status === 503)
+    if (upload503Errors.length > 0) {
+      // Server is busy, schedule retry
+      projectMessage.value = {
+        type: 'error',
+        text: 'Server is busy. Retrying in 15 seconds...',
+      }
+      isCreatingProject.value = false
+
+      // Clear any existing timeout
+      if (retryTimeout.value) {
+        clearTimeout(retryTimeout.value)
+      }
+
+      // Schedule retry after 15 seconds
+      retryTimeout.value = window.setTimeout(() => {
+        handleCompareTiles()
+      }, 15000)
+      return
+    }
+
     const uploadErrors = uploadResponses.filter((response) => !response.ok)
 
     if (uploadErrors.length > 0) {
@@ -284,6 +328,26 @@ const handleCompareTiles = async () => {
         images: [firstTile.thumbnailUrl, secondTile.thumbnailUrl],
       }),
     })
+
+    if (batchProcessingResponse.status === 503) {
+      // Server is busy, schedule retry
+      projectMessage.value = {
+        type: 'error',
+        text: 'Server is busy. Retrying in 15 seconds...',
+      }
+      isCreatingProject.value = false
+
+      // Clear any existing timeout
+      if (retryTimeout.value) {
+        clearTimeout(retryTimeout.value)
+      }
+
+      // Schedule retry after 15 seconds
+      retryTimeout.value = window.setTimeout(() => {
+        handleCompareTiles()
+      }, 15000)
+      return
+    }
 
     if (!batchProcessingResponse.ok) {
       throw new Error(`Failed to process batch: ${batchProcessingResponse.statusText}`)
@@ -348,6 +412,10 @@ const handleCompareTiles = async () => {
     // Clean up interval if component is unmounted
     onUnmounted(() => {
       clearInterval(pollInterval)
+      // Clean up retry timeout
+      if (retryTimeout.value) {
+        clearTimeout(retryTimeout.value)
+      }
     })
   } catch (error) {
     console.error('Error:', error)
@@ -357,6 +425,14 @@ const handleCompareTiles = async () => {
     }
   } finally {
     isCreatingProject.value = false
+    // Clear message after 3 seconds (only for non-retry cases)
+    if (retryTimeout.value === null) {
+      setTimeout(() => {
+        if (projectMessage.value?.type === 'error') {
+          projectMessage.value = null
+        }
+      }, 3000)
+    }
   }
 }
 
