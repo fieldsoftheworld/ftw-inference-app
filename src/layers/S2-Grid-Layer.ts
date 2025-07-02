@@ -202,8 +202,8 @@ export default function createS2GridLayer(
         if (dataCabinetRef.value?.handleSearchResults) {
           dataCabinetRef.value.handleSearchResults(mgrsTileId)
           // Open the Batch Processing accordion
-          if (dataCabinetRef.value?.handleInferenceToggle) {
-            dataCabinetRef.value.handleInferenceToggle(true)
+          if (dataCabinetRef.value?.handleBatchProcessingToggle) {
+            dataCabinetRef.value.handleBatchProcessingToggle(true)
           }
         } else {
           console.error('S2 Grid Layer: DataCabinet ref not available')

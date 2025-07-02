@@ -166,7 +166,7 @@ const handleCompareTiles = async () => {
   isCreatingProject.value = true
   projectMessage.value = {
     type: 'warning',
-    text: 'Inference may take up to 30 seconds to complete...',
+    text: 'Batch processing may take up to 30 seconds to complete...',
   }
 
   try {
@@ -179,7 +179,7 @@ const handleCompareTiles = async () => {
 
     projectMessage.value = {
       type: 'loading',
-      text: 'Creating project...',
+      text: 'Creating batch processing project...',
     }
 
     const token = generateJWT()
@@ -260,7 +260,7 @@ const handleCompareTiles = async () => {
 
     projectMessage.value = {
       type: 'loading',
-      text: 'Running inference...',
+      text: 'Running batch processing...',
     }
     const {
       models: [{ id: modelId }],
@@ -272,7 +272,7 @@ const handleCompareTiles = async () => {
     }).then((res) => res.json())
 
     // Batch Processing
-    const inferenceResponse = await fetch(`${apiBaseUrl}projects/${projectId}/inference`, {
+    const batchProcessingResponse = await fetch(`${apiBaseUrl}projects/${projectId}/inference`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -285,8 +285,8 @@ const handleCompareTiles = async () => {
       }),
     })
 
-    if (!inferenceResponse.ok) {
-      throw new Error(`Failed to Batch Processing: ${inferenceResponse.statusText}`)
+    if (!batchProcessingResponse.ok) {
+      throw new Error(`Failed to process batch: ${batchProcessingResponse.statusText}`)
     }
 
     // Start polling for project status
@@ -307,7 +307,7 @@ const handleCompareTiles = async () => {
         if (projectStatus.status === 'completed') {
           clearInterval(pollInterval)
 
-          // Fetch inference results
+          // Fetch batch processing results
           const resultsResponse = await fetch(`${apiBaseUrl}projects/${projectId}/inference`, {
             headers: {
               'Content-Type': 'application/json',
@@ -315,15 +315,17 @@ const handleCompareTiles = async () => {
             },
           })
           if (!resultsResponse.ok) {
-            throw new Error(`Failed to fetch inference results: ${resultsResponse.statusText}`)
+            throw new Error(
+              `Failed to fetch batch processing results: ${resultsResponse.statusText}`,
+            )
           }
 
           const results = await resultsResponse.json()
-          console.log('Inference results:', results)
+          console.log('Batch processing results:', results)
 
           projectMessage.value = {
             type: 'success',
-            text: 'Inference completed',
+            text: 'Batch processing completed',
           }
           // Clear message after 3 seconds
           setTimeout(() => {
@@ -333,9 +335,9 @@ const handleCompareTiles = async () => {
           clearInterval(pollInterval)
           projectMessage.value = {
             type: 'error',
-            text: 'Inference Failed to Process',
+            text: 'Batch processing failed to process',
           }
-          throw new Error('Project processing failed')
+          throw new Error('Batch processing failed')
         }
       } catch (error) {
         clearInterval(pollInterval)
@@ -429,7 +431,7 @@ defineExpose({
               @click="handleCompareTiles"
             >
               <span v-if="isCreatingProject">Creating Project...</span>
-              <span v-else>Process</span>
+              <span v-else>Run Batch Processing</span>
             </button>
           </div>
 
