@@ -91,7 +91,7 @@ const handleExampleRequest = async () => {
   const apiBaseUrl = import.meta.env.VITE_API_BASE_URL
   try {
     const token = generateJWT()
-    const response = await fetch(`${apiBaseUrl}/example`, {
+    const response = await fetch(`${apiBaseUrl}example`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
