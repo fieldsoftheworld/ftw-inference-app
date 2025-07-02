@@ -1,20 +1,20 @@
-import GeoJSON from 'ol/format/GeoJSON.js'
-import VectorLayer from 'ol/layer/Vector.js'
-import VectorSource from 'ol/source/Vector.js'
-import { Fill, Stroke, Style } from 'ol/style.js'
-import s2GridData from '../data/s2-grid.json'
 import { Map } from 'ol'
+import type { Extent } from 'ol/extent'
+import { containsCoordinate } from 'ol/extent'
+import Feature from 'ol/Feature'
+import GeoJSON from 'ol/format/GeoJSON.js'
+import { Geometry, Polygon } from 'ol/geom'
+import Interaction from 'ol/interaction/Interaction'
+import Modify from 'ol/interaction/Modify'
+import VectorLayer from 'ol/layer/Vector.js'
+import { transformExtent } from 'ol/proj'
+import VectorSource from 'ol/source/Vector.js'
+import { getArea } from 'ol/sphere'
+import { Fill, Stroke, Style } from 'ol/style.js'
 import type { Ref } from 'vue'
 import type DataCabinet from '../components/DataCabinet.vue'
-import type { Extent } from 'ol/extent'
-import { transformExtent } from 'ol/proj'
-import { Geometry, Polygon } from 'ol/geom'
-import Feature from 'ol/Feature'
-import Snap from 'ol/interaction/Snap'
-import Modify from 'ol/interaction/Modify'
-import Interaction from 'ol/interaction/Interaction'
-import { getArea } from 'ol/sphere'
-import { containsCoordinate } from 'ol/extent'
+import s2GridData from '../data/s2-grid.json'
+import { showWarning } from '../functions/snackbar'
 
 let snap: Interaction | null = null
 const drawVectorLayer: VectorLayer<VectorSource> | null = null
@@ -48,8 +48,8 @@ function calculateBoundingBox(
 
   // Calculate the size of the box in degrees
   // At the equator, 1 degree is approximately 111.32 km
-  // Use the min area value if available, otherwise use 500 sq km
-  const targetArea = areaValues?.min_area_km2 ?? 500
+  // Use the min area value if available, otherwise use 200 sq km
+  const targetArea = (areaValues?.min_area_km2 + areaValues?.max_area_km2) / 2
   const sideLengthKm = Math.sqrt(targetArea)
   const sideLengthDegrees = sideLengthKm / 111.32
 
@@ -70,6 +70,11 @@ export default function createS2GridLayer(
   dataCabinetRef: Ref<InstanceType<typeof DataCabinet> | null>,
   areaValues: { min_area_km2: number; max_area_km2: number },
 ) {
+  // Get the drag interaction from the map
+  const dragInteraction = map
+    .getInteractions()
+    .getArray()
+    .find((interaction) => interaction.constructor.name === 'Drag') as any
   const layer = new VectorLayer({
     source: new VectorSource({
       features: new GeoJSON({
@@ -102,6 +107,13 @@ export default function createS2GridLayer(
         return
       }
 
+      // Clear any existing drawVectorLayer
+      map.getLayers().forEach((layer) => {
+        if (layer.get('name') === 'drawVectorLayer') {
+          map.removeLayer(layer)
+        }
+      })
+
       // Get the feature's extent
       const geometry = feature.getGeometry()
       if (geometry) {
@@ -122,17 +134,24 @@ export default function createS2GridLayer(
           ],
         ])
 
+        // Create the initial feature
+        const initialFeature = new Feature({
+          geometry: bboxPolygon,
+          properties: {
+            name: 'drawVectorLayer',
+          },
+        })
+
         // Create vector source with the initial bounding box
         const drawVectorsource = new VectorSource({
-          features: [
-            new Feature({
-              geometry: bboxPolygon,
-              properties: {
-                name: 'drawVectorLayer',
-              },
-            }),
-          ],
+          features: [initialFeature],
         })
+
+        // Update drag interaction validation parameters and store initial valid feature
+        if (dragInteraction) {
+          dragInteraction.updateValidationParams(areaValues, currentGridExtent)
+          dragInteraction.setLastValidFeature(initialFeature)
+        }
 
         // Create and add the draw vector layer
         const drawVectorLayer = new VectorLayer({
@@ -141,15 +160,43 @@ export default function createS2GridLayer(
             name: 'drawVectorLayer',
           },
           extent: currentGridExtent,
-          style: new Style({
-            stroke: new Stroke({
-              color: 'rgba(0, 136, 136, 1)',
-              width: 2,
-            }),
-            fill: new Fill({
-              color: 'rgba(0, 136, 136, 0.1)',
-            }),
-          }),
+          style: (feature) => {
+            const area = calculateArea(feature.getGeometry() as Polygon)
+            const isWithinExtent = isPolygonWithinExtent(
+              feature.getGeometry() as Polygon,
+              currentGridExtent as Extent,
+            )
+
+            // Check if drag interaction is in invalid state
+            const isDragInvalid = dragInteraction?.isInvalid?.() || false
+
+            if (
+              area > areaValues?.max_area_km2 ||
+              area < areaValues?.min_area_km2 ||
+              !isWithinExtent ||
+              isDragInvalid
+            ) {
+              return new Style({
+                stroke: new Stroke({
+                  color: 'rgba(255, 255, 0, 1)',
+                  width: 2,
+                }),
+                fill: new Fill({
+                  color: 'rgba(255, 255, 0, 0.1)',
+                }),
+              })
+            } else {
+              return new Style({
+                stroke: new Stroke({
+                  color: 'rgba(0, 136, 136, 1)',
+                  width: 2,
+                }),
+                fill: new Fill({
+                  color: 'rgba(0, 136, 136, 0.1)',
+                }),
+              })
+            }
+          },
           zIndex: 1001,
         })
 
@@ -168,12 +215,12 @@ export default function createS2GridLayer(
           maxZoom: 13,
         })
 
-        // Call the search function through the ref and open the Run Inference accordion
+        // Call the search function through the ref and open the Batch Processing accordion
         if (dataCabinetRef.value?.handleSearchResults) {
           dataCabinetRef.value.handleSearchResults(mgrsTileId)
-          // Open the Run Inference accordion
-          if (dataCabinetRef.value?.handleInferenceToggle) {
-            dataCabinetRef.value.handleInferenceToggle(true)
+          // Open the Batch Processing accordion
+          if (dataCabinetRef.value?.handleBatchProcessingToggle) {
+            dataCabinetRef.value.handleBatchProcessingToggle(true)
           }
         } else {
           console.error('S2 Grid Layer: DataCabinet ref not available')
@@ -202,6 +249,7 @@ export default function createS2GridLayer(
             const area = calculateArea(geometry)
             const isWithinExtent = isPolygonWithinExtent(geometry, currentGridExtent)
             // Check if the polygon is within the grid extent and within size limits
+
             if (
               area > areaValues?.max_area_km2 ||
               area < areaValues?.min_area_km2 ||
@@ -217,14 +265,20 @@ export default function createS2GridLayer(
                 // Update the current feature reference
                 currentFeature = validFeature
 
-                // Show notification if area was too large or too small
+                // Show notification for each validation error
                 if (area > areaValues?.max_area_km2) {
-                  dataCabinetRef.value?.handleBboxSizeWarning(
+                  showWarning(
                     `Bounding box area exceeds ${areaValues?.max_area_km2} square kilometers. Resizing to last valid state.`,
                   )
-                } else if (area < areaValues?.min_area_km2) {
-                  dataCabinetRef.value?.handleBboxSizeWarning(
+                }
+                if (area < areaValues?.min_area_km2) {
+                  showWarning(
                     `Bounding box area is less than ${areaValues?.min_area_km2} square kilometers. Resizing to last valid state.`,
+                  )
+                }
+                if (!isWithinExtent) {
+                  showWarning(
+                    'Bounding box is outside the selected grid area. Resizing to last valid state.',
                   )
                 }
               } else {
@@ -251,35 +305,34 @@ export default function createS2GridLayer(
 
                 // Show notification for reset to initial bbox
                 if (area > areaValues?.max_area_km2) {
-                  dataCabinetRef.value?.handleBboxSizeWarning(
+                  showWarning(
                     `Bounding box area exceeds ${areaValues?.max_area_km2} square kilometers. Resetting to initial size.`,
                   )
-                } else if (area < areaValues?.min_area_km2) {
-                  dataCabinetRef.value?.handleBboxSizeWarning(
+                }
+                if (area < areaValues?.min_area_km2) {
+                  showWarning(
                     `Bounding box area is less than ${areaValues?.min_area_km2} square kilometers. Resetting to initial size.`,
+                  )
+                }
+                if (!isWithinExtent) {
+                  showWarning(
+                    'Bounding box is outside the selected grid area. Resetting to initial size.',
                   )
                 }
               }
             } else {
               // Update the current valid state
               currentFeature = features[0].clone() as Feature<Polygon>
+
+              // Update drag interaction's last valid feature
+              if (dragInteraction) {
+                dragInteraction.setLastValidFeature(currentFeature)
+              }
             }
           }
         })
 
         map.addInteraction(modify)
-
-        function addInteractions() {
-          snap = new Snap({
-            source: drawVectorsource,
-            pixelTolerance: 10,
-            edge: true,
-            vertex: true,
-          })
-          map.addInteraction(snap)
-        }
-
-        addInteractions()
       }
     } else {
       // If clicked outside a feature, clear the selection

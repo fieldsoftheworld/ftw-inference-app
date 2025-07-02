@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onUnmounted } from 'vue'
 import { generateJWT } from '../functions/generate-jwt'
 import type { Feature, Map } from 'ol'
 import { fromLonLat } from 'ol/proj'
@@ -39,6 +39,14 @@ const emit = defineEmits<{
 const isProcessing = ref(false)
 const message = ref<{ type: 'success' | 'error' | 'loading'; text: string } | null>(null)
 const vectorLayer = ref<VectorLayer<VectorSource> | null>(null)
+const retryTimeout = ref<number | null>(null)
+
+// Cleanup timeout on component unmount
+onUnmounted(() => {
+  if (retryTimeout.value) {
+    clearTimeout(retryTimeout.value)
+  }
+})
 
 const toggleAccordion = () => {
   emit('update:isOpen', !props.isOpen)
@@ -85,9 +93,9 @@ const displayGeoJSON = (geojson: GeoJSONResponse) => {
   props.map.addLayer(layer as VectorLayer<VectorSource>)
 }
 
-const handleExampleRequest = async () => {
+const handleSmallAreaProcessingRequest = async () => {
   isProcessing.value = true
-  message.value = { type: 'loading', text: 'Processing example...' }
+  message.value = { type: 'loading', text: 'Processing small area...' }
   const apiBaseUrl = import.meta.env.VITE_API_BASE_URL
   try {
     const token = generateJWT()
@@ -112,8 +120,28 @@ const handleExampleRequest = async () => {
       }),
     })
 
+    if (response.status === 503) {
+      // Server is busy, schedule retry
+      message.value = {
+        type: 'error',
+        text: 'Server is busy. Retrying in 15 seconds...',
+      }
+      isProcessing.value = false
+
+      // Clear any existing timeout
+      if (retryTimeout.value) {
+        clearTimeout(retryTimeout.value)
+      }
+
+      // Schedule retry after 15 seconds
+      retryTimeout.value = window.setTimeout(() => {
+        handleSmallAreaProcessingRequest()
+      }, 15000)
+      return
+    }
+
     if (!response.ok) {
-      throw new Error(`Failed to process example: ${response.statusText}`)
+      throw new Error(`Failed to process small area: ${response.statusText}`)
     }
 
     const data = await response.json()
@@ -128,17 +156,19 @@ const handleExampleRequest = async () => {
 
     message.value = { type: 'success', text: 'Example processed successfully' }
   } catch (error) {
-    console.error('Error processing example:', error)
+    console.error('Error processing small area:', error)
     message.value = {
       type: 'error',
-      text: error instanceof Error ? error.message : 'Failed to process example',
+      text: error instanceof Error ? error.message : 'Failed to process small area',
     }
   } finally {
     isProcessing.value = false
-    // Clear message after 3 seconds
-    setTimeout(() => {
-      message.value = null
-    }, 3000)
+    // Clear message after 3 seconds (only for non-retry cases)
+    if (retryTimeout.value === null) {
+      setTimeout(() => {
+        message.value = null
+      }, 3000)
+    }
   }
 }
 </script>
@@ -146,24 +176,28 @@ const handleExampleRequest = async () => {
 <template>
   <div>
     <div class="accordion-header" @click="toggleAccordion">
-      <h3>Precomputed Examples</h3>
+      <h3>Instant Small Area Processing</h3>
       <span class="accordion-icon" :class="{ open: props.isOpen }">▼</span>
     </div>
 
     <transition name="accordion">
       <div v-show="props.isOpen" class="results">
-        <div class="example-field">
+        <div class="small-area-processing-field">
           <div class="result-header">
-            <h3>Precomputed Examples</h3>
+            <h3>Instant Small Area Processing</h3>
           </div>
           <div class="result-details">
             <div v-if="message && !isProcessing" :class="['message', message.type]">
               {{ message.text }}
             </div>
-            <button class="action-button" @click="handleExampleRequest" :disabled="isProcessing">
+            <button
+              class="action-button"
+              @click="handleSmallAreaProcessingRequest"
+              :disabled="isProcessing"
+            >
               <span v-if="isProcessing" class="progress-bar"></span>
               <span class="button-text">
-                {{ isProcessing ? 'Processing...' : 'Run Example' }}
+                {{ isProcessing ? 'Processing...' : 'Run Small Area Processing' }}
               </span>
             </button>
           </div>
@@ -208,7 +242,7 @@ const handleExampleRequest = async () => {
   transition: opacity 0.3s ease;
 }
 
-.example-field {
+.small-area-processing-field {
   background-color: rgba(255, 255, 255, 0.1);
   padding: 1rem;
   border-radius: 4px;

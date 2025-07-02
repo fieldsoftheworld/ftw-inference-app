@@ -32,11 +32,15 @@ const currentMgrsTileId = ref<string | null>(null)
 const activeTileId = ref<string | null>(null)
 const secondActiveTileId = ref<string | null>(null)
 const isCreatingProject = ref(false)
-const projectMessage = ref<{ type: 'success' | 'error' | 'loading'; text: string } | null>(null)
+const projectMessage = ref<{
+  type: 'success' | 'error' | 'loading' | 'warning'
+  text: string
+} | null>(null)
 const projectTitle = ref(new Date().toISOString())
 const drawnExtent = ref<Extent | null>(null)
 const isFirstResultsOpen = ref(false)
 const isSecondResultsOpen = ref(false)
+const retryTimeout = ref<number | null>(null)
 
 const toggleAccordion = () => {
   emit('update:isOpen', !props.isOpen)
@@ -161,7 +165,10 @@ const handleCompareTiles = async () => {
   if (!activeTileId.value || !secondActiveTileId.value) return
 
   isCreatingProject.value = true
-  projectMessage.value = null
+  projectMessage.value = {
+    type: 'warning',
+    text: 'Batch processing may take up to 30 seconds to complete...',
+  }
 
   try {
     const firstTile = searchResults.value.find((result) => result.id === activeTileId.value)
@@ -173,7 +180,7 @@ const handleCompareTiles = async () => {
 
     projectMessage.value = {
       type: 'loading',
-      text: 'Creating project...',
+      text: 'Creating batch processing project...',
     }
 
     const token = generateJWT()
@@ -191,6 +198,26 @@ const handleCompareTiles = async () => {
         title: projectTitle.value,
       }),
     })
+
+    if (createResponse.status === 503) {
+      // Server is busy, schedule retry
+      projectMessage.value = {
+        type: 'error',
+        text: 'Server is busy. Retrying in 15 seconds...',
+      }
+      isCreatingProject.value = false
+
+      // Clear any existing timeout
+      if (retryTimeout.value) {
+        clearTimeout(retryTimeout.value)
+      }
+
+      // Schedule retry after 15 seconds
+      retryTimeout.value = window.setTimeout(() => {
+        handleCompareTiles()
+      }, 15000)
+      return
+    }
 
     if (!createResponse.ok) {
       throw new Error(`Failed to create project: ${createResponse.statusText}`)
@@ -246,6 +273,29 @@ const handleCompareTiles = async () => {
     ]
 
     const uploadResponses = await Promise.all(uploadPromises)
+
+    // Check for 503 errors in upload responses
+    const upload503Errors = uploadResponses.filter((response) => response.status === 503)
+    if (upload503Errors.length > 0) {
+      // Server is busy, schedule retry
+      projectMessage.value = {
+        type: 'error',
+        text: 'Server is busy. Retrying in 15 seconds...',
+      }
+      isCreatingProject.value = false
+
+      // Clear any existing timeout
+      if (retryTimeout.value) {
+        clearTimeout(retryTimeout.value)
+      }
+
+      // Schedule retry after 15 seconds
+      retryTimeout.value = window.setTimeout(() => {
+        handleCompareTiles()
+      }, 15000)
+      return
+    }
+
     const uploadErrors = uploadResponses.filter((response) => !response.ok)
 
     if (uploadErrors.length > 0) {
@@ -254,7 +304,7 @@ const handleCompareTiles = async () => {
 
     projectMessage.value = {
       type: 'loading',
-      text: 'Running inference...',
+      text: 'Running batch processing...',
     }
     const {
       models: [{ id: modelId }],
@@ -265,8 +315,8 @@ const handleCompareTiles = async () => {
       },
     }).then((res) => res.json())
 
-    // Run inference
-    const inferenceResponse = await fetch(`${apiBaseUrl}projects/${projectId}/inference`, {
+    // Batch Processing
+    const batchProcessingResponse = await fetch(`${apiBaseUrl}projects/${projectId}/inference`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -279,8 +329,28 @@ const handleCompareTiles = async () => {
       }),
     })
 
-    if (!inferenceResponse.ok) {
-      throw new Error(`Failed to run inference: ${inferenceResponse.statusText}`)
+    if (batchProcessingResponse.status === 503) {
+      // Server is busy, schedule retry
+      projectMessage.value = {
+        type: 'error',
+        text: 'Server is busy. Retrying in 15 seconds...',
+      }
+      isCreatingProject.value = false
+
+      // Clear any existing timeout
+      if (retryTimeout.value) {
+        clearTimeout(retryTimeout.value)
+      }
+
+      // Schedule retry after 15 seconds
+      retryTimeout.value = window.setTimeout(() => {
+        handleCompareTiles()
+      }, 15000)
+      return
+    }
+
+    if (!batchProcessingResponse.ok) {
+      throw new Error(`Failed to process batch: ${batchProcessingResponse.statusText}`)
     }
 
     // Start polling for project status
@@ -301,7 +371,7 @@ const handleCompareTiles = async () => {
         if (projectStatus.status === 'completed') {
           clearInterval(pollInterval)
 
-          // Fetch inference results
+          // Fetch batch processing results
           const resultsResponse = await fetch(`${apiBaseUrl}projects/${projectId}/inference`, {
             headers: {
               'Content-Type': 'application/json',
@@ -309,15 +379,17 @@ const handleCompareTiles = async () => {
             },
           })
           if (!resultsResponse.ok) {
-            throw new Error(`Failed to fetch inference results: ${resultsResponse.statusText}`)
+            throw new Error(
+              `Failed to fetch batch processing results: ${resultsResponse.statusText}`,
+            )
           }
 
           const results = await resultsResponse.json()
-          console.log('Inference results:', results)
+          console.log('Batch processing results:', results)
 
           projectMessage.value = {
             type: 'success',
-            text: 'Inference completed',
+            text: 'Batch processing completed',
           }
           // Clear message after 3 seconds
           setTimeout(() => {
@@ -327,9 +399,9 @@ const handleCompareTiles = async () => {
           clearInterval(pollInterval)
           projectMessage.value = {
             type: 'error',
-            text: 'Inference Failed to Process',
+            text: 'Batch processing failed to process',
           }
-          throw new Error('Project processing failed')
+          throw new Error('Batch processing failed')
         }
       } catch (error) {
         clearInterval(pollInterval)
@@ -340,6 +412,10 @@ const handleCompareTiles = async () => {
     // Clean up interval if component is unmounted
     onUnmounted(() => {
       clearInterval(pollInterval)
+      // Clean up retry timeout
+      if (retryTimeout.value) {
+        clearTimeout(retryTimeout.value)
+      }
     })
   } catch (error) {
     console.error('Error:', error)
@@ -349,6 +425,14 @@ const handleCompareTiles = async () => {
     }
   } finally {
     isCreatingProject.value = false
+    // Clear message after 3 seconds (only for non-retry cases)
+    if (retryTimeout.value === null) {
+      setTimeout(() => {
+        if (projectMessage.value?.type === 'error') {
+          projectMessage.value = null
+        }
+      }, 3000)
+    }
   }
 }
 
@@ -357,6 +441,16 @@ const handleBboxSizeWarning = (message: string) => {
     type: 'error',
     text: message,
   }
+  // Auto-dismiss after 3 seconds
+  setTimeout(() => {
+    if (projectMessage.value?.type === 'error') {
+      projectMessage.value = null
+    }
+  }, 3000)
+}
+
+const dismissMessage = () => {
+  projectMessage.value = null
 }
 
 // Expose methods to parent components
@@ -371,7 +465,7 @@ defineExpose({
 <template>
   <div>
     <div class="accordion-header" @click="toggleAccordion">
-      <h3>Run Inference</h3>
+      <h3>Batch Processing</h3>
       <span class="accordion-icon" :class="{ open: isOpen }">▼</span>
     </div>
 
@@ -399,6 +493,13 @@ defineExpose({
             </div>
             <div v-if="projectMessage" :class="['message', projectMessage.type]">
               {{ projectMessage.text }}
+              <button
+                v-if="projectMessage.type === 'error'"
+                class="close-button"
+                @click="dismissMessage"
+              >
+                ×
+              </button>
             </div>
             <button
               class="action-button"
@@ -406,7 +507,7 @@ defineExpose({
               @click="handleCompareTiles"
             >
               <span v-if="isCreatingProject">Creating Project...</span>
-              <span v-else>Run Inference</span>
+              <span v-else>Run Batch Processing</span>
             </button>
           </div>
 
@@ -513,6 +614,15 @@ defineExpose({
                     </div>
                   </div>
                 </template>
+
+                <button
+                  v-if="hasMore"
+                  @click="loadMore"
+                  class="load-more-button"
+                  :disabled="isLoading"
+                >
+                  Load More
+                </button>
               </div>
             </transition>
           </div>
@@ -567,7 +677,7 @@ defineExpose({
   overflow-y: auto;
   transition: opacity 0.3s ease;
   min-height: 0;
-  max-height: calc(100vh - 400px);
+  max-height: calc(100vh - 490px);
 }
 
 .selected-tile-header {
@@ -624,6 +734,11 @@ defineExpose({
   border-radius: 4px;
   font-size: 0.875rem;
   text-align: center;
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.5rem;
 }
 
 .message.success {
@@ -636,6 +751,38 @@ defineExpose({
   background-color: rgba(255, 0, 0, 0.1);
   border: 1px solid rgba(255, 0, 0, 0.3);
   color: #ff0000;
+}
+
+.message.warning {
+  background-color: rgba(255, 255, 0, 0.1);
+  border: 1px solid rgba(255, 255, 0, 0.3);
+  color: #ffff00;
+}
+
+.message.loading {
+  background-color: rgba(0, 136, 136, 0.1);
+  border: 1px solid rgba(0, 136, 136, 0.3);
+  color: #00ffff;
+}
+
+.close-button {
+  position: absolute;
+  right: 0.25rem;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: inherit;
+  font-size: 1.25rem;
+  cursor: pointer;
+  padding: 0 0.5rem;
+  line-height: 1;
+  opacity: 0.7;
+  transition: opacity 0.2s ease;
+}
+
+.close-button:hover {
+  opacity: 1;
 }
 
 .action-button {

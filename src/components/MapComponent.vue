@@ -2,6 +2,7 @@
 import { ref, onMounted } from 'vue'
 import { Map, View } from 'ol'
 import DataCabinet from './DataCabinet.vue'
+import Snackbar from './Snackbar.vue'
 import createS2GridLayer from '../layers/S2-Grid-Layer'
 import createCloudlessLayer from '../layers/S2-Cloudless-Layer'
 // @ts-expect-error - No declaration file found
@@ -14,8 +15,10 @@ const dataCabinetRef = ref<InstanceType<typeof DataCabinet> | null>(null)
 const areaValues = ref<{ min_area_km2: number; max_area_km2: number } | null>(null)
 
 onMounted(async () => {
+  const dragInteraction = new Drag()
+
   map.value = new Map({
-    interactions: defaultInteractions().extend([new Drag()]),
+    interactions: defaultInteractions().extend([dragInteraction]),
     target: 'map',
     layers: [createCloudlessLayer()],
     view: new View({
@@ -39,8 +42,8 @@ onMounted(async () => {
     }
     const data = await response.json()
     areaValues.value = {
-      min_area_km2: data.min_area_km2 ?? 500,
-      max_area_km2: data.max_area_km2 ?? 100,
+      min_area_km2: data.min_area_km2 ?? 100,
+      max_area_km2: data.max_area_km2 ?? 500,
     }
   } catch (error) {
     areaValues.value = {
@@ -62,6 +65,7 @@ onMounted(async () => {
   <div class="map-wrapper">
     <div id="map" class="map-container"></div>
     <DataCabinet v-if="map" :map="map as Map" ref="dataCabinetRef" />
+    <Snackbar />
   </div>
 </template>
 
