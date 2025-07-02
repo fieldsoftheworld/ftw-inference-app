@@ -271,7 +271,7 @@ const handleCompareTiles = async () => {
       },
     }).then((res) => res.json())
 
-    // Run inference
+    // Batch Processing
     const inferenceResponse = await fetch(`${apiBaseUrl}projects/${projectId}/inference`, {
       method: 'PUT',
       headers: {
@@ -286,7 +286,7 @@ const handleCompareTiles = async () => {
     })
 
     if (!inferenceResponse.ok) {
-      throw new Error(`Failed to run inference: ${inferenceResponse.statusText}`)
+      throw new Error(`Failed to Batch Processing: ${inferenceResponse.statusText}`)
     }
 
     // Start polling for project status
@@ -387,7 +387,7 @@ defineExpose({
 <template>
   <div>
     <div class="accordion-header" @click="toggleAccordion">
-      <h3>Run Inference</h3>
+      <h3>Batch Processing</h3>
       <span class="accordion-icon" :class="{ open: isOpen }">▼</span>
     </div>
 
@@ -429,7 +429,7 @@ defineExpose({
               @click="handleCompareTiles"
             >
               <span v-if="isCreatingProject">Creating Project...</span>
-              <span v-else>Run Inference</span>
+              <span v-else>Process</span>
             </button>
           </div>
 

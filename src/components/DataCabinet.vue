@@ -2,50 +2,51 @@
 import type { Extent } from 'ol/extent'
 import type { Map } from 'ol'
 import { ref } from 'vue'
-import PrecomputedExamples from './PrecomputedExamples.vue'
-import RunInference from './RunInference.vue'
+import SmallAreaProcessing from './SmallAreaProcessing.vue'
+import BatchProcessing from './BatchProcessing.vue'
 
 const props = defineProps<{
   map: Map
 }>()
 
-const runInferenceRef = ref<InstanceType<typeof RunInference> | null>(null)
-const activeAccordion = ref<'precomputed' | 'inference' | null>('precomputed')
+const batchProcessingRef = ref<InstanceType<typeof BatchProcessing> | null>(null)
+const activeAccordion = ref<'smallAreaProcessing' | 'batchProcessing' | null>('smallAreaProcessing')
 
-const handlePrecomputedToggle = (isOpen: boolean) => {
-  activeAccordion.value = isOpen ? 'precomputed' : null
+const handleSmallAreaProcessingToggle = (isOpen: boolean) => {
+  activeAccordion.value = isOpen ? 'smallAreaProcessing' : null
 }
 
-const handleInferenceToggle = (isOpen: boolean) => {
-  activeAccordion.value = isOpen ? 'inference' : null
+const handleBatchProcessingToggle = (isOpen: boolean) => {
+  activeAccordion.value = isOpen ? 'batchProcessing' : null
 }
 
 // Expose methods to parent components
 defineExpose({
   handleSearchResults: (mgrsTileId: string) =>
-    runInferenceRef.value?.handleSearchResults(mgrsTileId),
-  setDrawnExtent: (extent: Extent) => runInferenceRef.value?.setDrawnExtent(extent),
-  currentMgrsTileId: runInferenceRef.value?.currentMgrsTileId,
-  handleBboxSizeWarning: (message: string) => runInferenceRef.value?.handleBboxSizeWarning(message),
-  handleInferenceToggle: (isOpen: boolean) => handleInferenceToggle(isOpen),
+    batchProcessingRef.value?.handleSearchResults(mgrsTileId),
+  setDrawnExtent: (extent: Extent) => batchProcessingRef.value?.setDrawnExtent(extent),
+  currentMgrsTileId: batchProcessingRef.value?.currentMgrsTileId,
+  handleBboxSizeWarning: (message: string) =>
+    batchProcessingRef.value?.handleBboxSizeWarning(message),
+  handleBatchProcessingToggle: (isOpen: boolean) => handleBatchProcessingToggle(isOpen),
 })
 </script>
 
 <template>
   <div class="data-cabinet">
     <h2>Fields of the World: Inference App</h2>
-    <PrecomputedExamples
+    <SmallAreaProcessing
       v-if="props.map"
-      :is-open="activeAccordion === 'precomputed'"
-      @update:is-open="handlePrecomputedToggle"
+      :is-open="activeAccordion === 'smallAreaProcessing'"
+      @update:is-open="handleSmallAreaProcessingToggle"
       :map="props.map"
     />
-    <RunInference
+    <BatchProcessing
       v-if="props.map"
       :map="props.map"
-      :is-open="activeAccordion === 'inference'"
-      @update:is-open="handleInferenceToggle"
-      ref="runInferenceRef"
+      :is-open="activeAccordion === 'batchProcessing'"
+      @update:is-open="handleBatchProcessingToggle"
+      ref="batchProcessingRef"
     />
   </div>
 </template>

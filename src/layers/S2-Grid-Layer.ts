@@ -198,10 +198,10 @@ export default function createS2GridLayer(
           maxZoom: 13,
         })
 
-        // Call the search function through the ref and open the Run Inference accordion
+        // Call the search function through the ref and open the Batch Processing accordion
         if (dataCabinetRef.value?.handleSearchResults) {
           dataCabinetRef.value.handleSearchResults(mgrsTileId)
-          // Open the Run Inference accordion
+          // Open the Batch Processing accordion
           if (dataCabinetRef.value?.handleInferenceToggle) {
             dataCabinetRef.value.handleInferenceToggle(true)
           }

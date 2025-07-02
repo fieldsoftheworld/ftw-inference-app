@@ -146,7 +146,7 @@ const handleExampleRequest = async () => {
 <template>
   <div>
     <div class="accordion-header" @click="toggleAccordion">
-      <h3>Precomputed Examples</h3>
+      <h3>Instant Small Area Processing</h3>
       <span class="accordion-icon" :class="{ open: props.isOpen }">▼</span>
     </div>
 
@@ -154,7 +154,7 @@ const handleExampleRequest = async () => {
       <div v-show="props.isOpen" class="results">
         <div class="example-field">
           <div class="result-header">
-            <h3>Precomputed Examples</h3>
+            <h3>Instant Small Area Processing</h3>
           </div>
           <div class="result-details">
             <div v-if="message && !isProcessing" :class="['message', message.type]">
@@ -163,7 +163,7 @@ const handleExampleRequest = async () => {
             <button class="action-button" @click="handleExampleRequest" :disabled="isProcessing">
               <span v-if="isProcessing" class="progress-bar"></span>
               <span class="button-text">
-                {{ isProcessing ? 'Processing...' : 'Run Example' }}
+                {{ isProcessing ? 'Processing...' : 'Run Process' }}
               </span>
             </button>
           </div>
