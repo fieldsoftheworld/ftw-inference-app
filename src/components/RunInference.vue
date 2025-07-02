@@ -218,7 +218,7 @@ const handleCompareTiles = async () => {
         const formData = new FormData()
         formData.append('file', imageBlob)
 
-        return fetch(`${apiBaseUrl}projects/${projectId}images/a`, {
+        return fetch(`${apiBaseUrl}projects/${projectId}/images/a`, {
           method: 'PUT',
           headers: {
             'Content-Type': 'multipart/form-data',
@@ -234,7 +234,7 @@ const handleCompareTiles = async () => {
         const formData = new FormData()
         formData.append('file', imageBlob)
 
-        return fetch(`${apiBaseUrl}projects/${projectId}images/b`, {
+        return fetch(`${apiBaseUrl}projects/${projectId}/images/b`, {
           method: 'PUT',
           headers: {
             'Content-Type': 'multipart/form-data',
