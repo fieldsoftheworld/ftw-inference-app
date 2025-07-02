@@ -614,6 +614,15 @@ defineExpose({
                     </div>
                   </div>
                 </template>
+
+                <button
+                  v-if="hasMore"
+                  @click="loadMore"
+                  class="load-more-button"
+                  :disabled="isLoading"
+                >
+                  Load More
+                </button>
               </div>
             </transition>
           </div>
@@ -668,7 +677,7 @@ defineExpose({
   overflow-y: auto;
   transition: opacity 0.3s ease;
   min-height: 0;
-  max-height: calc(100vh - 400px);
+  max-height: calc(100vh - 490px);
 }
 
 .selected-tile-header {
