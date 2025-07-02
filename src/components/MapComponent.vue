@@ -2,6 +2,7 @@
 import { ref, onMounted } from 'vue'
 import { Map, View } from 'ol'
 import DataCabinet from './DataCabinet.vue'
+import Snackbar from './Snackbar.vue'
 import createS2GridLayer from '../layers/S2-Grid-Layer'
 import createCloudlessLayer from '../layers/S2-Cloudless-Layer'
 // @ts-expect-error - No declaration file found
@@ -62,6 +63,7 @@ onMounted(async () => {
   <div class="map-wrapper">
     <div id="map" class="map-container"></div>
     <DataCabinet v-if="map" :map="map as Map" ref="dataCabinetRef" />
+    <Snackbar />
   </div>
 </template>
 

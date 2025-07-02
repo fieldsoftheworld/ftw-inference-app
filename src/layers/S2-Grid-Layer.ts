@@ -1,20 +1,20 @@
-import GeoJSON from 'ol/format/GeoJSON.js'
-import VectorLayer from 'ol/layer/Vector.js'
-import VectorSource from 'ol/source/Vector.js'
-import { Fill, Stroke, Style } from 'ol/style.js'
-import s2GridData from '../data/s2-grid.json'
 import { Map } from 'ol'
+import type { Extent } from 'ol/extent'
+import { containsCoordinate } from 'ol/extent'
+import Feature from 'ol/Feature'
+import GeoJSON from 'ol/format/GeoJSON.js'
+import { Geometry, Polygon } from 'ol/geom'
+import Interaction from 'ol/interaction/Interaction'
+import Modify from 'ol/interaction/Modify'
+import VectorLayer from 'ol/layer/Vector.js'
+import { transformExtent } from 'ol/proj'
+import VectorSource from 'ol/source/Vector.js'
+import { getArea } from 'ol/sphere'
+import { Fill, Stroke, Style } from 'ol/style.js'
 import type { Ref } from 'vue'
 import type DataCabinet from '../components/DataCabinet.vue'
-import type { Extent } from 'ol/extent'
-import { transformExtent } from 'ol/proj'
-import { Geometry, Polygon } from 'ol/geom'
-import Feature from 'ol/Feature'
-import Snap from 'ol/interaction/Snap'
-import Modify from 'ol/interaction/Modify'
-import Interaction from 'ol/interaction/Interaction'
-import { getArea } from 'ol/sphere'
-import { containsCoordinate } from 'ol/extent'
+import s2GridData from '../data/s2-grid.json'
+import { showWarning } from '../functions/snackbar'
 
 let snap: Interaction | null = null
 const drawVectorLayer: VectorLayer<VectorSource> | null = null
@@ -49,7 +49,7 @@ function calculateBoundingBox(
   // Calculate the size of the box in degrees
   // At the equator, 1 degree is approximately 111.32 km
   // Use the min area value if available, otherwise use 200 sq km
-  const targetArea = areaValues?.min_area_km2 ?? 200
+  const targetArea = (areaValues?.min_area_km2 + areaValues?.max_area_km2) / 2
   const sideLengthKm = Math.sqrt(targetArea)
   const sideLengthDegrees = sideLengthKm / 111.32
 
@@ -249,12 +249,16 @@ export default function createS2GridLayer(
 
                 // Show notification if area was too large or too small
                 if (area > areaValues?.max_area_km2) {
-                  dataCabinetRef.value?.handleBboxSizeWarning(
+                  showWarning(
                     `Bounding box area exceeds ${areaValues?.max_area_km2} square kilometers. Resizing to last valid state.`,
                   )
                 } else if (area < areaValues?.min_area_km2) {
-                  dataCabinetRef.value?.handleBboxSizeWarning(
+                  showWarning(
                     `Bounding box area is less than ${areaValues?.min_area_km2} square kilometers. Resizing to last valid state.`,
+                  )
+                } else if (!isWithinExtent) {
+                  showWarning(
+                    'Bounding box is outside the selected grid area. Resizing to last valid state.',
                   )
                 }
               } else {
@@ -281,12 +285,16 @@ export default function createS2GridLayer(
 
                 // Show notification for reset to initial bbox
                 if (area > areaValues?.max_area_km2) {
-                  dataCabinetRef.value?.handleBboxSizeWarning(
+                  showWarning(
                     `Bounding box area exceeds ${areaValues?.max_area_km2} square kilometers. Resetting to initial size.`,
                   )
                 } else if (area < areaValues?.min_area_km2) {
-                  dataCabinetRef.value?.handleBboxSizeWarning(
+                  showWarning(
                     `Bounding box area is less than ${areaValues?.min_area_km2} square kilometers. Resetting to initial size.`,
+                  )
+                } else if (!isWithinExtent) {
+                  showWarning(
+                    'Bounding box is outside the selected grid area. Resetting to initial size.',
                   )
                 }
               }
@@ -298,18 +306,6 @@ export default function createS2GridLayer(
         })
 
         map.addInteraction(modify)
-
-        function addInteractions() {
-          snap = new Snap({
-            source: drawVectorsource,
-            pixelTolerance: 10,
-            edge: true,
-            vertex: true,
-          })
-          map.addInteraction(snap)
-        }
-
-        addInteractions()
       }
     } else {
       // If clicked outside a feature, clear the selection
