@@ -15,8 +15,10 @@ const dataCabinetRef = ref<InstanceType<typeof DataCabinet> | null>(null)
 const areaValues = ref<{ min_area_km2: number; max_area_km2: number } | null>(null)
 
 onMounted(async () => {
+  const dragInteraction = new Drag()
+
   map.value = new Map({
-    interactions: defaultInteractions().extend([new Drag()]),
+    interactions: defaultInteractions().extend([dragInteraction]),
     target: 'map',
     layers: [createCloudlessLayer()],
     view: new View({

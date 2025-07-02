@@ -12,6 +12,9 @@ const messages = ref<SnackbarMessage[]>([])
 const nextId = ref(1)
 
 const showMessage = (message: Omit<SnackbarMessage, 'id'>) => {
+  // Clear any existing messages first
+  messages.value = []
+
   const id = `snackbar-${nextId.value++}`
   const newMessage: SnackbarMessage = {
     id,

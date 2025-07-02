@@ -70,6 +70,11 @@ export default function createS2GridLayer(
   dataCabinetRef: Ref<InstanceType<typeof DataCabinet> | null>,
   areaValues: { min_area_km2: number; max_area_km2: number },
 ) {
+  // Get the drag interaction from the map
+  const dragInteraction = map
+    .getInteractions()
+    .getArray()
+    .find((interaction) => interaction.constructor.name === 'Drag') as any
   const layer = new VectorLayer({
     source: new VectorSource({
       features: new GeoJSON({
@@ -129,17 +134,24 @@ export default function createS2GridLayer(
           ],
         ])
 
+        // Create the initial feature
+        const initialFeature = new Feature({
+          geometry: bboxPolygon,
+          properties: {
+            name: 'drawVectorLayer',
+          },
+        })
+
         // Create vector source with the initial bounding box
         const drawVectorsource = new VectorSource({
-          features: [
-            new Feature({
-              geometry: bboxPolygon,
-              properties: {
-                name: 'drawVectorLayer',
-              },
-            }),
-          ],
+          features: [initialFeature],
         })
+
+        // Update drag interaction validation parameters and store initial valid feature
+        if (dragInteraction) {
+          dragInteraction.updateValidationParams(areaValues, currentGridExtent)
+          dragInteraction.setLastValidFeature(initialFeature)
+        }
 
         // Create and add the draw vector layer
         const drawVectorLayer = new VectorLayer({
@@ -154,10 +166,15 @@ export default function createS2GridLayer(
               feature.getGeometry() as Polygon,
               currentGridExtent as Extent,
             )
+
+            // Check if drag interaction is in invalid state
+            const isDragInvalid = dragInteraction?.isInvalid?.() || false
+
             if (
               area > areaValues?.max_area_km2 ||
               area < areaValues?.min_area_km2 ||
-              !isWithinExtent
+              !isWithinExtent ||
+              isDragInvalid
             ) {
               return new Style({
                 stroke: new Stroke({
@@ -232,6 +249,7 @@ export default function createS2GridLayer(
             const area = calculateArea(geometry)
             const isWithinExtent = isPolygonWithinExtent(geometry, currentGridExtent)
             // Check if the polygon is within the grid extent and within size limits
+
             if (
               area > areaValues?.max_area_km2 ||
               area < areaValues?.min_area_km2 ||
@@ -247,16 +265,18 @@ export default function createS2GridLayer(
                 // Update the current feature reference
                 currentFeature = validFeature
 
-                // Show notification if area was too large or too small
+                // Show notification for each validation error
                 if (area > areaValues?.max_area_km2) {
                   showWarning(
                     `Bounding box area exceeds ${areaValues?.max_area_km2} square kilometers. Resizing to last valid state.`,
                   )
-                } else if (area < areaValues?.min_area_km2) {
+                }
+                if (area < areaValues?.min_area_km2) {
                   showWarning(
                     `Bounding box area is less than ${areaValues?.min_area_km2} square kilometers. Resizing to last valid state.`,
                   )
-                } else if (!isWithinExtent) {
+                }
+                if (!isWithinExtent) {
                   showWarning(
                     'Bounding box is outside the selected grid area. Resizing to last valid state.',
                   )
@@ -288,11 +308,13 @@ export default function createS2GridLayer(
                   showWarning(
                     `Bounding box area exceeds ${areaValues?.max_area_km2} square kilometers. Resetting to initial size.`,
                   )
-                } else if (area < areaValues?.min_area_km2) {
+                }
+                if (area < areaValues?.min_area_km2) {
                   showWarning(
                     `Bounding box area is less than ${areaValues?.min_area_km2} square kilometers. Resetting to initial size.`,
                   )
-                } else if (!isWithinExtent) {
+                }
+                if (!isWithinExtent) {
                   showWarning(
                     'Bounding box is outside the selected grid area. Resetting to initial size.',
                   )
@@ -301,6 +323,11 @@ export default function createS2GridLayer(
             } else {
               // Update the current valid state
               currentFeature = features[0].clone() as Feature<Polygon>
+
+              // Update drag interaction's last valid feature
+              if (dragInteraction) {
+                dragInteraction.setLastValidFeature(currentFeature)
+              }
             }
           }
         })
