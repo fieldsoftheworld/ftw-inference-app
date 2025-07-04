@@ -148,12 +148,12 @@ function handleDownEvent(evt) {
     return feature
   })
 
-  if (feature && feature.getProperties()?.properties?.name === 'drawVectorLayer') {
+  if (feature && feature.get('name') === 'drawVectorLayer') {
     this.coordinate_ = evt.coordinate
     this.feature_ = feature
   }
 
-  return feature?.getProperties()?.properties?.name === 'drawVectorLayer'
+  return feature?.get('name') === 'drawVectorLayer'
 }
 
 /**

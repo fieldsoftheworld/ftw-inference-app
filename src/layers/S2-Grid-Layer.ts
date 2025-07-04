@@ -137,15 +137,19 @@ export default function createS2GridLayer(
         // Create the initial feature
         const initialFeature = new Feature({
           geometry: bboxPolygon,
-          properties: {
-            name: 'drawVectorLayer',
-          },
+          name: 'drawVectorLayer',
         })
 
         // Create vector source with the initial bounding box
-        const drawVectorsource = new VectorSource({
-          features: [initialFeature],
-        })
+        const drawVectorsource = new VectorSource()
+        drawVectorsource.on('change', () => {
+          const feature = drawVectorsource.getFeatures().find((f) => f.get('name') === 'drawVectorLayer')
+          if (!feature) {return}
+          const bbox = feature.getGeometry()?.getExtent();
+          if (!bbox) {return}
+          dataCabinetRef.value?.setDrawnExtent(bbox);
+        });
+        drawVectorsource.addFeature(initialFeature)
 
         // Update drag interaction validation parameters and store initial valid feature
         if (dragInteraction) {
