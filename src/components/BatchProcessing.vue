@@ -248,7 +248,6 @@ const handleCompareTiles = async () => {
         return fetch(`${apiBaseUrl}projects/${projectId}/images/a`, {
           method: 'PUT',
           headers: {
-            'Content-Type': 'multipart/form-data',
             Authorization: `Bearer ${token}`,
           },
           body: formData,
@@ -264,7 +263,6 @@ const handleCompareTiles = async () => {
         return fetch(`${apiBaseUrl}projects/${projectId}/images/b`, {
           method: 'PUT',
           headers: {
-            'Content-Type': 'multipart/form-data',
             Authorization: `Bearer ${token}`,
           },
           body: formData,
