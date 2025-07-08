@@ -5,6 +5,7 @@ import type { Extent } from 'ol/extent'
 import searchStacApi from '../functions/search-stac-api'
 import { addStacLayer, removeStacLayer } from '../functions/add-stac-layer'
 import { generateJWT } from '../functions/generate-jwt'
+import { transformExtent } from 'ol/proj'
 
 interface SearchResult {
   id: string
@@ -248,7 +249,6 @@ const handleCompareTiles = async () => {
         return fetch(`${apiBaseUrl}projects/${projectId}/images/a`, {
           method: 'PUT',
           headers: {
-            'Content-Type': 'multipart/form-data',
             Authorization: `Bearer ${token}`,
           },
           body: formData,
@@ -264,7 +264,6 @@ const handleCompareTiles = async () => {
         return fetch(`${apiBaseUrl}projects/${projectId}/images/b`, {
           method: 'PUT',
           headers: {
-            'Content-Type': 'multipart/form-data',
             Authorization: `Bearer ${token}`,
           },
           body: formData,
@@ -315,6 +314,10 @@ const handleCompareTiles = async () => {
       },
     }).then((res) => res.json())
 
+    if (!drawnExtent.value) {
+      throw new Error('Drawn extent is not set')
+    }
+
     // Batch Processing
     const batchProcessingResponse = await fetch(`${apiBaseUrl}projects/${projectId}/inference`, {
       method: 'PUT',
@@ -324,7 +327,7 @@ const handleCompareTiles = async () => {
       },
       body: JSON.stringify({
         model: modelId,
-        bbox: drawnExtent.value ?? [0, 0, 0, 0],
+        bbox: transformExtent(drawnExtent.value, 'EPSG:3857', 'EPSG:4326'),
         images: [firstTile.thumbnailUrl, secondTile.thumbnailUrl],
       }),
     })
