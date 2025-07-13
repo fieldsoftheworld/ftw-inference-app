@@ -1,11 +1,11 @@
 import { Map } from 'ol'
 import type { Extent } from 'ol/extent'
-import { containsCoordinate } from 'ol/extent'
+import { containsCoordinate, buffer } from 'ol/extent'
 import Feature from 'ol/Feature'
 import GeoJSON from 'ol/format/GeoJSON.js'
+import { fromExtent } from 'ol/geom/Polygon.js'
 import { Geometry, Polygon } from 'ol/geom'
-import Interaction from 'ol/interaction/Interaction'
-import Modify from 'ol/interaction/Modify'
+import ExtentInteraction from 'ol/interaction/Extent'
 import VectorLayer from 'ol/layer/Vector.js'
 import { transformExtent } from 'ol/proj'
 import VectorSource from 'ol/source/Vector.js'
@@ -15,10 +15,10 @@ import type { Ref } from 'vue'
 import type DataCabinet from '../components/DataCabinet.vue'
 import s2GridData from '../data/s2-grid.json'
 import { showWarning } from '../functions/snackbar'
+import { never } from 'ol/events/condition'
 
-let snap: Interaction | null = null
-const drawVectorLayer: VectorLayer<VectorSource> | null = null
-let currentFeature: Feature<Polygon> | null = null
+let drawVectorLayer: VectorLayer<VectorSource> | null = null
+let extentInteraction: ExtentInteraction | null = null
 let currentGridExtent: Extent | null = null
 
 // Function to check if all coordinates of a polygon are within an extent
@@ -30,7 +30,7 @@ function isPolygonWithinExtent(polygon: Polygon, extent: Extent): boolean {
 // Function to calculate area in square kilometers
 function calculateArea(geometry: Polygon): number {
   // Transform to EPSG:4326 for accurate area calculation
-  const area = getArea(geometry.clone(), { projection: 'EPSG:3857' })
+  const area = getArea(geometry, { projection: 'EPSG:3857' })
   return area / 1000000 // Convert to square kilometers
 }
 
@@ -70,11 +70,6 @@ export default function createS2GridLayer(
   dataCabinetRef: Ref<InstanceType<typeof DataCabinet> | null>,
   areaValues: { min_area_km2: number; max_area_km2: number },
 ) {
-  // Get the drag interaction from the map
-  const dragInteraction = map
-    .getInteractions()
-    .getArray()
-    .find((interaction) => interaction.constructor.name === 'Drag') as any
   const layer = new VectorLayer({
     source: new VectorSource({
       features: new GeoJSON({
@@ -96,6 +91,14 @@ export default function createS2GridLayer(
 
   // Add click handler
   map?.on('click', (event) => {
+    // Clean up previous interaction
+    if (extentInteraction) {
+      //@ts-ignore
+      extentInteraction.setMap(null)
+      map.removeInteraction(extentInteraction);
+      extentInteraction.dispose()
+    }
+
     const feature = map.forEachFeatureAtPixel(event.pixel, (feature) => feature)
 
     if (feature) {
@@ -124,15 +127,7 @@ export default function createS2GridLayer(
         const bboxExtent = calculateBoundingBox(extent, areaValues)
 
         // Create a polygon feature for the bounding box
-        const bboxPolygon = new Polygon([
-          [
-            [bboxExtent[0], bboxExtent[1]],
-            [bboxExtent[2], bboxExtent[1]],
-            [bboxExtent[2], bboxExtent[3]],
-            [bboxExtent[0], bboxExtent[3]],
-            [bboxExtent[0], bboxExtent[1]],
-          ],
-        ])
+        const bboxPolygon = fromExtent(bboxExtent)
 
         // Create the initial feature
         const initialFeature = new Feature({
@@ -151,67 +146,40 @@ export default function createS2GridLayer(
         });
         drawVectorsource.addFeature(initialFeature)
 
-        // Update drag interaction validation parameters and store initial valid feature
-        if (dragInteraction) {
-          dragInteraction.updateValidationParams(areaValues, currentGridExtent)
-          dragInteraction.setLastValidFeature(initialFeature)
-        }
+        const invalidStyle = new Style({
+          stroke: new Stroke({
+            color: 'rgba(255, 255, 0, 1)',
+            width: 2,
+          }),
+          fill: new Fill({
+            color: 'rgba(255, 255, 0, 0.1)',
+          }),
+        });
+
+        const validStyle = new Style({
+          stroke: new Stroke({
+            color: 'rgba(0, 136, 136, 1)',
+            width: 2,
+          }),
+          fill: new Fill({
+            color: 'rgba(0, 136, 136, 0.1)',
+          }),
+        });
 
         // Create and add the draw vector layer
-        const drawVectorLayer = new VectorLayer({
+        drawVectorLayer = new VectorLayer({
           source: drawVectorsource,
           properties: {
             name: 'drawVectorLayer',
           },
           extent: currentGridExtent,
-          style: (feature) => {
-            const area = calculateArea(feature.getGeometry() as Polygon)
-            const isWithinExtent = isPolygonWithinExtent(
-              feature.getGeometry() as Polygon,
-              currentGridExtent as Extent,
-            )
-
-            // Check if drag interaction is in invalid state
-            const isDragInvalid = dragInteraction?.isInvalid?.() || false
-
-            if (
-              area > areaValues?.max_area_km2 ||
-              area < areaValues?.min_area_km2 ||
-              !isWithinExtent ||
-              isDragInvalid
-            ) {
-              return new Style({
-                stroke: new Stroke({
-                  color: 'rgba(255, 255, 0, 1)',
-                  width: 2,
-                }),
-                fill: new Fill({
-                  color: 'rgba(255, 255, 0, 0.1)',
-                }),
-              })
-            } else {
-              return new Style({
-                stroke: new Stroke({
-                  color: 'rgba(0, 136, 136, 1)',
-                  width: 2,
-                }),
-                fill: new Fill({
-                  color: 'rgba(0, 136, 136, 0.1)',
-                }),
-              })
-            }
-          },
+          style: validStyle,
           zIndex: 1001,
-        })
+        });
 
         // Add padding to the extent for view fitting
         const padding = 50
-        const paddedExtent: Extent = [
-          extent[0] - padding,
-          extent[1] - padding,
-          extent[2] + padding,
-          extent[3] + padding,
-        ]
+        const paddedExtent = buffer(extent, padding)
 
         // Fit the view to the extent
         map.getView().fit(paddedExtent, {
@@ -234,118 +202,68 @@ export default function createS2GridLayer(
         map.addLayer(drawVectorLayer)
 
         // Create and add Modify interaction with size restriction
-        const modify = new Modify({
-          source: drawVectorsource,
-        })
+        extentInteraction = new ExtentInteraction({
+          extent: bboxExtent,
+          createCondition: never,
+          drag: true,
+          boxStyle: new Style({
+            fill: new Fill({
+              color: 'rgba(255, 255, 255, 0.2)'
+            })
+          })
+        });
 
-        // Store the initial feature
-        modify.on('modifystart', (event) => {
-          const features = event.features.getArray()
-          if (features.length > 0) {
-            currentFeature = features[0].clone() as Feature<Polygon>
-          }
-        })
+        let warningShown = false;
 
-        modify.on('modifyend', (event) => {
-          const features = event.features.getArray()
-          if (features.length > 0 && currentGridExtent) {
-            const geometry = features[0].getGeometry() as Polygon
-            const area = calculateArea(geometry)
-            const isWithinExtent = isPolygonWithinExtent(geometry, currentGridExtent)
-            // Check if the polygon is within the grid extent and within size limits
+        extentInteraction.on('extentchanged', (event) => {
+          const newExtent = event.extent
+          const geometry = fromExtent(newExtent)
 
-            if (
-              area > areaValues?.max_area_km2 ||
-              area < areaValues?.min_area_km2 ||
-              !isWithinExtent
-            ) {
-              // If area exceeds limits or is outside grid, revert to the last valid state
-              if (currentFeature) {
-                // Create a new feature from the current valid state
-                const validFeature = currentFeature.clone()
-                drawVectorsource.clear()
-                drawVectorsource.addFeature(validFeature)
+          const area = calculateArea(geometry)
+          const isWithinExtent = currentGridExtent ? isPolygonWithinExtent(geometry, currentGridExtent) : false
+          // Check if the polygon is within the grid extent and within size limits
 
-                // Update the current feature reference
-                currentFeature = validFeature
-
-                // Show notification for each validation error
-                if (area > areaValues?.max_area_km2) {
-                  showWarning(
-                    `Bounding box area exceeds ${areaValues?.max_area_km2} square kilometers. Resizing to last valid state.`,
-                  )
-                }
-                if (area < areaValues?.min_area_km2) {
-                  showWarning(
-                    `Bounding box area is less than ${areaValues?.min_area_km2} square kilometers. Resizing to last valid state.`,
-                  )
-                }
-                if (!isWithinExtent) {
-                  showWarning(
-                    'Bounding box is outside the selected grid area. Resizing to last valid state.',
-                  )
-                }
-              } else {
-                // If no valid state exists, reset to the initial bounding box
-                const bboxExtent = calculateBoundingBox(currentGridExtent, areaValues)
-                const bboxPolygon = new Polygon([
-                  [
-                    [bboxExtent[0], bboxExtent[1]],
-                    [bboxExtent[2], bboxExtent[1]],
-                    [bboxExtent[2], bboxExtent[3]],
-                    [bboxExtent[0], bboxExtent[3]],
-                    [bboxExtent[0], bboxExtent[1]],
-                  ],
-                ])
-                const newFeature = new Feature({
-                  geometry: bboxPolygon,
-                  properties: {
-                    name: 'drawVectorLayer',
-                  },
-                })
-                drawVectorsource.clear()
-                drawVectorsource.addFeature(newFeature)
-                currentFeature = newFeature
-
-                // Show notification for reset to initial bbox
-                if (area > areaValues?.max_area_km2) {
-                  showWarning(
-                    `Bounding box area exceeds ${areaValues?.max_area_km2} square kilometers. Resetting to initial size.`,
-                  )
-                }
-                if (area < areaValues?.min_area_km2) {
-                  showWarning(
-                    `Bounding box area is less than ${areaValues?.min_area_km2} square kilometers. Resetting to initial size.`,
-                  )
-                }
-                if (!isWithinExtent) {
-                  showWarning(
-                    'Bounding box is outside the selected grid area. Resetting to initial size.',
-                  )
-                }
+          if (
+            area > areaValues?.max_area_km2 ||
+            area < areaValues?.min_area_km2 ||
+            !isWithinExtent
+          ) {
+            if (!warningShown) {
+              // Show notification for each validation error
+              if (area > areaValues?.max_area_km2) {
+                showWarning(
+                  `Bounding box area exceeds ${areaValues?.max_area_km2} square kilometers. Using last valid state.`,
+                )
               }
-            } else {
-              // Update the current valid state
-              currentFeature = features[0].clone() as Feature<Polygon>
-
-              // Update drag interaction's last valid feature
-              if (dragInteraction) {
-                dragInteraction.setLastValidFeature(currentFeature)
+              if (area < areaValues?.min_area_km2) {
+                showWarning(
+                  `Bounding box area is less than ${areaValues?.min_area_km2} square kilometers. Using last valid state.`,
+                )
               }
+              if (!isWithinExtent) {
+                showWarning(
+                  'Bounding box is outside the selected grid area. Using last valid state.',
+                )
+              }
+              warningShown = true;
+              drawVectorLayer?.setStyle(invalidStyle);
             }
+          } else {
+            warningShown = false;
+            initialFeature.setGeometry(geometry)
+            drawVectorLayer?.setStyle(validStyle);
           }
         })
 
-        map.addInteraction(modify)
+        map.addInteraction(extentInteraction)
       }
     } else {
       // If clicked outside a feature, clear the selection
-      if (snap && drawVectorLayer) {
-        map.removeInteraction(snap)
+      if (drawVectorLayer) {
         map.removeLayer(drawVectorLayer)
-        currentFeature = null
-        currentGridExtent = null
+        drawVectorLayer.getSource()?.dispose();
       }
+      currentGridExtent = null
     }
   })
 

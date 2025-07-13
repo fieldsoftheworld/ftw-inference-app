@@ -5,9 +5,6 @@ import DataCabinet from './DataCabinet.vue'
 import Snackbar from './Snackbar.vue'
 import createS2GridLayer from '../layers/S2-Grid-Layer'
 import createCloudlessLayer from '../layers/S2-Cloudless-Layer'
-// @ts-expect-error - No declaration file found
-import Drag from '../functions/drag-interaction.js'
-import { defaults as defaultInteractions } from 'ol/interaction/defaults.js'
 import { generateJWT } from '../functions/generate-jwt'
 
 const map = ref<Map | null>(null)
@@ -15,10 +12,7 @@ const dataCabinetRef = ref<InstanceType<typeof DataCabinet> | null>(null)
 const areaValues = ref<{ min_area_km2: number; max_area_km2: number } | null>(null)
 
 onMounted(async () => {
-  const dragInteraction = new Drag()
-
   map.value = new Map({
-    interactions: defaultInteractions().extend([dragInteraction]),
     target: 'map',
     layers: [createCloudlessLayer()],
     view: new View({
