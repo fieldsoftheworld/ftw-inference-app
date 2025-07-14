@@ -49,10 +49,12 @@ const toggleAccordion = () => {
 
 const toggleFirstResults = () => {
   isFirstResultsOpen.value = !isFirstResultsOpen.value
+  isSecondResultsOpen.value = !isFirstResultsOpen.value // Close second results if first is opened
 }
 
 const toggleSecondResults = () => {
   isSecondResultsOpen.value = !isSecondResultsOpen.value
+  isFirstResultsOpen.value = !isSecondResultsOpen.value // Close first results if second is opened
 }
 
 // Function to handle search results
