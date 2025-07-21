@@ -13,7 +13,7 @@
   "dependencies": {
     "jwt-decode": "^4.0.0",
     "jwt-encode": "^1.0.1",
-    "ol": "^8.2.0",
+    "ol": "^10.6.2-dev.1752570595686",
     "pinia": "^2.1.7",
     "vue": "^3.4.15",
     "vue-router": "^4.2.5"
