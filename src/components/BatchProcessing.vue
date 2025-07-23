@@ -42,6 +42,7 @@ const drawnExtent = ref<Extent | null>(null)
 const isFirstResultsOpen = ref(false)
 const isSecondResultsOpen = ref(false)
 const retryTimeout = ref<number | null>(null)
+const currentBbox = ref<number[] | undefined>(undefined)
 
 const toggleAccordion = () => {
   emit('update:isOpen', !props.isOpen)
@@ -58,13 +59,14 @@ const toggleSecondResults = () => {
 }
 
 // Function to handle search results
-const handleSearchResults = async (mgrsTileId: string) => {
+const handleSearchResults = async (mgrsTileId: string, bbox?: number[]) => {
   isLoading.value = true
   searchStatus.value = `Searching for Sentinel-2 images in tile ${mgrsTileId}...`
   currentMgrsTileId.value = mgrsTileId
+  currentBbox.value = bbox
 
   try {
-    const response = await searchStacApi(mgrsTileId)
+    const response = await searchStacApi(bbox)
     if (response) {
       searchResults.value = response.results
       hasMore.value = response.hasMore
@@ -84,7 +86,7 @@ const loadMore = async () => {
 
   isLoading.value = true
   try {
-    const response = await searchStacApi(currentMgrsTileId.value, false)
+    const response = await searchStacApi(currentBbox.value, false)
     if (response) {
       searchResults.value = [...searchResults.value, ...response.results]
       hasMore.value = response.hasMore
@@ -454,6 +456,23 @@ const handleBboxSizeWarning = (message: string) => {
   }, 3000)
 }
 
+const handleImageError = (event: Event) => {
+  const img = event.target as HTMLImageElement
+  const originalSrc = img.src
+
+  // For Earth Search thumbnails, try to use the visual asset instead
+  if (originalSrc.includes('earth-search.aws.element84.com') && originalSrc.includes('thumbnail')) {
+    // Replace thumbnail with visual asset URL
+    const visualUrl = originalSrc.replace('/thumbnail', '/visual')
+    img.src = visualUrl
+    console.log('Trying visual asset instead of thumbnail:', visualUrl)
+  } else {
+    // Hide the image if all attempts fail
+    img.style.display = 'none'
+    console.log('Image failed to load:', originalSrc)
+  }
+}
+
 const dismissMessage = () => {
   projectMessage.value = null
 }
@@ -536,7 +555,8 @@ defineExpose({
                     <img
                       :src="result.thumbnailUrl"
                       alt="Preview"
-                      @error="($event.target as HTMLImageElement).style.display = 'none'"
+                      @error="handleImageError"
+                      crossorigin="anonymous"
                     />
                   </div>
                   <div class="result-header">
@@ -581,7 +601,8 @@ defineExpose({
                     <img
                       :src="getActiveTileThumbnail(false)"
                       alt="Preview"
-                      @error="($event.target as HTMLImageElement).style.display = 'none'"
+                      @error="handleImageError"
+                      crossorigin="anonymous"
                     />
                   </div>
                   <div class="result-header">
@@ -607,7 +628,8 @@ defineExpose({
                       <img
                         :src="result.thumbnailUrl"
                         alt="Preview"
-                        @error="($event.target as HTMLImageElement).style.display = 'none'"
+                        @error="handleImageError"
+                        crossorigin="anonymous"
                       />
                     </div>
                     <div class="result-header">

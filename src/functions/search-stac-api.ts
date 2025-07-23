@@ -26,12 +26,25 @@ interface StacFeature {
   properties: {
     datetime: string
     'eo:cloud_cover': number
+    's2:vegetation_percentage': number
+    's2:water_percentage': number
+    's2:not_vegetated_percentage': number
+    's2:unclassified_percentage': number
   }
   assets?: {
-    rendered_preview?: {
+    thumbnail?: {
       href: string
     }
-    B02?: {
+    visual?: {
+      href: string
+    }
+    blue?: {
+      href: string
+    }
+    red?: {
+      href: string
+    }
+    green?: {
       href: string
     }
   }
@@ -48,12 +61,14 @@ interface StacResponse {
 
 // Function to search the STAC API
 export default async function searchStacApi(
-  mgrsTileId: string,
+  bbox?: number[],
   resetSearch = true,
 ): Promise<SearchResponse | undefined> {
   const startDate = (document.getElementById('start-date') as HTMLInputElement)?.value
   const endDate = (document.getElementById('end-date') as HTMLInputElement)?.value
-  const cloudCover = (document.getElementById('cloud-cover') as HTMLInputElement)?.value || 10
+  const cloudCover = parseFloat(
+    (document.getElementById('cloud-cover') as HTMLInputElement)?.value || '10',
+  )
 
   try {
     // Build the date constraint if dates are provided
@@ -67,16 +82,31 @@ export default async function searchStacApi(
     }
 
     // Create the CQL filter and encode it for URL
-    const cqlFilter = encodeURIComponent(
-      `eo:cloud_cover<${cloudCover} AND s2:mgrs_tile='${mgrsTileId}'`,
-    )
+    let cqlFilter = `eo:cloud_cover<${cloudCover}`
+
+    const encodedFilter = encodeURIComponent(cqlFilter)
 
     // Construct the URL with query parameters and a limit of 20 results
-    let searchUrl = `https://planetarycomputer.microsoft.com/api/stac/v1/search?collections=sentinel-2-l2a${dateConstraint}&filter-lang=cql2-text&filter=${cqlFilter}&limit=20`
+    let searchUrl = `https://earth-search.aws.element84.com/v1/collections/sentinel-2-l2a/items?${dateConstraint}&filter-lang=cql2-text&filter=${encodedFilter}&limit=20`
+
+    // Add bbox parameter if provided
+    if (bbox && bbox.length === 4) {
+      // Convert from EPSG:3857 to EPSG:4326 (WGS84) if needed
+      const [minX, minY, maxX, maxY] = bbox
+
+      // Import the transform function from OpenLayers
+      const { transform } = await import('ol/proj')
+
+      // Transform coordinates from EPSG:3857 to EPSG:4326
+      const [minLon, minLat] = transform([minX, minY], 'EPSG:3857', 'EPSG:4326')
+      const [maxLon, maxLat] = transform([maxX, maxY], 'EPSG:3857', 'EPSG:4326')
+
+      searchUrl += `&bbox=${minLon},${minLat},${maxLon},${maxLat}`
+    }
 
     // Add the pagination token if we're loading more results
     if (!resetSearch && nextPageToken) {
-      searchUrl += `&token=${encodeURIComponent(nextPageToken)}`
+      searchUrl += `&next=${encodeURIComponent(nextPageToken)}`
     }
 
     // Make the GET request
@@ -101,8 +131,8 @@ export default async function searchStacApi(
 
     // Store the pagination token if available
     if (nextLink && nextLink.href) {
-      // Extract token from the URL
-      const tokenMatch = nextLink.href.match(/token=([^&]+)/)
+      // Extract token from the URL - Earth Search uses 'next' parameter
+      const tokenMatch = nextLink.href.match(/next=([^&]+)/)
       if (tokenMatch && tokenMatch[1]) {
         nextPageToken = decodeURIComponent(tokenMatch[1])
         // nextPageBtn.disabled = false;
@@ -123,8 +153,8 @@ export default async function searchStacApi(
           date: new Date(item.properties.datetime),
           formattedDate: new Date(item.properties.datetime).toLocaleDateString(),
           cloudCover: item.properties['eo:cloud_cover'] || 'N/A',
-          thumbnailUrl: item.assets?.rendered_preview?.href || '#',
-          tiffUrl: item.assets?.B02?.href || '#',
+          thumbnailUrl: item.assets?.thumbnail?.href || item.assets?.visual?.href || '#',
+          tiffUrl: item.assets?.blue?.href || '#',
           bounds: item.bbox
             ? item.bbox.length === 6
               ? [item.bbox[0], item.bbox[1], item.bbox[3], item.bbox[4]]
@@ -156,7 +186,7 @@ export default async function searchStacApi(
       totalFound: data.features.length,
     }
   } catch (error) {
-    console.error('Error searching STAC API:', error)
+    console.error('Error searching Earth Search API:', error)
     throw error // Re-throw the error to be handled by the caller
   }
 }

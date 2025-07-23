@@ -95,7 +95,7 @@ export default function createS2GridLayer(
     if (extentInteraction) {
       //@ts-ignore
       extentInteraction.setMap(null)
-      map.removeInteraction(extentInteraction);
+      map.removeInteraction(extentInteraction)
       extentInteraction.dispose()
     }
 
@@ -138,12 +138,18 @@ export default function createS2GridLayer(
         // Create vector source with the initial bounding box
         const drawVectorsource = new VectorSource()
         drawVectorsource.on('change', () => {
-          const feature = drawVectorsource.getFeatures().find((f) => f.get('name') === 'drawVectorLayer')
-          if (!feature) {return}
-          const bbox = feature.getGeometry()?.getExtent();
-          if (!bbox) {return}
-          dataCabinetRef.value?.setDrawnExtent(bbox);
-        });
+          const feature = drawVectorsource
+            .getFeatures()
+            .find((f) => f.get('name') === 'drawVectorLayer')
+          if (!feature) {
+            return
+          }
+          const bbox = feature.getGeometry()?.getExtent()
+          if (!bbox) {
+            return
+          }
+          dataCabinetRef.value?.setDrawnExtent(bbox)
+        })
         drawVectorsource.addFeature(initialFeature)
 
         const invalidStyle = new Style({
@@ -154,7 +160,7 @@ export default function createS2GridLayer(
           fill: new Fill({
             color: 'rgba(255, 255, 0, 0.1)',
           }),
-        });
+        })
 
         const validStyle = new Style({
           stroke: new Stroke({
@@ -164,7 +170,7 @@ export default function createS2GridLayer(
           fill: new Fill({
             color: 'rgba(0, 136, 136, 0.1)',
           }),
-        });
+        })
 
         // Create and add the draw vector layer
         drawVectorLayer = new VectorLayer({
@@ -175,7 +181,7 @@ export default function createS2GridLayer(
           extent: currentGridExtent,
           style: validStyle,
           zIndex: 1001,
-        });
+        })
 
         // Add padding to the extent for view fitting
         const padding = 50
@@ -187,9 +193,22 @@ export default function createS2GridLayer(
           maxZoom: 13,
         })
 
+        // Create a smaller bbox within the grid to avoid overlap with adjacent grids
+        // Use 70% of the grid extent centered within the grid
+        const gridWidth = extent[2] - extent[0]
+        const gridHeight = extent[3] - extent[1]
+        const shrinkFactor = 0.15 // 15% shrink from each side (70% total)
+
+        const bbox = [
+          extent[0] + gridWidth * shrinkFactor, // minLon
+          extent[1] + gridHeight * shrinkFactor, // minLat
+          extent[2] - gridWidth * shrinkFactor, // maxLon
+          extent[3] - gridHeight * shrinkFactor, // maxLat
+        ]
+
         // Call the search function through the ref and open the Batch Processing accordion
         if (dataCabinetRef.value?.handleSearchResults) {
-          dataCabinetRef.value.handleSearchResults(mgrsTileId)
+          dataCabinetRef.value.handleSearchResults(mgrsTileId, bbox)
           // Open the Batch Processing accordion
           if (dataCabinetRef.value?.handleBatchProcessingToggle) {
             dataCabinetRef.value.handleBatchProcessingToggle(true)
@@ -208,19 +227,21 @@ export default function createS2GridLayer(
           drag: true,
           boxStyle: new Style({
             fill: new Fill({
-              color: 'rgba(255, 255, 255, 0.2)'
-            })
-          })
-        });
+              color: 'rgba(255, 255, 255, 0.2)',
+            }),
+          }),
+        })
 
-        let warningShown = false;
+        let warningShown = false
 
         extentInteraction.on('extentchanged', (event) => {
           const newExtent = event.extent
           const geometry = fromExtent(newExtent)
 
           const area = calculateArea(geometry)
-          const isWithinExtent = currentGridExtent ? isPolygonWithinExtent(geometry, currentGridExtent) : false
+          const isWithinExtent = currentGridExtent
+            ? isPolygonWithinExtent(geometry, currentGridExtent)
+            : false
           // Check if the polygon is within the grid extent and within size limits
 
           if (
@@ -245,13 +266,13 @@ export default function createS2GridLayer(
                   'Bounding box is outside the selected grid area. Using last valid state.',
                 )
               }
-              warningShown = true;
-              drawVectorLayer?.setStyle(invalidStyle);
+              warningShown = true
+              drawVectorLayer?.setStyle(invalidStyle)
             }
           } else {
-            warningShown = false;
+            warningShown = false
             initialFeature.setGeometry(geometry)
-            drawVectorLayer?.setStyle(validStyle);
+            drawVectorLayer?.setStyle(validStyle)
           }
         })
 
@@ -261,7 +282,7 @@ export default function createS2GridLayer(
       // If clicked outside a feature, clear the selection
       if (drawVectorLayer) {
         map.removeLayer(drawVectorLayer)
-        drawVectorLayer.getSource()?.dispose();
+        drawVectorLayer.getSource()?.dispose()
       }
       currentGridExtent = null
     }
