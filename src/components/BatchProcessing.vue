@@ -456,23 +456,6 @@ const handleBboxSizeWarning = (message: string) => {
   }, 3000)
 }
 
-const handleImageError = (event: Event) => {
-  const img = event.target as HTMLImageElement
-  const originalSrc = img.src
-
-  // For Earth Search thumbnails, try to use the visual asset instead
-  if (originalSrc.includes('earth-search.aws.element84.com') && originalSrc.includes('thumbnail')) {
-    // Replace thumbnail with visual asset URL
-    const visualUrl = originalSrc.replace('/thumbnail', '/visual')
-    img.src = visualUrl
-    console.log('Trying visual asset instead of thumbnail:', visualUrl)
-  } else {
-    // Hide the image if all attempts fail
-    img.style.display = 'none'
-    console.log('Image failed to load:', originalSrc)
-  }
-}
-
 const dismissMessage = () => {
   projectMessage.value = null
 }
@@ -552,12 +535,7 @@ defineExpose({
                     class="result-thumbnail"
                     @click="handleViewOnMap(result.thumbnailUrl, result.bounds, result?.id, false)"
                   >
-                    <img
-                      :src="result.thumbnailUrl"
-                      alt="Preview"
-                      @error="handleImageError"
-                      crossorigin="anonymous"
-                    />
+                    <img :src="result.thumbnailUrl" alt="Preview" crossorigin="anonymous" />
                   </div>
                   <div class="result-header">
                     <h3>{{ result?.id }}</h3>
@@ -601,7 +579,6 @@ defineExpose({
                     <img
                       :src="getActiveTileThumbnail(false)"
                       alt="Preview"
-                      @error="handleImageError"
                       crossorigin="anonymous"
                     />
                   </div>
@@ -625,12 +602,7 @@ defineExpose({
                       class="result-thumbnail"
                       @click="handleViewOnMap(result.thumbnailUrl, result.bounds, result?.id, true)"
                     >
-                      <img
-                        :src="result.thumbnailUrl"
-                        alt="Preview"
-                        @error="handleImageError"
-                        crossorigin="anonymous"
-                      />
+                      <img :src="result.thumbnailUrl" alt="Preview" crossorigin="anonymous" />
                     </div>
                     <div class="result-header">
                       <h3>{{ result?.id }}</h3>

@@ -66,9 +66,6 @@ export default async function searchStacApi(
 ): Promise<SearchResponse | undefined> {
   const startDate = (document.getElementById('start-date') as HTMLInputElement)?.value
   const endDate = (document.getElementById('end-date') as HTMLInputElement)?.value
-  const cloudCover = parseFloat(
-    (document.getElementById('cloud-cover') as HTMLInputElement)?.value || '10',
-  )
 
   try {
     // Build the date constraint if dates are provided
@@ -81,13 +78,8 @@ export default async function searchStacApi(
       dateConstraint = `&datetime=../${endDate}`
     }
 
-    // Create the CQL filter and encode it for URL
-    let cqlFilter = `eo:cloud_cover<${cloudCover}`
-
-    const encodedFilter = encodeURIComponent(cqlFilter)
-
     // Construct the URL with query parameters and a limit of 20 results
-    let searchUrl = `https://earth-search.aws.element84.com/v1/collections/sentinel-2-l2a/items?${dateConstraint}&filter-lang=cql2-text&filter=${encodedFilter}&limit=20`
+    let searchUrl = `https://earth-search.aws.element84.com/v1/collections/sentinel-2-l2a/items?${dateConstraint}&limit=20`
 
     // Add bbox parameter if provided
     if (bbox && bbox.length === 4) {
