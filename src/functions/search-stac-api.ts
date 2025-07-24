@@ -66,38 +66,53 @@ export default async function searchStacApi(
 ): Promise<SearchResponse | undefined> {
   const startDate = (document.getElementById('start-date') as HTMLInputElement)?.value
   const endDate = (document.getElementById('end-date') as HTMLInputElement)?.value
+  const cloudCover = (document.getElementById('cloud-cover') as HTMLInputElement)?.value || 10
 
   try {
-    // Build the date constraint if dates are provided
-    let dateConstraint = ''
-    if (startDate && endDate) {
-      dateConstraint = `&datetime=${startDate}/${endDate}`
-    } else if (startDate) {
-      dateConstraint = `&datetime=${startDate}/..`
-    } else if (endDate) {
-      dateConstraint = `&datetime=../${endDate}`
-    }
+    // Build query parameters
+    const params = new URLSearchParams()
 
-    // Construct the URL with query parameters and a limit of 20 results
-    let searchUrl = `https://earth-search.aws.element84.com/v1/collections/sentinel-2-l2a/items?${dateConstraint}&limit=20`
+    // Add collection parameter
+    params.append('collections', 'sentinel-2-l2a')
+
+    // Add limit parameter
+    params.append('limit', '20')
+
+    // Add cloud cover filter using CQL2 text
+    params.append('filter-lang', 'cql2-text')
+    params.append('filter', `eo:cloud_cover<=${cloudCover}`)
+
+    // Add datetime filter if dates are provided
+    if (startDate && endDate) {
+      params.append('datetime', `${startDate}/${endDate}`)
+    } else if (startDate) {
+      params.append('datetime', `${startDate}/..`)
+    } else if (endDate) {
+      params.append('datetime', `../${endDate}`)
+    }
 
     // Add bbox parameter if provided
     if (bbox && bbox.length === 4) {
       // Convert from EPSG:3857 to EPSG:4326 (WGS84) if needed
+      const [minX, minY, maxX, maxY] = bbox
 
-      // Import the transformExtent function from OpenLayers
-      const { transformExtent } = await import('ol/proj')
+      // Import the transform function from OpenLayers
+      const { transform } = await import('ol/proj')
 
       // Transform coordinates from EPSG:3857 to EPSG:4326
-      const lonLatBbox = transformExtent(bbox, 'EPSG:3857', 'EPSG:4326')
+      const [minLon, minLat] = transform([minX, minY], 'EPSG:3857', 'EPSG:4326')
+      const [maxLon, maxLat] = transform([maxX, maxY], 'EPSG:3857', 'EPSG:4326')
 
-      searchUrl += `&bbox=${lonLatBbox.join(',')}`
+      params.append('bbox', `${minLon},${minLat},${maxLon},${maxLat}`)
     }
 
     // Add the pagination token if we're loading more results
     if (!resetSearch && nextPageToken) {
-      searchUrl += `&next=${encodeURIComponent(nextPageToken)}`
+      params.append('next', nextPageToken)
     }
+
+    // Construct the URL with query parameters
+    const searchUrl = `https://earth-search.aws.element84.com/v1/search?${params.toString()}`
 
     // Make the GET request
     const response = await fetch(searchUrl, {
