@@ -22,8 +22,8 @@ const handleBatchProcessingToggle = (isOpen: boolean) => {
 
 // Expose methods to parent components
 defineExpose({
-  handleSearchResults: (mgrsTileId: string) =>
-    batchProcessingRef.value?.handleSearchResults(mgrsTileId),
+  handleSearchResults: (mgrsTileId: string, bbox?: number[]) =>
+    batchProcessingRef.value?.handleSearchResults(mgrsTileId, bbox),
   setDrawnExtent: (extent: Extent) => batchProcessingRef.value?.setDrawnExtent(extent),
   currentMgrsTileId: batchProcessingRef.value?.currentMgrsTileId,
   handleBboxSizeWarning: (message: string) =>

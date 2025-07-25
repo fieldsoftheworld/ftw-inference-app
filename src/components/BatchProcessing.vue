@@ -42,6 +42,7 @@ const drawnExtent = ref<Extent | null>(null)
 const isFirstResultsOpen = ref(false)
 const isSecondResultsOpen = ref(false)
 const retryTimeout = ref<number | null>(null)
+const currentBbox = ref<number[] | undefined>(undefined)
 
 const toggleAccordion = () => {
   emit('update:isOpen', !props.isOpen)
@@ -58,13 +59,14 @@ const toggleSecondResults = () => {
 }
 
 // Function to handle search results
-const handleSearchResults = async (mgrsTileId: string) => {
+const handleSearchResults = async (mgrsTileId: string, bbox?: number[]) => {
   isLoading.value = true
   searchStatus.value = `Searching for Sentinel-2 images in tile ${mgrsTileId}...`
   currentMgrsTileId.value = mgrsTileId
+  currentBbox.value = bbox
 
   try {
-    const response = await searchStacApi(mgrsTileId)
+    const response = await searchStacApi(bbox)
     if (response) {
       searchResults.value = response.results
       hasMore.value = response.hasMore
@@ -84,7 +86,7 @@ const loadMore = async () => {
 
   isLoading.value = true
   try {
-    const response = await searchStacApi(currentMgrsTileId.value, false)
+    const response = await searchStacApi(currentBbox.value, false)
     if (response) {
       searchResults.value = [...searchResults.value, ...response.results]
       hasMore.value = response.hasMore
@@ -533,11 +535,7 @@ defineExpose({
                     class="result-thumbnail"
                     @click="handleViewOnMap(result.thumbnailUrl, result.bounds, result?.id, false)"
                   >
-                    <img
-                      :src="result.thumbnailUrl"
-                      alt="Preview"
-                      @error="($event.target as HTMLImageElement).style.display = 'none'"
-                    />
+                    <img :src="result.thumbnailUrl" alt="Preview" crossorigin="anonymous" />
                   </div>
                   <div class="result-header">
                     <h3>{{ result?.id }}</h3>
@@ -581,7 +579,7 @@ defineExpose({
                     <img
                       :src="getActiveTileThumbnail(false)"
                       alt="Preview"
-                      @error="($event.target as HTMLImageElement).style.display = 'none'"
+                      crossorigin="anonymous"
                     />
                   </div>
                   <div class="result-header">
@@ -604,11 +602,7 @@ defineExpose({
                       class="result-thumbnail"
                       @click="handleViewOnMap(result.thumbnailUrl, result.bounds, result?.id, true)"
                     >
-                      <img
-                        :src="result.thumbnailUrl"
-                        alt="Preview"
-                        @error="($event.target as HTMLImageElement).style.display = 'none'"
-                      />
+                      <img :src="result.thumbnailUrl" alt="Preview" crossorigin="anonymous" />
                     </div>
                     <div class="result-header">
                       <h3>{{ result?.id }}</h3>
