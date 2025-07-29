@@ -92,17 +92,27 @@ const loadMore = async () => {
   isLoading.value = true
   try {
     // For loadMore, we need to pass the same settings as the initial search
-    // We'll get the current settings from the form inputs
-    const startDateInput = document.getElementById('start-date') as HTMLInputElement
-    const endDateInput = document.getElementById('end-date') as HTMLInputElement
-    const cloudCoverInput = document.getElementById('cloud-cover') as HTMLInputElement
-    const areaCoverageInput = document.getElementById('area-coverage') as HTMLInputElement
+    // Get current settings from localStorage since that's where they're stored
+    const stored = localStorage.getItem('ftw-search-settings')
+    let currentSettings = {
+      startDate: '',
+      endDate: '',
+      cloudCover: 10,
+      areaCoverage: 60,
+    }
 
-    const currentSettings = {
-      startDate: startDateInput?.value || '',
-      endDate: endDateInput?.value || '',
-      cloudCover: Number(cloudCoverInput?.value) || 10,
-      areaCoverage: Number(areaCoverageInput?.value) || 60,
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored)
+        currentSettings = {
+          startDate: parsed.startDate || '',
+          endDate: parsed.endDate || '',
+          cloudCover: parsed.cloudCover || 10,
+          areaCoverage: parsed.areaCoverage || 60,
+        }
+      } catch (error) {
+        console.error('Error parsing stored settings:', error)
+      }
     }
 
     const response = await searchStacApi(currentBbox.value, false, currentSettings)

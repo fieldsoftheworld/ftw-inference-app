@@ -54,6 +54,7 @@ interface StacFeature {
 interface StacResponse {
   features: StacFeature[]
   links?: Array<{
+    body: any
     rel: string
     href: string
   }>
@@ -153,19 +154,15 @@ export default async function searchStacApi(
     }
 
     // Store the pagination token if available
-    if (nextLink && nextLink.href) {
+    if (nextLink && nextLink.body) {
       // Extract token from the URL - Earth Search uses 'next' parameter
-      const tokenMatch = nextLink.href.match(/next=([^&]+)/)
-      if (tokenMatch && tokenMatch[1]) {
-        nextPageToken = decodeURIComponent(tokenMatch[1])
-        // nextPageBtn.disabled = false;
+      if (nextLink.body.next) {
+        nextPageToken = decodeURIComponent(nextLink.body.next)
       } else {
         nextPageToken = null
-        // nextPageBtn.disabled = true;
       }
     } else {
       nextPageToken = null
-      // nextPageBtn.disabled = true;
     }
 
     // Process and sort the results
