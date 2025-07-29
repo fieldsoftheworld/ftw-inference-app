@@ -59,15 +59,32 @@ interface StacResponse {
   }>
 }
 
+interface SearchSettings {
+  startDate: string
+  endDate: string
+  cloudCover: number
+  areaCoverage: number
+}
+
+// Function to convert date string to RFC3339 format
+const convertToRFC3339 = (dateString: string): string => {
+  if (!dateString) return ''
+  // Create a Date object and convert to ISO string (RFC3339 format)
+  return new Date(dateString).toISOString()
+}
+
 // Function to search the STAC API
 export default async function searchStacApi(
   bbox?: number[],
   resetSearch = true,
+  settings?: SearchSettings,
 ): Promise<SearchResponse | undefined> {
-  const startDate = (document.getElementById('start-date') as HTMLInputElement)?.value
-  const endDate = (document.getElementById('end-date') as HTMLInputElement)?.value
-  const cloudCover = (document.getElementById('cloud-cover') as HTMLInputElement)?.value || 10
-  const areaCoverage = (document.getElementById('area-coverage') as HTMLInputElement)?.value || 40
+  console.log('settings', settings)
+  // Use provided settings or fall back to DOM elements
+  const startDate = settings?.startDate ? convertToRFC3339(settings.startDate) : ''
+  const endDate = settings?.endDate ? convertToRFC3339(settings.endDate) : ''
+  const cloudCover = settings?.cloudCover || 10
+  const areaCoverage = settings?.areaCoverage || 60
 
   try {
     // Build request body for POST
@@ -79,7 +96,7 @@ export default async function searchStacApi(
           lte: cloudCover,
         },
         ['s2:nodata_pixel_percentage']: {
-          lte: areaCoverage,
+          lte: 100 - areaCoverage,
         },
       },
     }

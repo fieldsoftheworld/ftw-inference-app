@@ -59,14 +59,14 @@ const toggleSecondResults = () => {
 }
 
 // Function to handle search results
-const handleSearchResults = async (mgrsTileId: string, bbox?: number[]) => {
+const handleSearchResults = async (mgrsTileId: string, bbox?: number[], settings?: any) => {
   isLoading.value = true
   searchStatus.value = `Searching for Sentinel-2 images in tile ${mgrsTileId}...`
   currentMgrsTileId.value = mgrsTileId
   currentBbox.value = bbox
 
   try {
-    const response = await searchStacApi(bbox)
+    const response = await searchStacApi(bbox, true, settings)
     if (response) {
       searchResults.value = response.results
       hasMore.value = response.hasMore
@@ -86,7 +86,21 @@ const loadMore = async () => {
 
   isLoading.value = true
   try {
-    const response = await searchStacApi(currentBbox.value, false)
+    // For loadMore, we need to pass the same settings as the initial search
+    // We'll get the current settings from the form inputs
+    const startDateInput = document.getElementById('start-date') as HTMLInputElement
+    const endDateInput = document.getElementById('end-date') as HTMLInputElement
+    const cloudCoverInput = document.getElementById('cloud-cover') as HTMLInputElement
+    const areaCoverageInput = document.getElementById('area-coverage') as HTMLInputElement
+
+    const currentSettings = {
+      startDate: startDateInput?.value || '',
+      endDate: endDateInput?.value || '',
+      cloudCover: Number(cloudCoverInput?.value) || 10,
+      areaCoverage: Number(areaCoverageInput?.value) || 60,
+    }
+
+    const response = await searchStacApi(currentBbox.value, false, currentSettings)
     if (response) {
       searchResults.value = [...searchResults.value, ...response.results]
       hasMore.value = response.hasMore
