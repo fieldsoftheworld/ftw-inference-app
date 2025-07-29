@@ -59,18 +59,23 @@ const toggleSecondResults = () => {
 }
 
 // Function to handle search results
-const handleSearchResults = async (mgrsTileId: string, bbox?: number[]) => {
+const handleSearchResults = async (mgrsTileId: string, bbox?: number[], settings?: any) => {
   isLoading.value = true
   searchStatus.value = `Searching for Sentinel-2 images in tile ${mgrsTileId}...`
   currentMgrsTileId.value = mgrsTileId
   currentBbox.value = bbox
 
   try {
-    const response = await searchStacApi(bbox)
+    const response = await searchStacApi(bbox, true, settings)
     if (response) {
       searchResults.value = response.results
       hasMore.value = response.hasMore
-      searchStatus.value = `Found ${response.results.length} images`
+
+      if (response.results.length === 0) {
+        searchStatus.value = `No images found. Try adjusting your filters (date range, cloud cover, area coverage) to increase the likelihood of finding results.`
+      } else {
+        searchStatus.value = `Found ${response.results.length} images`
+      }
     }
   } catch (error: unknown) {
     console.error('DataCabinet: Error searching:', error)
@@ -86,10 +91,38 @@ const loadMore = async () => {
 
   isLoading.value = true
   try {
-    const response = await searchStacApi(currentBbox.value, false)
+    // For loadMore, we need to pass the same settings as the initial search
+    // Get current settings from localStorage since that's where they're stored
+    const stored = localStorage.getItem('ftw-search-settings')
+    let currentSettings = {
+      startDate: '',
+      endDate: '',
+      cloudCover: 10,
+      areaCoverage: 60,
+    }
+
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored)
+        currentSettings = {
+          startDate: parsed.startDate || '',
+          endDate: parsed.endDate || '',
+          cloudCover: parsed.cloudCover || 10,
+          areaCoverage: parsed.areaCoverage || 60,
+        }
+      } catch (error) {
+        console.error('Error parsing stored settings:', error)
+      }
+    }
+
+    const response = await searchStacApi(currentBbox.value, false, currentSettings)
     if (response) {
       searchResults.value = [...searchResults.value, ...response.results]
       hasMore.value = response.hasMore
+
+      if (response.results.length === 0) {
+        searchStatus.value = `No more images found. Try adjusting your filters (date range, cloud cover, area coverage) to increase the likelihood of finding more results.`
+      }
     }
   } catch (error: unknown) {
     console.error('Error loading more results:', error)

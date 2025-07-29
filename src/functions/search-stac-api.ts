@@ -54,41 +54,61 @@ interface StacFeature {
 interface StacResponse {
   features: StacFeature[]
   links?: Array<{
+    body: any
     rel: string
     href: string
   }>
+}
+
+interface SearchSettings {
+  startDate: string
+  endDate: string
+  cloudCover: number
+  areaCoverage: number
+}
+
+// Function to convert date string to RFC3339 format
+const convertToRFC3339 = (dateString: string): string => {
+  if (!dateString) return ''
+  // Create a Date object and convert to ISO string (RFC3339 format)
+  return new Date(dateString).toISOString()
 }
 
 // Function to search the STAC API
 export default async function searchStacApi(
   bbox?: number[],
   resetSearch = true,
+  settings?: SearchSettings,
 ): Promise<SearchResponse | undefined> {
-  const startDate = (document.getElementById('start-date') as HTMLInputElement)?.value
-  const endDate = (document.getElementById('end-date') as HTMLInputElement)?.value
-  const cloudCover = (document.getElementById('cloud-cover') as HTMLInputElement)?.value || 10
+  console.log('settings', settings)
+  // Use provided settings or fall back to DOM elements
+  const startDate = settings?.startDate ? convertToRFC3339(settings.startDate) : ''
+  const endDate = settings?.endDate ? convertToRFC3339(settings.endDate) : ''
+  const cloudCover = settings?.cloudCover || 10
+  const areaCoverage = settings?.areaCoverage || 60
 
   try {
-    // Build query parameters
-    const params = new URLSearchParams()
-
-    // Add collection parameter
-    params.append('collections', 'sentinel-2-l2a')
-
-    // Add limit parameter
-    params.append('limit', '20')
-
-    // Add cloud cover filter using CQL2 text
-    params.append('filter-lang', 'cql2-text')
-    params.append('filter', `eo:cloud_cover<=${cloudCover}`)
+    // Build request body for POST
+    const requestBody: any = {
+      collections: ['sentinel-2-l2a'],
+      limit: 20,
+      query: {
+        ['eo:cloud_cover']: {
+          lte: cloudCover,
+        },
+        ['s2:nodata_pixel_percentage']: {
+          lte: 100 - areaCoverage,
+        },
+      },
+    }
 
     // Add datetime filter if dates are provided
     if (startDate && endDate) {
-      params.append('datetime', `${startDate}/${endDate}`)
+      requestBody.datetime = `${startDate}/${endDate}`
     } else if (startDate) {
-      params.append('datetime', `${startDate}/..`)
+      requestBody.datetime = `${startDate}/..`
     } else if (endDate) {
-      params.append('datetime', `../${endDate}`)
+      requestBody.datetime = `../${endDate}`
     }
 
     // Add bbox parameter if provided
@@ -103,23 +123,22 @@ export default async function searchStacApi(
       const [minLon, minLat] = transform([minX, minY], 'EPSG:3857', 'EPSG:4326')
       const [maxLon, maxLat] = transform([maxX, maxY], 'EPSG:3857', 'EPSG:4326')
 
-      params.append('bbox', `${minLon},${minLat},${maxLon},${maxLat}`)
+      requestBody.bbox = [minLon, minLat, maxLon, maxLat]
     }
 
     // Add the pagination token if we're loading more results
     if (!resetSearch && nextPageToken) {
-      params.append('next', nextPageToken)
+      requestBody.next = nextPageToken
     }
 
-    // Construct the URL with query parameters
-    const searchUrl = `https://earth-search.aws.element84.com/v1/search?${params.toString()}`
-
-    // Make the GET request
-    const response = await fetch(searchUrl, {
-      method: 'GET',
+    // Make the POST request
+    const response = await fetch('https://earth-search.aws.element84.com/v1/search', {
+      method: 'POST',
       headers: {
+        'Content-Type': 'application/json',
         Accept: 'application/geo+json',
       },
+      body: JSON.stringify(requestBody),
     })
 
     if (!response.ok) {
@@ -135,19 +154,15 @@ export default async function searchStacApi(
     }
 
     // Store the pagination token if available
-    if (nextLink && nextLink.href) {
+    if (nextLink && nextLink.body) {
       // Extract token from the URL - Earth Search uses 'next' parameter
-      const tokenMatch = nextLink.href.match(/next=([^&]+)/)
-      if (tokenMatch && tokenMatch[1]) {
-        nextPageToken = decodeURIComponent(tokenMatch[1])
-        // nextPageBtn.disabled = false;
+      if (nextLink.body.next) {
+        nextPageToken = decodeURIComponent(nextLink.body.next)
       } else {
         nextPageToken = null
-        // nextPageBtn.disabled = true;
       }
     } else {
       nextPageToken = null
-      // nextPageBtn.disabled = true;
     }
 
     // Process and sort the results
