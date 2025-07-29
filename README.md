@@ -48,7 +48,7 @@ cd ../ftw-inference-app
 npm install
 
 # Create environment file
-echo "VITE_API_BASE_URL=http://127.0.0.1:8080/" > .env.development
+echo "VITE_API_BASE_URL=http://127.0.0.1:8080/v1/" > .env.development
 
 # Start the development server
 npm run dev
