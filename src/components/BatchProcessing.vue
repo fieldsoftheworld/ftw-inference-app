@@ -70,7 +70,12 @@ const handleSearchResults = async (mgrsTileId: string, bbox?: number[], settings
     if (response) {
       searchResults.value = response.results
       hasMore.value = response.hasMore
-      searchStatus.value = `Found ${response.results.length} images`
+
+      if (response.results.length === 0) {
+        searchStatus.value = `No images found. Try adjusting your filters (date range, cloud cover, area coverage) to increase the likelihood of finding results.`
+      } else {
+        searchStatus.value = `Found ${response.results.length} images`
+      }
     }
   } catch (error: unknown) {
     console.error('DataCabinet: Error searching:', error)
@@ -104,6 +109,10 @@ const loadMore = async () => {
     if (response) {
       searchResults.value = [...searchResults.value, ...response.results]
       hasMore.value = response.hasMore
+
+      if (response.results.length === 0) {
+        searchStatus.value = `No more images found. Try adjusting your filters (date range, cloud cover, area coverage) to increase the likelihood of finding more results.`
+      }
     }
   } catch (error: unknown) {
     console.error('Error loading more results:', error)

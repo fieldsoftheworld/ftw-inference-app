@@ -4,6 +4,7 @@ import type { Map } from 'ol'
 import { ref } from 'vue'
 import SmallAreaProcessing from './SmallAreaProcessing.vue'
 import BatchProcessing from './BatchProcessing.vue'
+import SettingsModal from './SettingsModal.vue'
 
 const props = defineProps<{
   map: Map
@@ -12,7 +13,7 @@ const props = defineProps<{
 const batchProcessingRef = ref<InstanceType<typeof BatchProcessing> | null>(null)
 const activeAccordion = ref<'smallAreaProcessing' | 'batchProcessing' | null>('smallAreaProcessing')
 
-// Settings modal state
+// Settings state
 const isSettingsModalOpen = ref(false)
 
 // Load settings from localStorage or use defaults
@@ -66,64 +67,12 @@ const handleBatchProcessingToggle = (isOpen: boolean) => {
 }
 
 const handleSettingsClick = () => {
-  loadCurrentSettings()
   isSettingsModalOpen.value = true
 }
 
-const closeSettingsModal = () => {
-  isSettingsModalOpen.value = false
-}
-
-const saveSettings = () => {
-  // Save settings to localStorage
-  localStorage.setItem('ftw-search-settings', JSON.stringify(settings.value))
-
-  // Update the form inputs with the new settings
-  const startDateInput = document.getElementById('start-date') as HTMLInputElement
-  const endDateInput = document.getElementById('end-date') as HTMLInputElement
-  const cloudCoverInput = document.getElementById('cloud-cover') as HTMLInputElement
-  const areaCoverageInput = document.getElementById('area-coverage') as HTMLInputElement
-
-  if (startDateInput) startDateInput.value = settings.value.startDate
-  if (endDateInput) endDateInput.value = settings.value.endDate
-  if (cloudCoverInput) cloudCoverInput.value = settings.value.cloudCover.toString()
-  if (areaCoverageInput) areaCoverageInput.value = settings.value.areaCoverage.toString()
-
-  closeSettingsModal()
-}
-
-const updateCloudCoverInput = () => {
-  // Ensure the value is a number
-  settings.value.cloudCover = Number(settings.value.cloudCover)
-}
-
-const updateCloudCoverSlider = () => {
-  // Ensure the value is a number
-  settings.value.cloudCover = Number(settings.value.cloudCover)
-}
-
-const updateAreaCoverageInput = () => {
-  // Ensure the value is a number
-  settings.value.areaCoverage = Number(settings.value.areaCoverage)
-}
-
-const updateAreaCoverageSlider = () => {
-  // Ensure the value is a number
-  settings.value.areaCoverage = Number(settings.value.areaCoverage)
-}
-
-const loadCurrentSettings = () => {
-  // Load current values from the form inputs and update settings
-  const startDateInput = document.getElementById('start-date') as HTMLInputElement
-  const endDateInput = document.getElementById('end-date') as HTMLInputElement
-  const cloudCoverInput = document.getElementById('cloud-cover') as HTMLInputElement
-  const areaCoverageInput = document.getElementById('area-coverage') as HTMLInputElement
-
-  // Update settings with current form values (if they exist) or keep stored values
-  settings.value.startDate = startDateInput?.value || settings.value.startDate
-  settings.value.endDate = endDateInput?.value || settings.value.endDate
-  settings.value.cloudCover = Number(cloudCoverInput?.value) || settings.value.cloudCover
-  settings.value.areaCoverage = Number(areaCoverageInput?.value) || settings.value.areaCoverage
+const handleSettingsSave = (newSettings: any) => {
+  settings.value = newSettings
+  applyStoredSettingsToForm()
 }
 
 // Expose methods to parent components
@@ -165,84 +114,12 @@ defineExpose({
     />
 
     <!-- Settings Modal -->
-    <div v-if="isSettingsModalOpen" class="modal-overlay" @click="closeSettingsModal">
-      <div class="modal-content" @click.stop>
-        <div class="modal-header">
-          <h3>Search Settings</h3>
-          <button class="close-button" @click="closeSettingsModal">×</button>
-        </div>
-        <div class="modal-body">
-          <div class="form-group">
-            <label for="settings-start-date">Start Date</label>
-            <input
-              id="settings-start-date"
-              type="date"
-              v-model="settings.startDate"
-              class="form-input"
-            />
-          </div>
-          <div class="form-group">
-            <label for="settings-end-date">End Date</label>
-            <input
-              id="settings-end-date"
-              type="date"
-              v-model="settings.endDate"
-              class="form-input"
-            />
-          </div>
-          <div class="form-group">
-            <label for="settings-cloud-cover">Cloud Cover (%)</label>
-            <div class="slider-container">
-              <input
-                id="settings-cloud-cover"
-                type="range"
-                v-model="settings.cloudCover"
-                min="0"
-                max="100"
-                step="1"
-                class="slider"
-                @input="updateCloudCoverInput"
-              />
-              <input
-                type="number"
-                v-model="settings.cloudCover"
-                min="0"
-                max="100"
-                class="slider-input"
-                @input="updateCloudCoverSlider"
-              />
-            </div>
-          </div>
-          <div class="form-group">
-            <label for="settings-area-coverage">Area Coverage (%)</label>
-            <div class="slider-container">
-              <input
-                id="settings-area-coverage"
-                type="range"
-                v-model="settings.areaCoverage"
-                min="0"
-                max="100"
-                step="1"
-                class="slider"
-                @input="updateAreaCoverageInput"
-              />
-              <input
-                type="number"
-                v-model="settings.areaCoverage"
-                min="0"
-                max="100"
-                class="slider-input"
-                @input="updateAreaCoverageSlider"
-              />
-            </div>
-          </div>
-        </div>
-        <div class="modal-footer">
-          <button class="btn btn-secondary" @click="closeSettingsModal">Cancel</button>
-          <button class="btn btn-primary" @click="saveSettings">Save Settings</button>
-        </div>
-      </div>
-    </div>
+    <SettingsModal
+      :is-open="isSettingsModalOpen"
+      :initial-settings="settings"
+      @update:is-open="isSettingsModalOpen = $event"
+      @save="handleSettingsSave"
+    />
   </div>
 </template>
 
@@ -298,217 +175,5 @@ h2 {
 
 .settings-button:active {
   transform: scale(0.95);
-}
-
-/* Modal Styles */
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 2000;
-}
-
-.modal-content {
-  background-color: rgba(0, 0, 0, 0.9);
-  border: 1px solid rgba(0, 136, 136, 0.8);
-  border-radius: 8px;
-  width: 90%;
-  max-width: 400px;
-  max-height: 90vh;
-  overflow-y: auto;
-  color: white;
-}
-
-.modal-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 1rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.modal-header h3 {
-  margin: 0;
-  font-size: 1.25rem;
-  color: white;
-}
-
-.modal-header .close-button {
-  background: none;
-  border: none;
-  color: rgba(255, 255, 255, 0.8);
-  font-size: 1.5rem;
-  cursor: pointer;
-  padding: 0;
-  width: 24px;
-  height: 24px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 4px;
-  transition: all 0.2s ease;
-}
-
-.modal-header .close-button:hover {
-  color: white;
-  background-color: rgba(255, 255, 255, 0.1);
-}
-
-.modal-body {
-  padding: 1rem;
-}
-
-.form-group {
-  margin-bottom: 1rem;
-}
-
-.form-group label {
-  display: block;
-  margin-bottom: 0.5rem;
-  color: rgba(255, 255, 255, 0.9);
-  font-size: 0.875rem;
-  font-weight: 500;
-}
-
-.form-input {
-  width: 100%;
-  padding: 0.75rem;
-  background-color: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 4px;
-  color: white;
-  font-size: 0.875rem;
-  transition: all 0.2s ease;
-  box-sizing: border-box;
-}
-
-.form-input:focus {
-  outline: none;
-  border-color: rgba(0, 136, 136, 0.8);
-  background-color: rgba(255, 255, 255, 0.15);
-}
-
-.form-input::placeholder {
-  color: rgba(255, 255, 255, 0.5);
-}
-
-.modal-footer {
-  display: flex;
-  justify-content: flex-end;
-  gap: 0.75rem;
-  padding: 1rem;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.btn {
-  padding: 0.75rem 1.5rem;
-  border: none;
-  border-radius: 4px;
-  font-size: 0.875rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.btn-primary {
-  background-color: rgba(0, 136, 136, 0.8);
-  color: white;
-}
-
-.btn-primary:hover {
-  background-color: rgba(0, 136, 136, 1);
-}
-
-.btn-secondary {
-  background-color: rgba(255, 255, 255, 0.1);
-  color: white;
-}
-
-.btn-secondary:hover {
-  background-color: rgba(255, 255, 255, 0.2);
-}
-
-/* Slider Styles */
-.slider-container {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.slider {
-  width: 100%;
-  height: 6px;
-  border-radius: 3px;
-  background: rgba(255, 255, 255, 0.2);
-  outline: none;
-  -webkit-appearance: none;
-  appearance: none;
-}
-
-.slider::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  appearance: none;
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-  background: rgba(0, 136, 136, 0.8);
-  cursor: pointer;
-  border: 2px solid rgba(255, 255, 255, 0.8);
-  transition: all 0.2s ease;
-}
-
-.slider::-webkit-slider-thumb:hover {
-  background: rgba(0, 136, 136, 1);
-  transform: scale(1.1);
-}
-
-.slider::-moz-range-thumb {
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-  background: rgba(0, 136, 136, 0.8);
-  cursor: pointer;
-  border: 2px solid rgba(255, 255, 255, 0.8);
-  transition: all 0.2s ease;
-}
-
-.slider::-moz-range-thumb:hover {
-  background: rgba(0, 136, 136, 1);
-  transform: scale(1.1);
-}
-
-.slider-input {
-  width: 80px;
-  padding: 0.5rem;
-  background-color: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 4px;
-  color: white;
-  font-size: 0.875rem;
-  text-align: center;
-  transition: all 0.2s ease;
-  box-sizing: border-box;
-}
-
-.slider-input:focus {
-  outline: none;
-  border-color: rgba(0, 136, 136, 0.8);
-  background-color: rgba(255, 255, 255, 0.15);
-}
-
-.slider-input::-webkit-outer-spin-button,
-.slider-input::-webkit-inner-spin-button {
-  -webkit-appearance: none;
-  margin: 0;
-}
-
-.slider-input[type='number'] {
-  -moz-appearance: textfield;
 }
 </style>

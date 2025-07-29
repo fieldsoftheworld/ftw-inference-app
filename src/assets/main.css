@@ -13,3 +13,11 @@ body {
   height: 100%;
   width: 100%;
 }
+
+.material-design-icon.icon-white {
+  color: white;
+}
+
+.material-design-icon.icon-white > .material-design-icon__svg {
+  color: white;
+}
