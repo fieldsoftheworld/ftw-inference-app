@@ -8,11 +8,13 @@ interface SearchResult {
   thumbnailUrl: string
   tiffUrl: string
   bounds: number[] | null
+  areaCoverage?: number | string
 }
 
 interface ProcessedResult extends Omit<SearchResult, 'date'> {
   date: Date
   formattedDate: string
+  areaCoverage: number
 }
 
 interface SearchResponse {
@@ -30,6 +32,7 @@ interface StacFeature {
     's2:water_percentage': number
     's2:not_vegetated_percentage': number
     's2:unclassified_percentage': number
+    's2:nodata_pixel_percentage': number
   }
   assets?: {
     thumbnail?: {
@@ -167,11 +170,16 @@ export default async function searchStacApi(
     // Process and sort the results
     const results = data.features
       .map((item: StacFeature): ProcessedResult => {
+        // Calculate area coverage as 100 - nodata_pixel_percentage
+        const nodataPercentage = item.properties['s2:nodata_pixel_percentage'] || 0
+        const areaCoverage = 100 - nodataPercentage
+
         const result = {
           id: item.id,
           date: new Date(item.properties.datetime),
           formattedDate: new Date(item.properties.datetime).toLocaleDateString(),
           cloudCover: item.properties['eo:cloud_cover'] || 'N/A',
+          areaCoverage: areaCoverage,
           thumbnailUrl: item.assets?.thumbnail?.href || item.assets?.visual?.href || '#',
           tiffUrl: item.assets?.blue?.href || '#',
           bounds: item.bbox
@@ -196,6 +204,7 @@ export default async function searchStacApi(
         (item: ProcessedResult): SearchResult => ({
           ...item,
           date: item.formattedDate, // Convert back to string for display
+          areaCoverage: item.areaCoverage,
         }),
       )
 

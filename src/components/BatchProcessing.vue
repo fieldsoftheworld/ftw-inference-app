@@ -6,6 +6,7 @@ import searchStacApi from '../functions/search-stac-api'
 import { addStacLayer, removeStacLayer } from '../functions/add-stac-layer'
 import { generateJWT } from '../functions/generate-jwt'
 import { transformExtent } from 'ol/proj'
+import { showWarning } from '../functions/snackbar'
 
 interface SearchResult {
   id: string
@@ -14,6 +15,7 @@ interface SearchResult {
   thumbnailUrl: string
   bounds: number[] | null
   tiffUrl: string
+  areaCoverage?: number | string
 }
 
 const props = defineProps<{
@@ -152,6 +154,23 @@ const handleViewOnMap = (
   // Use the stored currentGridExtent for positioning the STAC layer
   const gridExtent = currentGridExtent.value || bounds
 
+  // Find the selected tile to check its area coverage
+  const selectedTile = searchResults.value.find((result) => result.id === tileId)
+
+  // Check area coverage and show warning if less than 100%
+  if (selectedTile && selectedTile.areaCoverage !== undefined) {
+    const areaCoverage =
+      typeof selectedTile.areaCoverage === 'number'
+        ? selectedTile.areaCoverage
+        : parseFloat(selectedTile.areaCoverage as string)
+
+    if (!isNaN(areaCoverage) && areaCoverage < 100) {
+      showWarning(
+        `Selected tile has only ${areaCoverage.toFixed(1)}% area coverage. Be sure to select an area where there is imagery coverage.`,
+      )
+    }
+  }
+
   if (isSecondAccordion) {
     if (tileId === activeTileId.value) {
       return
@@ -207,6 +226,20 @@ const getActiveTileCloudCover = (isSecond: boolean = false) => {
   const tileId = isSecond ? secondActiveTileId.value : activeTileId.value
   const activeTile = searchResults.value.find((result) => result?.id === tileId)
   return activeTile?.cloudCover
+}
+
+const getActiveTileAreaCoverage = (isSecond: boolean = false) => {
+  const tileId = isSecond ? secondActiveTileId.value : activeTileId.value
+  const activeTile = searchResults.value.find((result) => result?.id === tileId)
+  return activeTile?.areaCoverage
+}
+
+const formatAreaCoverage = (coverage: number | string | undefined) => {
+  if (coverage === undefined) return undefined
+  if (typeof coverage === 'number') {
+    return coverage.toFixed(1)
+  }
+  return coverage
 }
 
 const setDrawnExtent = (extent: Extent) => {
@@ -591,6 +624,14 @@ defineExpose({
                   <div class="result-details">
                     <div>Date: {{ result.date }}</div>
                     <div>Cloud Cover: {{ result.cloudCover }}%</div>
+                    <div v-if="result.areaCoverage !== undefined">
+                      Area Coverage:
+                      {{
+                        typeof result.areaCoverage === 'number'
+                          ? result.areaCoverage.toFixed(1)
+                          : result.areaCoverage
+                      }}%
+                    </div>
                   </div>
                 </div>
               </template>
@@ -636,6 +677,9 @@ defineExpose({
                   <div class="result-details">
                     <div>Date: {{ getActiveTileDate(false) }}</div>
                     <div>Cloud Cover: {{ getActiveTileCloudCover(false) }}%</div>
+                    <div v-if="getActiveTileAreaCoverage(false) !== undefined">
+                      Area Coverage: {{ formatAreaCoverage(getActiveTileAreaCoverage(false)) }}%
+                    </div>
                   </div>
                 </div>
 
