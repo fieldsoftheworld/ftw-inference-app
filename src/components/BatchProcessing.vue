@@ -256,8 +256,9 @@ const formatAreaCoverage = (coverage: number | string | undefined) => {
   return coverage
 }
 
-const checkBboxContainment = () => {
-  if (!activeTileId.value || !secondActiveTileId.value || !drawnExtent.value) {
+const checkBboxContainment = (extent?: Extent) => {
+  const currentExtent = extent || drawnExtent.value
+  if (!activeTileId.value || !secondActiveTileId.value || !currentExtent) {
     return
   }
 
@@ -277,7 +278,7 @@ const checkBboxContainment = () => {
     const differencePolygon = turf.difference(featureCollection)
 
     // Convert drawn extent to GeoJSON bbox format [minX, minY, maxX, maxY]
-    const bbox = transformExtent(drawnExtent.value, 'EPSG:3857', 'EPSG:4326') as [
+    const bbox = transformExtent(currentExtent, 'EPSG:3857', 'EPSG:4326') as [
       number,
       number,
       number,
@@ -285,12 +286,16 @@ const checkBboxContainment = () => {
     ]
     const bboxPolygon = turf.bboxPolygon(bbox)
 
+    if (!differencePolygon) {
+      return
+    }
+
     // Check if the bbox is contained within the difference polygon
-    const isContained = turf.intersect(differencePolygon as any, bboxPolygon)
+    const isContained = turf.intersect(turf.featureCollection([differencePolygon, bboxPolygon]))
 
     if (!isContained) {
       showWarning(
-        'The selected area (bbox) is not fully contained within either of the selected tiles. This may result in incomplete processing.',
+        'The selected area (bbox) is not fully contained within the selected tiles. Please try a different area.',
       )
     }
   } catch (error) {
@@ -305,9 +310,6 @@ const setDrawnExtent = (extent: Extent) => {
 
 const handleCompareTiles = async () => {
   if (!activeTileId.value || !secondActiveTileId.value) return
-
-  // Check bbox containment before proceeding
-  checkBboxContainment()
 
   isCreatingProject.value = true
   projectMessage.value = {

@@ -272,6 +272,11 @@ export default function createS2GridLayer(
             warningShown = false
             initialFeature.setGeometry(geometry)
             drawVectorLayer?.setStyle(validStyle)
+
+            // Check geometry containment if both tiles are selected
+            if (dataCabinetRef.value?.checkBboxContainment) {
+              dataCabinetRef.value.checkBboxContainment(newExtent)
+            }
           }
         })
 
