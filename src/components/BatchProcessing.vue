@@ -151,7 +151,7 @@ const handleViewOnMap = (
   isSecondAccordion: boolean = false,
 ) => {
   // Use the stored currentGridExtent for positioning the STAC layer
-  const gridExtent = currentGridExtent.value || currentBbox.value || bounds
+  const gridExtent = currentGridExtent.value || bounds
 
   if (isSecondAccordion) {
     if (tileId === activeTileId.value) {
