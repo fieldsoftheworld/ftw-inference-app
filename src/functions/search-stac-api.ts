@@ -80,7 +80,6 @@ export default async function searchStacApi(
   resetSearch = true,
   settings?: SearchSettings,
 ): Promise<SearchResponse | undefined> {
-  console.log('settings', settings)
   // Use provided settings or fall back to DOM elements
   const startDate = settings?.startDate ? convertToRFC3339(settings.startDate) : ''
   const endDate = settings?.endDate ? convertToRFC3339(settings.endDate) : ''

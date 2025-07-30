@@ -77,8 +77,13 @@ const handleSettingsSave = (newSettings: any) => {
 
 // Expose methods to parent components
 defineExpose({
-  handleSearchResults: (mgrsTileId: string, bbox?: number[]) =>
-    batchProcessingRef.value?.handleSearchResults(mgrsTileId, bbox, settings.value),
+  handleSearchResults: (mgrsTileId: string, bbox?: number[], currentGridExtent?: Extent) =>
+    batchProcessingRef.value?.handleSearchResults(
+      mgrsTileId,
+      bbox,
+      settings.value,
+      currentGridExtent,
+    ),
   setDrawnExtent: (extent: Extent) => batchProcessingRef.value?.setDrawnExtent(extent),
   currentMgrsTileId: batchProcessingRef.value?.currentMgrsTileId,
   handleBboxSizeWarning: (message: string) =>

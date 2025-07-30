@@ -10,6 +10,7 @@ import VectorLayer from 'ol/layer/Vector.js'
 import { transformExtent } from 'ol/proj'
 import VectorSource from 'ol/source/Vector.js'
 import { getArea } from 'ol/sphere'
+import { getArea as getAreaExtent } from 'ol/extent'
 import { Fill, Stroke, Style } from 'ol/style.js'
 import type { Ref } from 'vue'
 import type DataCabinet from '../components/DataCabinet.vue'
@@ -122,7 +123,6 @@ export default function createS2GridLayer(
       if (geometry) {
         const extent = geometry.getExtent()
         currentGridExtent = extent // Store the current grid extent
-
         // Calculate the bounding box based on area values
         const bboxExtent = calculateBoundingBox(extent, areaValues)
 
@@ -208,7 +208,7 @@ export default function createS2GridLayer(
 
         // Call the search function through the ref and open the Batch Processing accordion
         if (dataCabinetRef.value?.handleSearchResults) {
-          dataCabinetRef.value.handleSearchResults(mgrsTileId, bbox)
+          dataCabinetRef.value.handleSearchResults(mgrsTileId, bbox, currentGridExtent)
           // Open the Batch Processing accordion
           if (dataCabinetRef.value?.handleBatchProcessingToggle) {
             dataCabinetRef.value.handleBatchProcessingToggle(true)
@@ -263,7 +263,7 @@ export default function createS2GridLayer(
               }
               if (!isWithinExtent) {
                 showWarning(
-                  'Bounding box is outside the selected grid area. Using last valid state.',
+                  'Running inference across Sentinel 2 tile boundaries is not yet supported. Move your bbox to the selected tile, or select a different tile.',
                 )
               }
               warningShown = true
