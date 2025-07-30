@@ -9,12 +9,20 @@ interface SearchResult {
   tiffUrl: string
   bounds: number[] | null
   areaCoverage?: number | string
+  geometry?: {
+    type: string
+    coordinates: number[][][]
+  }
 }
 
 interface ProcessedResult extends Omit<SearchResult, 'date'> {
   date: Date
   formattedDate: string
   areaCoverage: number
+  geometry?: {
+    type: string
+    coordinates: number[][][]
+  }
 }
 
 interface SearchResponse {
@@ -33,6 +41,10 @@ interface StacFeature {
     's2:not_vegetated_percentage': number
     's2:unclassified_percentage': number
     's2:nodata_pixel_percentage': number
+  }
+  geometry?: {
+    type: string
+    coordinates: number[][][]
   }
   assets?: {
     thumbnail?: {
@@ -187,6 +199,7 @@ export default async function searchStacApi(
               ? [item.bbox[0], item.bbox[1], item.bbox[3], item.bbox[4]]
               : item.bbox
             : null,
+          geometry: item.geometry,
         }
         return result
       })
@@ -205,6 +218,7 @@ export default async function searchStacApi(
           ...item,
           date: item.formattedDate, // Convert back to string for display
           areaCoverage: item.areaCoverage,
+          geometry: item.geometry,
         }),
       )
 

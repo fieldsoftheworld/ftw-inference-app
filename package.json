@@ -11,6 +11,7 @@
     "type-check": "vue-tsc --noEmit -p tsconfig.app.json --composite false"
   },
   "dependencies": {
+    "@turf/turf": "^7.2.0",
     "jwt-decode": "^4.0.0",
     "jwt-encode": "^1.0.1",
     "ol": "^10.6.2-dev.1752570595686",

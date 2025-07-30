@@ -7,6 +7,10 @@ import { addStacLayer, removeStacLayer } from '../functions/add-stac-layer'
 import { generateJWT } from '../functions/generate-jwt'
 import { transformExtent } from 'ol/proj'
 import { showWarning } from '../functions/snackbar'
+import * as turf from '@turf/turf'
+import Polygon from 'ol/geom/Polygon'
+import MultiPolygon from 'ol/geom/MultiPolygon'
+import Feature from 'ol/format/Feature'
 
 interface SearchResult {
   id: string
@@ -16,6 +20,10 @@ interface SearchResult {
   bounds: number[] | null
   tiffUrl: string
   areaCoverage?: number | string
+  geometry?: {
+    type: string
+    coordinates: number[][][]
+  }
 }
 
 const props = defineProps<{
@@ -234,6 +242,12 @@ const getActiveTileAreaCoverage = (isSecond: boolean = false) => {
   return activeTile?.areaCoverage
 }
 
+const getActiveTileGeometry = (isSecond: boolean = false) => {
+  const tileId = isSecond ? secondActiveTileId.value : activeTileId.value
+  const activeTile = searchResults.value.find((result) => result?.id === tileId)
+  return activeTile?.geometry
+}
+
 const formatAreaCoverage = (coverage: number | string | undefined) => {
   if (coverage === undefined) return undefined
   if (typeof coverage === 'number') {
@@ -242,12 +256,58 @@ const formatAreaCoverage = (coverage: number | string | undefined) => {
   return coverage
 }
 
+const checkBboxContainment = () => {
+  if (!activeTileId.value || !secondActiveTileId.value || !drawnExtent.value) {
+    return
+  }
+
+  const firstTile = searchResults.value.find((result) => result.id === activeTileId.value)
+  const secondTile = searchResults.value.find((result) => result.id === secondActiveTileId.value)
+
+  if (!firstTile?.geometry || !secondTile?.geometry) {
+    return
+  }
+
+  try {
+    // Create the Difference GeoJSON polygons from the geometries to see if the bbox is contained within the difference polygon
+    const featureCollection = turf.featureCollection([
+      turf.polygon(firstTile.geometry.coordinates),
+      turf.polygon(secondTile.geometry.coordinates),
+    ])
+    const differencePolygon = turf.difference(featureCollection)
+
+    // Convert drawn extent to GeoJSON bbox format [minX, minY, maxX, maxY]
+    const bbox = transformExtent(drawnExtent.value, 'EPSG:3857', 'EPSG:4326') as [
+      number,
+      number,
+      number,
+      number,
+    ]
+    const bboxPolygon = turf.bboxPolygon(bbox)
+
+    // Check if the bbox is contained within the difference polygon
+    const isContained = turf.intersect(differencePolygon as any, bboxPolygon)
+
+    if (!isContained) {
+      showWarning(
+        'The selected area (bbox) is not fully contained within either of the selected tiles. This may result in incomplete processing.',
+      )
+    }
+  } catch (error) {
+    console.error('Error checking bbox containment:', error)
+    showWarning('Error checking geometry containment. Please try different tiles.')
+  }
+}
+
 const setDrawnExtent = (extent: Extent) => {
   drawnExtent.value = extent
 }
 
 const handleCompareTiles = async () => {
   if (!activeTileId.value || !secondActiveTileId.value) return
+
+  // Check bbox containment before proceeding
+  checkBboxContainment()
 
   isCreatingProject.value = true
   projectMessage.value = {
@@ -547,6 +607,8 @@ defineExpose({
   setDrawnExtent,
   currentMgrsTileId,
   handleBboxSizeWarning,
+  checkBboxContainment,
+  getActiveTileGeometry,
 })
 </script>
 
