@@ -1,16 +1,15 @@
 <script setup lang="ts">
 import { ref, onUnmounted } from 'vue'
-import type { Map } from 'ol'
+import type Map from 'ol/Map'
 import type { Extent } from 'ol/extent'
 import searchStacApi from '../functions/search-stac-api'
 import { addStacLayer, removeStacLayer } from '../functions/add-stac-layer'
 import { generateJWT } from '../functions/generate-jwt'
 import { transformExtent } from 'ol/proj'
 import { showWarning } from '../functions/snackbar'
-import * as turf from '@turf/turf'
-import Polygon from 'ol/geom/Polygon'
-import MultiPolygon from 'ol/geom/MultiPolygon'
-import Feature from 'ol/format/Feature'
+import { booleanWithin as turfBooleanWithin } from '@turf/boolean-within'
+import type { Polygon as GeoJSONPolygon, Feature as GeoJSONFeature } from 'geojson'
+import { fromExtent } from 'ol/geom/Polygon'
 
 interface SearchResult {
   id: string
@@ -20,10 +19,7 @@ interface SearchResult {
   bounds: number[] | null
   tiffUrl: string
   areaCoverage?: number | string
-  geometry?: {
-    type: string
-    coordinates: number[][][]
-  }
+  geometry?: GeoJSONPolygon
 }
 
 const props = defineProps<{
@@ -269,38 +265,29 @@ const checkBboxContainment = (extent?: Extent) => {
     return
   }
 
-  try {
-    // Create the Difference GeoJSON polygons from the geometries to see if the bbox is contained within the difference polygon
-    const featureCollection = turf.featureCollection([
-      turf.polygon(firstTile.geometry.coordinates),
-      turf.polygon(secondTile.geometry.coordinates),
-    ])
-    const differencePolygon = turf.difference(featureCollection)
+  // Create the intersection from the geometries to see if the bbox is contained within
+  const tilePolygons: GeoJSONFeature<GeoJSONPolygon>[] = [firstTile, secondTile].map((f) => ({
+    type: 'Feature',
+    properties: null,
+    geometry: f.geometry as GeoJSONPolygon, // c'mon, TypeScript, you know the geometry is not null, we checked it above
+  }))
 
-    // Convert drawn extent to GeoJSON bbox format [minX, minY, maxX, maxY]
-    const bbox = transformExtent(currentExtent, 'EPSG:3857', 'EPSG:4326') as [
-      number,
-      number,
-      number,
-      number,
-    ]
-    const bboxPolygon = turf.bboxPolygon(bbox)
+  // Convert drawn extent to GeoJSON bbox format [minX, minY, maxX, maxY]
+  const bbox = transformExtent(currentExtent, 'EPSG:3857', 'EPSG:4326')
+  const bboxPolygon: GeoJSONFeature<GeoJSONPolygon> = {
+    type: 'Feature',
+    properties: null,
+    geometry: { type: 'Polygon', coordinates: fromExtent(bbox).getCoordinates() },
+  }
+  // Check if the bbox is contained within both tile polygons
+  const isContained = tilePolygons.every((tilePolygon) =>
+    turfBooleanWithin(bboxPolygon, tilePolygon),
+  )
 
-    if (!differencePolygon) {
-      return
-    }
-
-    // Check if the bbox is contained within the difference polygon
-    const isContained = turf.intersect(turf.featureCollection([differencePolygon, bboxPolygon]))
-
-    if (!isContained) {
-      showWarning(
-        'The selected area (bbox) is not fully contained within the selected tiles. Please try a different area.',
-      )
-    }
-  } catch (error) {
-    console.error('Error checking bbox containment:', error)
-    showWarning('Error checking geometry containment. Please try different tiles.')
+  if (!isContained) {
+    showWarning(
+      'The selected area (bbox) is not fully contained within the selected tiles. Please try a different area.',
+    )
   }
 }
 

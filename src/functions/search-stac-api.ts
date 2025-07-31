@@ -1,3 +1,5 @@
+import { Polygon } from 'geojson'
+
 // Store the currently selected feature
 let nextPageToken: string | null = null
 
@@ -9,20 +11,14 @@ interface SearchResult {
   tiffUrl: string
   bounds: number[] | null
   areaCoverage?: number | string
-  geometry?: {
-    type: string
-    coordinates: number[][][]
-  }
+  geometry?: Polygon
 }
 
 interface ProcessedResult extends Omit<SearchResult, 'date'> {
   date: Date
   formattedDate: string
   areaCoverage: number
-  geometry?: {
-    type: string
-    coordinates: number[][][]
-  }
+  geometry?: Polygon
 }
 
 interface SearchResponse {
@@ -42,10 +38,7 @@ interface StacFeature {
     's2:unclassified_percentage': number
     's2:nodata_pixel_percentage': number
   }
-  geometry?: {
-    type: string
-    coordinates: number[][][]
-  }
+  geometry?: Polygon
   assets?: {
     thumbnail?: {
       href: string
