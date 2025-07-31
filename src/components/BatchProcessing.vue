@@ -43,6 +43,7 @@ const isFirstResultsOpen = ref(false)
 const isSecondResultsOpen = ref(false)
 const retryTimeout = ref<number | null>(null)
 const currentBbox = ref<number[] | undefined>(undefined)
+const currentGridExtent = ref<Extent | null>(null)
 
 const toggleAccordion = () => {
   emit('update:isOpen', !props.isOpen)
@@ -59,11 +60,21 @@ const toggleSecondResults = () => {
 }
 
 // Function to handle search results
-const handleSearchResults = async (mgrsTileId: string, bbox?: number[], settings?: any) => {
+const handleSearchResults = async (
+  mgrsTileId: string,
+  bbox?: number[],
+  settings?: any,
+  gridExtent?: Extent,
+) => {
   isLoading.value = true
   searchStatus.value = `Searching for Sentinel-2 images in tile ${mgrsTileId}...`
   currentMgrsTileId.value = mgrsTileId
   currentBbox.value = bbox
+  // Store the current grid extent for use in STAC layer positioning
+  if (gridExtent) {
+    // Store the grid extent in a ref so it can be used later
+    currentGridExtent.value = gridExtent
+  }
 
   try {
     const response = await searchStacApi(bbox, true, settings)
@@ -138,6 +149,9 @@ const handleViewOnMap = (
   tileId: string,
   isSecondAccordion: boolean = false,
 ) => {
+  // Use the stored currentGridExtent for positioning the STAC layer
+  const gridExtent = currentGridExtent.value || bounds
+
   if (isSecondAccordion) {
     if (tileId === activeTileId.value) {
       return
@@ -148,8 +162,8 @@ const handleViewOnMap = (
       secondActiveTileId.value = null
     } else {
       removeStacLayer(props.map)
-      if (bounds) {
-        addStacLayer(props.map, imageUrl, bounds)
+      if (gridExtent) {
+        addStacLayer(props.map, imageUrl, gridExtent)
         secondActiveTileId.value = tileId
       } else {
         console.error('No bounds available for this image')
@@ -164,8 +178,8 @@ const handleViewOnMap = (
       }
     } else {
       removeStacLayer(props.map)
-      if (bounds) {
-        addStacLayer(props.map, imageUrl, bounds)
+      if (gridExtent) {
+        addStacLayer(props.map, imageUrl, gridExtent)
         activeTileId.value = tileId
         if (secondActiveTileId.value === tileId) {
           secondActiveTileId.value = null
@@ -425,6 +439,7 @@ const handleCompareTiles = async () => {
           }
 
           const results = await resultsResponse.json()
+          //TODO Handle results display
           console.log('Batch processing results:', results)
 
           projectMessage.value = {
