@@ -6,7 +6,6 @@ import searchStacApi from '../functions/search-stac-api'
 import { addStacLayer, removeStacLayer } from '../functions/add-stac-layer'
 import { generateJWT } from '../functions/generate-jwt'
 import { transformExtent } from 'ol/proj'
-import { extend, getArea } from 'ol/extent'
 
 interface SearchResult {
   id: string
@@ -440,6 +439,8 @@ const handleCompareTiles = async () => {
           }
 
           const results = await resultsResponse.json()
+          //TODO Handle results display
+          console.log('Batch processing results:', results)
 
           projectMessage.value = {
             type: 'success',
