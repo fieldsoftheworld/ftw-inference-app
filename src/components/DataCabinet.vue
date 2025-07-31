@@ -89,6 +89,7 @@ defineExpose({
   handleBboxSizeWarning: (message: string) =>
     batchProcessingRef.value?.handleBboxSizeWarning(message),
   handleBatchProcessingToggle: (isOpen: boolean) => handleBatchProcessingToggle(isOpen),
+  checkBboxContainment: (extent?: Extent) => batchProcessingRef.value?.checkBboxContainment(extent),
 })
 </script>
 

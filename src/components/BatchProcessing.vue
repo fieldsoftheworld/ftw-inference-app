@@ -1,11 +1,15 @@
 <script setup lang="ts">
 import { ref, onUnmounted } from 'vue'
-import type { Map } from 'ol'
+import type Map from 'ol/Map'
 import type { Extent } from 'ol/extent'
 import searchStacApi from '../functions/search-stac-api'
 import { addStacLayer, removeStacLayer } from '../functions/add-stac-layer'
 import { generateJWT } from '../functions/generate-jwt'
 import { transformExtent } from 'ol/proj'
+import { showWarning } from '../functions/snackbar'
+import { booleanWithin as turfBooleanWithin } from '@turf/boolean-within'
+import type { Polygon as GeoJSONPolygon, Feature as GeoJSONFeature } from 'geojson'
+import { fromExtent } from 'ol/geom/Polygon'
 
 interface SearchResult {
   id: string
@@ -14,6 +18,8 @@ interface SearchResult {
   thumbnailUrl: string
   bounds: number[] | null
   tiffUrl: string
+  areaCoverage?: number | string
+  geometry?: GeoJSONPolygon
 }
 
 const props = defineProps<{
@@ -152,6 +158,23 @@ const handleViewOnMap = (
   // Use the stored currentGridExtent for positioning the STAC layer
   const gridExtent = currentGridExtent.value || bounds
 
+  // Find the selected tile to check its area coverage
+  const selectedTile = searchResults.value.find((result) => result.id === tileId)
+
+  // Check area coverage and show warning if less than 100%
+  if (selectedTile && selectedTile.areaCoverage !== undefined) {
+    const areaCoverage =
+      typeof selectedTile.areaCoverage === 'number'
+        ? selectedTile.areaCoverage
+        : parseFloat(selectedTile.areaCoverage as string)
+
+    if (!isNaN(areaCoverage) && areaCoverage < 100) {
+      showWarning(
+        `Selected tile has only ${areaCoverage.toFixed(1)}% area coverage. Be sure to select an area where there is imagery coverage.`,
+      )
+    }
+  }
+
   if (isSecondAccordion) {
     if (tileId === activeTileId.value) {
       return
@@ -207,6 +230,65 @@ const getActiveTileCloudCover = (isSecond: boolean = false) => {
   const tileId = isSecond ? secondActiveTileId.value : activeTileId.value
   const activeTile = searchResults.value.find((result) => result?.id === tileId)
   return activeTile?.cloudCover
+}
+
+const getActiveTileAreaCoverage = (isSecond: boolean = false) => {
+  const tileId = isSecond ? secondActiveTileId.value : activeTileId.value
+  const activeTile = searchResults.value.find((result) => result?.id === tileId)
+  return activeTile?.areaCoverage
+}
+
+const getActiveTileGeometry = (isSecond: boolean = false) => {
+  const tileId = isSecond ? secondActiveTileId.value : activeTileId.value
+  const activeTile = searchResults.value.find((result) => result?.id === tileId)
+  return activeTile?.geometry
+}
+
+const formatAreaCoverage = (coverage: number | string | undefined) => {
+  if (coverage === undefined) return undefined
+  if (typeof coverage === 'number') {
+    return coverage.toFixed(1)
+  }
+  return coverage
+}
+
+const checkBboxContainment = (extent?: Extent) => {
+  const currentExtent = extent || drawnExtent.value
+  if (!activeTileId.value || !secondActiveTileId.value || !currentExtent) {
+    return
+  }
+
+  const firstTile = searchResults.value.find((result) => result.id === activeTileId.value)
+  const secondTile = searchResults.value.find((result) => result.id === secondActiveTileId.value)
+
+  if (!firstTile?.geometry || !secondTile?.geometry) {
+    return
+  }
+
+  // Create the intersection from the geometries to see if the bbox is contained within
+  const tilePolygons: GeoJSONFeature<GeoJSONPolygon>[] = [firstTile, secondTile].map((f) => ({
+    type: 'Feature',
+    properties: null,
+    geometry: f.geometry as GeoJSONPolygon, // c'mon, TypeScript, you know the geometry is not null, we checked it above
+  }))
+
+  // Convert drawn extent to GeoJSON bbox format [minX, minY, maxX, maxY]
+  const bbox = transformExtent(currentExtent, 'EPSG:3857', 'EPSG:4326')
+  const bboxPolygon: GeoJSONFeature<GeoJSONPolygon> = {
+    type: 'Feature',
+    properties: null,
+    geometry: { type: 'Polygon', coordinates: fromExtent(bbox).getCoordinates() },
+  }
+  // Check if the bbox is contained within both tile polygons
+  const isContained = tilePolygons.every((tilePolygon) =>
+    turfBooleanWithin(bboxPolygon, tilePolygon),
+  )
+
+  if (!isContained) {
+    showWarning(
+      'The selected area (bbox) is not fully contained within the selected tiles. Please try a different area.',
+    )
+  }
 }
 
 const setDrawnExtent = (extent: Extent) => {
@@ -514,6 +596,8 @@ defineExpose({
   setDrawnExtent,
   currentMgrsTileId,
   handleBboxSizeWarning,
+  checkBboxContainment,
+  getActiveTileGeometry,
 })
 </script>
 
@@ -591,6 +675,14 @@ defineExpose({
                   <div class="result-details">
                     <div>Date: {{ result.date }}</div>
                     <div>Cloud Cover: {{ result.cloudCover }}%</div>
+                    <div v-if="result.areaCoverage !== undefined">
+                      Area Coverage:
+                      {{
+                        typeof result.areaCoverage === 'number'
+                          ? result.areaCoverage.toFixed(1)
+                          : result.areaCoverage
+                      }}%
+                    </div>
                   </div>
                 </div>
               </template>
@@ -636,6 +728,9 @@ defineExpose({
                   <div class="result-details">
                     <div>Date: {{ getActiveTileDate(false) }}</div>
                     <div>Cloud Cover: {{ getActiveTileCloudCover(false) }}%</div>
+                    <div v-if="getActiveTileAreaCoverage(false) !== undefined">
+                      Area Coverage: {{ formatAreaCoverage(getActiveTileAreaCoverage(false)) }}%
+                    </div>
                   </div>
                 </div>
 

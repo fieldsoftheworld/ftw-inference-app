@@ -112,7 +112,7 @@ export default function createS2GridLayer(
 
       // Clear any existing drawVectorLayer
       map.getLayers().forEach((layer) => {
-        if (layer.get('name') === 'drawVectorLayer') {
+        if (layer && layer?.get('name') === 'drawVectorLayer') {
           map.removeLayer(layer)
         }
       })
@@ -139,7 +139,7 @@ export default function createS2GridLayer(
         drawVectorsource.on('change', () => {
           const feature = drawVectorsource
             .getFeatures()
-            .find((f) => f.get('name') === 'drawVectorLayer')
+            .find((f) => f?.get('name') === 'drawVectorLayer')
           if (!feature) {
             return
           }
@@ -272,6 +272,11 @@ export default function createS2GridLayer(
             warningShown = false
             initialFeature.setGeometry(geometry)
             drawVectorLayer?.setStyle(validStyle)
+
+            // Check geometry containment if both tiles are selected
+            if (dataCabinetRef.value?.checkBboxContainment) {
+              dataCabinetRef.value.checkBboxContainment(newExtent)
+            }
           }
         })
 
