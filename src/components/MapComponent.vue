@@ -1,15 +1,20 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, shallowRef } from 'vue'
 import { Map, View } from 'ol'
 import DataCabinet from './DataCabinet.vue'
 import Snackbar from './Snackbar.vue'
 import createS2GridLayer from '../layers/S2-Grid-Layer'
 import createCloudlessLayer from '../layers/S2-Cloudless-Layer'
 import { generateJWT } from '../functions/generate-jwt'
+import { useAreaOfInterest } from '../composables/useAreaOfInterest'
+import { useSearch } from '../composables/useSearch'
 
-const map = ref<Map | null>(null)
+const map = shallowRef<Map | null>(null)
 const dataCabinetRef = ref<InstanceType<typeof DataCabinet> | null>(null)
 const areaValues = ref<{ min_area_km2: number; max_area_km2: number } | null>(null)
+
+const { addMapClickHandler, drawnExtent } = useAreaOfInterest()
+const { searchResults, handleSearchResults } = useSearch()
 
 onMounted(async () => {
   map.value = new Map({
@@ -49,7 +54,15 @@ onMounted(async () => {
 
   // Add S2 Grid layer after map is initialized
   if (map.value) {
-    const s2GridLayer = createS2GridLayer(map.value as Map, dataCabinetRef, areaValues.value)
+    const s2GridLayer = createS2GridLayer()
+    addMapClickHandler(
+      map.value as Map,
+      dataCabinetRef,
+      areaValues.value,
+      drawnExtent,
+      searchResults,
+      handleSearchResults,
+    )
     map.value.addLayer(s2GridLayer)
   }
 })

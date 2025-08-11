@@ -29,6 +29,7 @@ interface SearchResponse {
 
 interface StacFeature {
   id: string
+  links: { rel: string; type: string; href: string }[]
   properties: {
     datetime: string
     'eo:cloud_cover': number
@@ -193,6 +194,7 @@ export default async function searchStacApi(
               : item.bbox
             : null,
           geometry: item.geometry,
+          itemUrl: item.links.find((link) => link.rel === 'self')?.href,
         }
         return result
       })
