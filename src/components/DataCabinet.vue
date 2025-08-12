@@ -1,17 +1,21 @@
 <script setup lang="ts">
-import type { Extent } from 'ol/extent'
 import type { Map } from 'ol'
+import { fromExtent } from 'ol/geom/Polygon'
 import { ref } from 'vue'
-import SmallAreaProcessing from './SmallAreaProcessing.vue'
-import BatchProcessing from './BatchProcessing.vue'
+import ProcessingPanel from './ProcessingPanel.vue'
 import SettingsModal from './SettingsModal.vue'
+import { useSearch } from '../composables/useSearch'
+import { getArea } from 'ol/sphere'
+import { useAreaOfInterest } from '../composables/useAreaOfInterest'
 
 const props = defineProps<{
   map: Map
 }>()
 
-const batchProcessingRef = ref<InstanceType<typeof BatchProcessing> | null>(null)
-const activeAccordion = ref<'smallAreaProcessing' | 'batchProcessing' | null>('smallAreaProcessing')
+const { currentBbox } = useSearch()
+const { drawnExtent } = useAreaOfInterest()
+
+const processingMode = ref<'smallAreaProcessing' | 'batchProcessing' | null>('smallAreaProcessing')
 
 // Settings state
 const isSettingsModalOpen = ref(false)
@@ -58,12 +62,13 @@ const applyStoredSettingsToForm = () => {
 // Apply settings to form inputs when component mounts
 applyStoredSettingsToForm()
 
-const handleSmallAreaProcessingToggle = (isOpen: boolean) => {
-  activeAccordion.value = isOpen ? 'smallAreaProcessing' : null
-}
-
-const handleBatchProcessingToggle = (isOpen: boolean) => {
-  activeAccordion.value = isOpen ? 'batchProcessing' : null
+const handleProcessingToggle = (isOpen: boolean) => {
+  if (!currentBbox.value) return
+  processingMode.value = isOpen
+    ? drawnExtent.value && getArea(fromExtent(drawnExtent.value)) < 200000000 // 200 km² threshold
+      ? 'smallAreaProcessing'
+      : 'batchProcessing'
+    : null
 }
 
 const handleSettingsClick = () => {
@@ -77,19 +82,7 @@ const handleSettingsSave = (newSettings: any) => {
 
 // Expose methods to parent components
 defineExpose({
-  handleSearchResults: (mgrsTileId: string, bbox?: number[], currentGridExtent?: Extent) =>
-    batchProcessingRef.value?.handleSearchResults(
-      mgrsTileId,
-      bbox,
-      settings.value,
-      currentGridExtent,
-    ),
-  setDrawnExtent: (extent: Extent) => batchProcessingRef.value?.setDrawnExtent(extent),
-  currentMgrsTileId: batchProcessingRef.value?.currentMgrsTileId,
-  handleBboxSizeWarning: (message: string) =>
-    batchProcessingRef.value?.handleBboxSizeWarning(message),
-  handleBatchProcessingToggle: (isOpen: boolean) => handleBatchProcessingToggle(isOpen),
-  checkBboxContainment: (extent?: Extent) => batchProcessingRef.value?.checkBboxContainment(extent),
+  handleProcessingToggle: (isOpen: boolean) => handleProcessingToggle(isOpen),
 })
 </script>
 
@@ -105,19 +98,7 @@ defineExpose({
         </svg>
       </button>
     </div>
-    <SmallAreaProcessing
-      v-if="props.map"
-      :is-open="activeAccordion === 'smallAreaProcessing'"
-      @update:is-open="handleSmallAreaProcessingToggle"
-      :map="props.map"
-    />
-    <BatchProcessing
-      v-if="props.map"
-      :map="props.map"
-      :is-open="activeAccordion === 'batchProcessing'"
-      @update:is-open="handleBatchProcessingToggle"
-      ref="batchProcessingRef"
-    />
+    <ProcessingPanel v-if="props.map" is-open :map="props.map" :processing-mode="processingMode" />
 
     <!-- Settings Modal -->
     <SettingsModal

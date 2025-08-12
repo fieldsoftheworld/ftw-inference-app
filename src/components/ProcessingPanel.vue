@@ -1,58 +1,58 @@
 <script setup lang="ts">
-import { ref, onUnmounted } from 'vue'
+import { ref, onUnmounted, watch, shallowRef } from 'vue'
 import type Map from 'ol/Map'
 import type { Extent } from 'ol/extent'
-import searchStacApi from '../functions/search-stac-api'
-import { addStacLayer, removeStacLayer } from '../functions/add-stac-layer'
 import { generateJWT } from '../functions/generate-jwt'
 import { transformExtent } from 'ol/proj'
 import { showWarning } from '../functions/snackbar'
-import { booleanWithin as turfBooleanWithin } from '@turf/boolean-within'
-import type { Polygon as GeoJSONPolygon, Feature as GeoJSONFeature } from 'geojson'
-import { fromExtent } from 'ol/geom/Polygon'
-
-interface SearchResult {
-  id: string
-  date: string
-  cloudCover: number | string
-  thumbnailUrl: string
-  bounds: number[] | null
-  tiffUrl: string
-  areaCoverage?: number | string
-  geometry?: GeoJSONPolygon
-}
+import searchStacApi from '../functions/search-stac-api'
+import { useSearch } from '../composables/useSearch'
+import { useProjectMessage } from '../composables/useProjectMessage'
+import VectorSource from 'ol/source/Vector'
+import VectorLayer from 'ol/layer/Vector'
+import GeoJSON from 'ol/format/GeoJSON'
+import { FeatureCollection } from 'geojson'
+import { useStacLayer } from '../composables/useStacLayer'
+import { useAreaOfInterest } from '../composables/useAreaOfInterest'
 
 const props = defineProps<{
   map: Map
   isOpen: boolean
+  processingMode: 'smallAreaProcessing' | 'batchProcessing' | null
 }>()
 
 const emit = defineEmits<{
   (e: 'update:isOpen', value: boolean): void
 }>()
 
-const searchResults = ref<SearchResult[]>([])
-const searchStatus = ref('')
-const isLoading = ref(false)
-const hasMore = ref(false)
-const currentMgrsTileId = ref<string | null>(null)
-const activeTileId = ref<string | null>(null)
-const secondActiveTileId = ref<string | null>(null)
+const { addStacLayer, removeStacLayer } = useStacLayer()
+const { removeExtentInteraction, drawnExtent } = useAreaOfInterest()
+const { projectMessage, dismissMessage } = useProjectMessage()
+
+const { currentBbox, hasMore, isLoading, searchResults, searchStatus } = useSearch()
+const { currentGridExtent, currentMgrsTileId, activeTileId, secondActiveTileId } =
+  useAreaOfInterest()
+
+const isOpen = ref(props.isOpen)
+const processingMode = ref(props.processingMode)
+watch(
+  () => props.processingMode,
+  (newValue) => {
+    processingMode.value = newValue
+  },
+)
+
 const isCreatingProject = ref(false)
-const projectMessage = ref<{
-  type: 'success' | 'error' | 'loading' | 'warning'
-  text: string
-} | null>(null)
+const isProcessing = ref(false)
 const projectTitle = ref(new Date().toISOString())
-const drawnExtent = ref<Extent | null>(null)
 const isFirstResultsOpen = ref(false)
 const isSecondResultsOpen = ref(false)
 const retryTimeout = ref<number | null>(null)
-const currentBbox = ref<number[] | undefined>(undefined)
-const currentGridExtent = ref<Extent | null>(null)
+const vectorLayer = shallowRef<VectorLayer<VectorSource> | null>(null)
 
 const toggleAccordion = () => {
-  emit('update:isOpen', !props.isOpen)
+  isOpen.value = !isOpen.value
+  emit('update:isOpen', isOpen.value)
 }
 
 const toggleFirstResults = () => {
@@ -63,43 +63,6 @@ const toggleFirstResults = () => {
 const toggleSecondResults = () => {
   isSecondResultsOpen.value = !isSecondResultsOpen.value
   isFirstResultsOpen.value = !isSecondResultsOpen.value // Close first results if second is opened
-}
-
-// Function to handle search results
-const handleSearchResults = async (
-  mgrsTileId: string,
-  bbox?: number[],
-  settings?: any,
-  gridExtent?: Extent,
-) => {
-  isLoading.value = true
-  searchStatus.value = `Searching for Sentinel-2 images in tile ${mgrsTileId}...`
-  currentMgrsTileId.value = mgrsTileId
-  currentBbox.value = bbox
-  // Store the current grid extent for use in STAC layer positioning
-  if (gridExtent) {
-    // Store the grid extent in a ref so it can be used later
-    currentGridExtent.value = gridExtent
-  }
-
-  try {
-    const response = await searchStacApi(bbox, true, settings)
-    if (response) {
-      searchResults.value = response.results
-      hasMore.value = response.hasMore
-
-      if (response.results.length === 0) {
-        searchStatus.value = `No images found. Try adjusting your filters (date range, cloud cover, area coverage) to increase the likelihood of finding results.`
-      } else {
-        searchStatus.value = `Found ${response.results.length} images`
-      }
-    }
-  } catch (error: unknown) {
-    console.error('DataCabinet: Error searching:', error)
-    searchStatus.value = `Error searching: ${error instanceof Error ? error.message : 'Unknown error'}`
-  } finally {
-    isLoading.value = false
-  }
 }
 
 // Function to load more results
@@ -168,7 +131,7 @@ const handleViewOnMap = (
         ? selectedTile.areaCoverage
         : parseFloat(selectedTile.areaCoverage as string)
 
-    if (!isNaN(areaCoverage) && areaCoverage < 100) {
+    if (!isNaN(areaCoverage) && areaCoverage <= 99.9) {
       showWarning(
         `Selected tile has only ${areaCoverage.toFixed(1)}% area coverage. Be sure to select an area where there is imagery coverage.`,
       )
@@ -252,47 +215,129 @@ const formatAreaCoverage = (coverage: number | string | undefined) => {
   return coverage
 }
 
-const checkBboxContainment = (extent?: Extent) => {
-  const currentExtent = extent || drawnExtent.value
-  if (!activeTileId.value || !secondActiveTileId.value || !currentExtent) {
-    return
+const fitMapToBbox = (bbox: number[]) => {
+  const extent: Extent = transformExtent(bbox, 'EPSG:4326', 'EPSG:3857')
+  // TODO: FIX ISSUE WITH SCROLLING AND CHANGE LAYER COLOR
+  props.map.getView().fit(extent, {
+    padding: [50, 50, 50, 50],
+    duration: 500,
+  })
+}
+
+const displayGeoJSON = (geojson: FeatureCollection & { crs: { properties: { name: string } } }) => {
+  // Remove existing vector layer if it exists
+  if (vectorLayer.value) {
+    props.map.removeLayer(vectorLayer.value)
   }
 
+  // Create new vector source and layer
+  const source = new VectorSource({
+    features: new GeoJSON({
+      dataProjection: geojson.crs.properties.name,
+      featureProjection: 'EPSG:3857',
+    }).readFeatures(geojson),
+  })
+
+  vectorLayer.value = new VectorLayer({
+    source: source,
+    style: {
+      'fill-color': 'rgba(0, 136, 136, 0.1)',
+      'stroke-color': 'rgba(0, 136, 136, 1)',
+      'stroke-width': 2,
+    },
+  })
+
+  props.map.addLayer(vectorLayer.value)
+  return transformExtent(source.getExtent(), 'EPSG:3857', 'EPSG:4326')
+}
+
+const handleSmallAreaProcessingRequest = async () => {
+  if (!drawnExtent.value) {
+    showWarning('Please draw an extent on the map before processing.')
+    return
+  }
   const firstTile = searchResults.value.find((result) => result.id === activeTileId.value)
   const secondTile = searchResults.value.find((result) => result.id === secondActiveTileId.value)
 
-  if (!firstTile?.geometry || !secondTile?.geometry) {
-    return
+  if (!firstTile || !secondTile) {
+    throw new Error('Could not find selected tiles')
   }
 
-  // Create the intersection from the geometries to see if the bbox is contained within
-  const tilePolygons: GeoJSONFeature<GeoJSONPolygon>[] = [firstTile, secondTile].map((f) => ({
-    type: 'Feature',
-    properties: null,
-    geometry: f.geometry as GeoJSONPolygon, // c'mon, TypeScript, you know the geometry is not null, we checked it above
-  }))
+  isProcessing.value = true
+  projectMessage.value = { type: 'loading', text: 'Processing small area...' }
+  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL
+  try {
+    const token = generateJWT()
+    const response = await fetch(`${apiBaseUrl}example`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        inference: {
+          model: '2_Class_FULL_FTW_Pretrained',
+          images: [firstTile.itemUrl, secondTile.itemUrl],
+          bbox: transformExtent(drawnExtent.value, 'EPSG:3857', 'EPSG:4326'),
+        },
+        polygons: {
+          close_interiors: true,
+        },
+      }),
+    })
 
-  // Convert drawn extent to GeoJSON bbox format [minX, minY, maxX, maxY]
-  const bbox = transformExtent(currentExtent, 'EPSG:3857', 'EPSG:4326')
-  const bboxPolygon: GeoJSONFeature<GeoJSONPolygon> = {
-    type: 'Feature',
-    properties: null,
-    geometry: { type: 'Polygon', coordinates: fromExtent(bbox).getCoordinates() },
+    if (response.status === 503) {
+      // Server is busy, schedule retry
+      projectMessage.value = {
+        type: 'error',
+        text: 'Server is busy. Retrying in 15 seconds...',
+      }
+      isProcessing.value = false
+
+      // Clear any existing timeout
+      if (retryTimeout.value) {
+        clearTimeout(retryTimeout.value)
+      }
+
+      // Schedule retry after 15 seconds
+      retryTimeout.value = window.setTimeout(() => {
+        handleSmallAreaProcessingRequest()
+      }, 15000)
+      return
+    }
+
+    if (!response.ok) {
+      throw new Error(`Failed to process small area: ${response.statusText}`)
+    }
+
+    const data = await response.json()
+
+    // Display GeoJSON if available
+    if (data && data.features) {
+      const extent = displayGeoJSON(data)
+      // Fit map to bbox
+      fitMapToBbox(extent)
+    }
+    removeStacLayer(props.map)
+    removeStacLayer(props.map, true)
+    removeExtentInteraction()
+
+    projectMessage.value = { type: 'success', text: 'Small area processed successfully' }
+  } catch (error) {
+    console.error('Error processing small area:', error)
+    projectMessage.value = {
+      type: 'error',
+      text: error instanceof Error ? error.message : 'Failed to process small area',
+    }
+  } finally {
+    isProcessing.value = false
+    // Clear message after 3 seconds (only for non-retry cases)
+    if (retryTimeout.value === null) {
+      setTimeout(() => {
+        projectMessage.value = null
+      }, 3000)
+    }
   }
-  // Check if the bbox is contained within both tile polygons
-  const isContained = tilePolygons.every((tilePolygon) =>
-    turfBooleanWithin(bboxPolygon, tilePolygon),
-  )
-
-  if (!isContained) {
-    showWarning(
-      'The selected area (bbox) is not fully contained within the selected tiles. Please try a different area.',
-    )
-  }
-}
-
-const setDrawnExtent = (extent: Extent) => {
-  drawnExtent.value = extent
 }
 
 const handleCompareTiles = async () => {
@@ -573,30 +618,8 @@ const handleCompareTiles = async () => {
   }
 }
 
-const handleBboxSizeWarning = (message: string) => {
-  projectMessage.value = {
-    type: 'error',
-    text: message,
-  }
-  // Auto-dismiss after 3 seconds
-  setTimeout(() => {
-    if (projectMessage.value?.type === 'error') {
-      projectMessage.value = null
-    }
-  }, 3000)
-}
-
-const dismissMessage = () => {
-  projectMessage.value = null
-}
-
 // Expose methods to parent components
 defineExpose({
-  handleSearchResults,
-  setDrawnExtent,
-  currentMgrsTileId,
-  handleBboxSizeWarning,
-  checkBboxContainment,
   getActiveTileGeometry,
 })
 </script>
@@ -604,12 +627,31 @@ defineExpose({
 <template>
   <div>
     <div class="accordion-header" @click="toggleAccordion">
-      <h3>Batch Processing</h3>
+      <h3>Processing</h3>
       <span class="accordion-icon" :class="{ open: isOpen }">▼</span>
     </div>
 
     <transition name="accordion">
       <div v-show="isOpen">
+        <div class="mode-selector">
+          <input
+            type="radio"
+            id="smallAreaProcessing"
+            value="smallAreaProcessing"
+            v-model="processingMode"
+            :disabled="isProcessing || isCreatingProject"
+          />
+          <label for="smallAreaProcessing">Small Area Processing</label>
+          <br />
+          <input
+            type="radio"
+            id="batchProcessing"
+            value="batchProcessing"
+            v-model="processingMode"
+            :disabled="isProcessing || isCreatingProject"
+          />
+          <label for="batchProcessing">Batch Processing</label>
+        </div>
         <p v-if="searchStatus === ''">Select a grid cell to search for Sentinel-2 images</p>
         <div class="search-status">{{ searchStatus }}</div>
 
@@ -620,7 +662,7 @@ defineExpose({
 
           <!-- Action buttons section -->
           <div class="action-buttons">
-            <div class="title-input">
+            <div v-if="processingMode === 'batchProcessing'" class="title-input">
               <label for="project-title" class="input-label">Project Title</label>
               <input
                 id="project-title"
@@ -641,12 +683,22 @@ defineExpose({
               </button>
             </div>
             <button
+              v-if="processingMode === 'batchProcessing'"
               class="action-button"
               :disabled="!activeTileId || !secondActiveTileId || isCreatingProject"
               @click="handleCompareTiles"
             >
               <span v-if="isCreatingProject">Creating Project...</span>
               <span v-else>Run Batch Processing</span>
+            </button>
+            <button
+              v-if="processingMode === 'smallAreaProcessing'"
+              class="action-button"
+              :disabled="!activeTileId || !secondActiveTileId || isProcessing"
+              @click="handleSmallAreaProcessingRequest"
+            >
+              <span v-if="isProcessing">Processing...</span>
+              <span v-else>Run Small Area Processing</span>
             </button>
           </div>
 
@@ -1074,5 +1126,8 @@ defineExpose({
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+.mode-selector {
+  margin-bottom: 1em;
 }
 </style>
