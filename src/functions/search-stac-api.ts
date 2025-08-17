@@ -1,18 +1,8 @@
 import { Polygon } from 'geojson'
+import { SearchResult } from '../composables/useSearch'
 
 // Store the currently selected feature
 let nextPageToken: string | null = null
-
-interface SearchResult {
-  id: string
-  date: string
-  cloudCover: number | string
-  thumbnailUrl: string
-  tiffUrl: string
-  bounds: number[] | null
-  areaCoverage?: number | string
-  geometry?: Polygon
-}
 
 interface ProcessedResult extends Omit<SearchResult, 'date'> {
   date: Date
@@ -187,7 +177,7 @@ export default async function searchStacApi(
           cloudCover: item.properties['eo:cloud_cover'] || 'N/A',
           areaCoverage: areaCoverage,
           thumbnailUrl: item.assets?.thumbnail?.href || item.assets?.visual?.href || '#',
-          tiffUrl: item.assets?.blue?.href || '#',
+          tiffUrl: item.assets?.visual?.href || '#',
           bounds: item.bbox
             ? item.bbox.length === 6
               ? [item.bbox[0], item.bbox[1], item.bbox[3], item.bbox[4]]
