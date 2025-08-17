@@ -1,6 +1,9 @@
 import { describe, it, expect } from 'vitest'
 import { mount } from '@vue/test-utils'
-import Map from '../Map.vue'
+import Map from '../MapComponent.vue'
+import ResizeObserver from 'resize-observer-polyfill'
+
+global.ResizeObserver = ResizeObserver
 
 describe('Map', () => {
   it('creates a map container div on mount', () => {

@@ -440,6 +440,7 @@ watch(() => props.isOpen, initializeSettings)
 
 .slider-input[type='number'] {
   -moz-appearance: textfield;
+  appearance: textfield;
 }
 
 .warning-message {
@@ -477,6 +478,7 @@ watch(() => props.isOpen, initializeSettings)
 
 .date-input {
   width: 100%;
+  color-scheme: light;
 }
 
 .filter-actions {
