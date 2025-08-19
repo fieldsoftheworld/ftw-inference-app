@@ -728,7 +728,7 @@ defineExpose({
                 >
                   <div
                     class="result-thumbnail"
-                    @click="handleViewOnMap(result.thumbnailUrl, result.bounds, result?.id, false)"
+                    @click="handleViewOnMap(result.tiffUrl, result.bounds, result?.id, false)"
                   >
                     <img :src="result.thumbnailUrl" alt="Preview" crossorigin="anonymous" />
                   </div>
@@ -806,7 +806,7 @@ defineExpose({
                   >
                     <div
                       class="result-thumbnail"
-                      @click="handleViewOnMap(result.thumbnailUrl, result.bounds, result?.id, true)"
+                      @click="handleViewOnMap(result.tiffUrl, result.bounds, result?.id, true)"
                     >
                       <img :src="result.thumbnailUrl" alt="Preview" crossorigin="anonymous" />
                     </div>

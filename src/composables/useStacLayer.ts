@@ -1,20 +1,21 @@
-import ImageLayer from 'ol/layer/Image'
-import ImageStatic from 'ol/source/ImageStatic'
 import Map from 'ol/Map'
 import type { Extent } from 'ol/extent'
 import { shallowRef } from 'vue'
+import { ImageTile } from 'ol/source'
+import TileLayer from 'ol/layer/Tile'
 
-const currentStacLayer = shallowRef<ImageLayer<ImageStatic> | null>(null)
-const currentSecondStacLayer = shallowRef<ImageLayer<ImageStatic> | null>(null)
+const currentStacLayer = shallowRef<TileLayer<ImageTile> | null>(null)
+const currentSecondStacLayer = shallowRef<TileLayer<ImageTile> | null>(null)
 
 export function addStacLayer(map: Map, imageUrl: string, extent: Extent) {
+  console.log(imageUrl)
   try {
     // Create new STAC layer
-    currentStacLayer.value = new ImageLayer({
-      source: new ImageStatic({
-        url: imageUrl,
-        imageExtent: extent,
+    currentStacLayer.value = new TileLayer({
+      source: new ImageTile({
+        url: 'https://tiles.rdnt.io/tiles/{z}/{x}/{y}?url=' + encodeURIComponent(imageUrl),
         crossOrigin: 'anonymous',
+        maxZoom: 18,
       }),
       extent: extent,
       zIndex: 100, // Place above base layer but below S2 grid
