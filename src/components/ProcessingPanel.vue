@@ -644,25 +644,18 @@ defineExpose({
 
     <transition name="accordion">
       <div v-show="isOpen">
-        <div class="mode-selector">
-          <input
-            type="radio"
-            id="smallAreaProcessing"
+        <v-radio-group v-model="processingMode" density="compact">
+          <v-radio
             value="smallAreaProcessing"
-            v-model="processingMode"
             :disabled="isProcessing || isCreatingProject"
+            label="Small Area Processing"
           />
-          <label for="smallAreaProcessing">Small Area Processing</label>
-          <br />
-          <input
-            type="radio"
-            id="batchProcessing"
+          <v-radio
             value="batchProcessing"
-            v-model="processingMode"
             :disabled="isProcessing || isCreatingProject"
+            label="Batch Processing"
           />
-          <label for="batchProcessing">Batch Processing</label>
-        </div>
+        </v-radio-group>
         <p v-if="searchStatus === ''">Select a grid cell to search for Sentinel-2 images</p>
         <div class="search-status">{{ searchStatus }}</div>
 
@@ -1137,8 +1130,5 @@ defineExpose({
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-.mode-selector {
-  margin-bottom: 1em;
 }
 </style>
