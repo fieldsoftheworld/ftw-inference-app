@@ -33,6 +33,19 @@ const { currentBbox, hasMore, isLoading, searchResults, searchStatus } = useSear
 const { currentGridExtent, currentMgrsTileId, activeTileId, secondActiveTileId } =
   useAreaOfInterest()
 
+watch(drawnExtent, (newValue) => {
+  if (newValue) {
+    isFirstResultsOpen.value = true
+  }
+})
+
+watch(activeTileId, (newValue) => {
+  if (newValue && !secondActiveTileId.value) {
+    isFirstResultsOpen.value = false
+    isSecondResultsOpen.value = true
+  }
+})
+
 const isOpen = ref(props.isOpen)
 const processingMode = ref(props.processingMode)
 watch(
@@ -57,12 +70,10 @@ const toggleAccordion = () => {
 
 const toggleFirstResults = () => {
   isFirstResultsOpen.value = !isFirstResultsOpen.value
-  isSecondResultsOpen.value = !isFirstResultsOpen.value // Close second results if first is opened
 }
 
 const toggleSecondResults = () => {
   isSecondResultsOpen.value = !isSecondResultsOpen.value
-  isFirstResultsOpen.value = !isSecondResultsOpen.value // Close first results if second is opened
 }
 
 // Function to load more results
