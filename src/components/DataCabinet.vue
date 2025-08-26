@@ -13,6 +13,10 @@ const props = defineProps<{
   map: Map
 }>()
 
+const emit = defineEmits<{
+  (e: 'updateGeoJSONResults', results: any[]): void
+}>()
+
 const { currentBbox } = useSearch()
 const { drawnExtent } = useAreaOfInterest()
 
@@ -113,7 +117,17 @@ defineExpose({
         title="About"
       ></v-btn>
     </div>
-    <ProcessingPanel v-if="props.map" is-open :map="props.map" :processing-mode="processingMode" />
+    <ProcessingPanel
+      v-if="props.map"
+      is-open
+      :map="props.map"
+      :processing-mode="processingMode"
+      @updateGeoJSONResults="
+        (results: any[]) => {
+          emit('updateGeoJSONResults', results)
+        }
+      "
+    />
 
     <!-- Settings Modal -->
     <SettingsModal

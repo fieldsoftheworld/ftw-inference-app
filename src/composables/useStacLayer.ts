@@ -8,7 +8,6 @@ const currentStacLayer = shallowRef<TileLayer<ImageTile> | null>(null)
 const currentSecondStacLayer = shallowRef<TileLayer<ImageTile> | null>(null)
 
 export function addStacLayer(map: Map, imageUrl: string, extent: Extent) {
-  console.log(imageUrl)
   try {
     // Create new STAC layer
     currentStacLayer.value = new TileLayer({
