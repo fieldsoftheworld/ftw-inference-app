@@ -421,75 +421,6 @@ const handleCompareTiles = async () => {
     const projectData = await createResponse.json()
     const projectId = projectData.id
 
-    // Upload images
-    projectMessage.value = {
-      type: 'loading',
-      text: 'Uploading images...',
-    }
-
-    const uploadPromises = [
-      (async () => {
-        const imageResponse = await fetch(firstTile.thumbnailUrl)
-        const imageBlob = await imageResponse.blob()
-
-        const formData = new FormData()
-        formData.append('file', imageBlob)
-
-        return fetch(`${apiBaseUrl}projects/${projectId}/images/a`, {
-          method: 'PUT',
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-          body: formData,
-        })
-      })(),
-      (async () => {
-        const imageResponse = await fetch(secondTile.thumbnailUrl)
-        const imageBlob = await imageResponse.blob()
-
-        const formData = new FormData()
-        formData.append('file', imageBlob)
-
-        return fetch(`${apiBaseUrl}projects/${projectId}/images/b`, {
-          method: 'PUT',
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-          body: formData,
-        })
-      })(),
-    ]
-
-    const uploadResponses = await Promise.all(uploadPromises)
-
-    // Check for 503 errors in upload responses
-    const upload503Errors = uploadResponses.filter((response) => response.status === 503)
-    if (upload503Errors.length > 0) {
-      // Server is busy, schedule retry
-      projectMessage.value = {
-        type: 'error',
-        text: 'Server is busy. Retrying in 15 seconds...',
-      }
-      isCreatingProject.value = false
-
-      // Clear any existing timeout
-      if (retryTimeout.value) {
-        clearTimeout(retryTimeout.value)
-      }
-
-      // Schedule retry after 15 seconds
-      retryTimeout.value = window.setTimeout(() => {
-        handleCompareTiles()
-      }, 15000)
-      return
-    }
-
-    const uploadErrors = uploadResponses.filter((response) => !response.ok)
-
-    if (uploadErrors.length > 0) {
-      throw new Error('Failed to upload one or more images')
-    }
-
     projectMessage.value = {
       type: 'loading',
       text: 'Running batch processing...',
@@ -517,7 +448,7 @@ const handleCompareTiles = async () => {
       body: JSON.stringify({
         model: modelId,
         bbox: transformExtent(drawnExtent.value, 'EPSG:3857', 'EPSG:4326'),
-        images: [firstTile.thumbnailUrl, secondTile.thumbnailUrl],
+        images: [firstTile.itemUrl, secondTile.itemUrl],
       }),
     })
 
@@ -561,24 +492,52 @@ const handleCompareTiles = async () => {
         const projectStatus = await statusResponse.json()
 
         if (projectStatus.status === 'completed') {
+          if (!projectStatus.results.polygons) {
+            // Create polygonize task
+            const polygonsResponse = await fetch(`${apiBaseUrl}projects/${projectId}/polygons`, {
+              method: 'PUT',
+              headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${token}`,
+              },
+              body: JSON.stringify({
+                close_interiors: true,
+              }),
+            })
+            if (!polygonsResponse.ok) {
+              throw new Error(`Failed to process polygons: ${polygonsResponse.statusText}`)
+            }
+            return
+          }
           clearInterval(pollInterval)
 
           // Fetch batch processing results
-          const resultsResponse = await fetch(`${apiBaseUrl}projects/${projectId}/inference`, {
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: `Bearer ${token}`,
+          const resultsResponse = await fetch(
+            `${import.meta.env.VITE_FTW_INFERENCE_OUTPUT_URL}${projectStatus.results.polygons}`,
+            {
+              headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${token}`,
+              },
             },
-          })
+          )
           if (!resultsResponse.ok) {
             throw new Error(
               `Failed to fetch batch processing results: ${resultsResponse.statusText}`,
             )
           }
 
-          const results = await resultsResponse.json()
-          //TODO Handle results display
-          console.log('Batch processing results:', results)
+          const data = await resultsResponse.json()
+
+          // Display GeoJSON if available
+          if (data && data.features) {
+            const extent = displayGeoJSON(data)
+            // Fit map to bbox
+            fitMapToBbox(extent)
+          }
+          removeStacLayer(props.map)
+          removeStacLayer(props.map, true)
+          removeExtentInteraction()
 
           projectMessage.value = {
             type: 'success',
