@@ -15,6 +15,7 @@ import { FeatureCollection } from 'geojson'
 import { useStacLayer } from '../composables/useStacLayer'
 import { useAreaOfInterest } from '../composables/useAreaOfInterest'
 import PropertyDisplay from './PropertyDisplay.vue'
+import { formatMeasurementDisplay } from '../functions/format-measurement-display'
 
 const props = defineProps<{
   map: Map
@@ -110,8 +111,13 @@ const handleMapClick = (event: any) => {
     const properties = clickedFeature.getProperties()
     // Remove geometry and other non-property fields
     const { geometry, ...cleanProperties } = properties
-    selectedFeature.value.cleanProperties = cleanProperties
-
+    selectedFeature.value.cleanProperties = Object.entries(cleanProperties).map(([key, value]) => {
+      return {
+        key,
+        value,
+        formattedValue: formatMeasurementDisplay(value as string | number, key),
+      }
+    })
     // Store original click position for arrow indicator
     originalClickPosition.value = { x: pixel[0], y: pixel[1] }
 
@@ -988,13 +994,9 @@ defineExpose({
       </div>
       <div class="properties-content">
         <PropertyDisplay
-          v-for="(value, key) in selectedFeature.cleanProperties"
-          :key="key"
-          :property="{
-            key: String(key),
-            value,
-            formattedValue: typeof value === 'number' ? value.toFixed(2) : String(value),
-          }"
+          v-for="property in selectedFeature.cleanProperties"
+          :key="property.key"
+          :property="property"
         />
       </div>
     </div>
