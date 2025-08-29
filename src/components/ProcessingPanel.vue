@@ -695,7 +695,9 @@ const handleCompareTiles = async () => {
           if (data && data.features) {
             const extent = displayGeoJSON(data)
             // Fit map to bbox
-            fitMapToBbox(extent)
+            if (extent) {
+              fitMapToBbox(extent)
+            }
           }
           removeStacLayer(props.map)
           removeStacLayer(props.map, true)
