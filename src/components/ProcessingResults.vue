@@ -17,18 +17,17 @@
           @click="fitMapToResult(result)"
         >
           <div class="result-header">
-            <h4>{{ result.properties.id }}</h4>
+            <h4>{{ result.id }}</h4>
             <button class="fit-map-button" @click.stop="fitMapToResult(result)">
               <span>📍</span>
             </button>
           </div>
           <div class="result-properties">
-            <div v-for="[key, value] in result.filteredProperties" :key="key" class="property-item">
-              <span class="property-key">{{ key }}:</span>
-              <span class="property-value">{{
-                typeof value === 'number' ? value.toFixed(2) : value
-              }}</span>
-            </div>
+            <PropertyDisplay
+              v-for="property in result.filteredProperties"
+              :key="property.key"
+              :property="property"
+            />
           </div>
         </div>
       </div>
@@ -41,6 +40,7 @@ import type Map from 'ol/Map'
 import { ref, watch } from 'vue'
 import { showWarning } from '../functions/snackbar'
 import { useAreaOfInterest } from '../composables/useAreaOfInterest'
+import PropertyDisplay from './PropertyDisplay.vue'
 
 const props = defineProps<{
   map: Map
@@ -54,23 +54,32 @@ const emit = defineEmits<{
 const { setBlockMapClicks, clearResultsAndZoomToGrid } = useAreaOfInterest()
 
 import { computed } from 'vue'
+import { formatMeasurementDisplay } from '../functions/format-measurement-display'
 
 const processedResults = computed(() => {
-  return [...props.geoJSONResults]
-    .sort((a, b) => {
-      const idA = a.properties?.id || a.id || ''
-      const idB = b.properties?.id || b.id || ''
-      // Convert to numbers for proper numerical sorting
-      const numA = parseInt(idA) || 0
-      const numB = parseInt(idB) || 0
-      return numA - numB
-    })
-    .map((result) => ({
-      ...result,
-      filteredProperties: Object.entries(result.properties || {}).filter(
-        ([key]) => key !== 'geometry',
+  const formattedResults = new Array(props.geoJSONResults.length)
+  for (const {
+    properties: { geometry, id, ...rest },
+    id: featureId,
+    ...feature
+  } of props.geoJSONResults) {
+    formattedResults[parseInt(id) - 1] = {
+      id,
+      ...feature,
+      filteredProperties: Object.entries({ id, ...rest }).reduce(
+        (acc, [key, value]) => {
+          acc.push({
+            key,
+            value,
+            formattedValue: formatMeasurementDisplay(value as number, key),
+          })
+          return acc
+        },
+        [] as { key: string; value: any; formattedValue: string }[],
       ),
-    }))
+    }
+  }
+  return formattedResults
 })
 
 const isResultsListOpen = ref(false)
@@ -273,27 +282,6 @@ const clearResults = () => {
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
-}
-
-.result-properties .property-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 0.75rem;
-  padding: 0.25rem 0;
-}
-
-.result-properties .property-key {
-  color: rgba(255, 255, 255, 0.7);
-  font-weight: 500;
-  text-transform: capitalize;
-}
-
-.result-properties .property-value {
-  color: white;
-  text-align: right;
-  max-width: 120px;
-  word-break: break-word;
 }
 
 /* Accordion transition */

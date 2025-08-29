@@ -14,6 +14,7 @@ import GeoJSON from 'ol/format/GeoJSON'
 import { FeatureCollection } from 'geojson'
 import { useStacLayer } from '../composables/useStacLayer'
 import { useAreaOfInterest } from '../composables/useAreaOfInterest'
+import PropertyDisplay from './PropertyDisplay.vue'
 
 const props = defineProps<{
   map: Map
@@ -984,16 +985,15 @@ defineExpose({
         <button class="close-properties" @click="hidePropertiesBox">×</button>
       </div>
       <div class="properties-content">
-        <div
+        <PropertyDisplay
           v-for="(value, key) in selectedFeature.cleanProperties"
           :key="key"
-          class="property-item"
-        >
-          <span class="property-key">{{ key }}:</span>
-          <span class="property-value">{{
-            typeof value === 'number' ? value.toFixed(2) : value
-          }}</span>
-        </div>
+          :property="{
+            key: String(key),
+            value,
+            formattedValue: typeof value === 'number' ? value.toFixed(2) : String(value),
+          }"
+        />
       </div>
     </div>
   </div>
@@ -1359,32 +1359,5 @@ defineExpose({
   padding: 1rem;
   max-height: 300px;
   overflow-y: auto;
-}
-
-.property-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0.5rem 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.property-item:last-child {
-  border-bottom: none;
-}
-
-.property-key {
-  color: rgba(255, 255, 255, 0.8);
-  font-weight: 500;
-  font-size: 0.875rem;
-  text-transform: capitalize;
-}
-
-.property-value {
-  color: rgba(255, 255, 255, 1);
-  font-size: 0.875rem;
-  text-align: right;
-  max-width: 150px;
-  word-break: break-word;
 }
 </style>
