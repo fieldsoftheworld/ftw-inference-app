@@ -541,9 +541,6 @@ function triggerTileSelection(
       if (!map.getLayers().getArray().includes(drawVectorLayer)) {
         map.addLayer(drawVectorLayer)
       }
-
-      // Create and add Modify interaction with size restriction
-      const extentInteraction = addExtentInteraction(map, bboxExtent)
     }
   }
 }

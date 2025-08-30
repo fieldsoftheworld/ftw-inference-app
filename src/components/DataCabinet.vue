@@ -20,7 +20,8 @@ const emit = defineEmits<{
 }>()
 
 const { currentBbox, handleSearchResults } = useSearch()
-const { drawnExtent, currentMgrsTileId, triggerTileSelection } = useAreaOfInterest()
+const { drawnExtent, currentMgrsTileId, triggerTileSelection, activeTileId, secondActiveTileId } =
+  useAreaOfInterest()
 
 const processingMode = ref<'smallAreaProcessing' | 'batchProcessing' | null>('smallAreaProcessing')
 const ftwAboutDialogShown = localStorage.getItem('ftw-about-dialog-shown') !== 'true'
@@ -115,8 +116,67 @@ const handleTileSelected = (tileName: string) => {
     const features = (s2GridLayer as any).getSource().getFeatures()
     const targetFeature = features.find((f: any) => f.get('Name') === tileName)
 
-    triggerTileSelection(props.map, tileName, targetFeature, props.areaValues, handleSearchResults)
+    if (targetFeature) {
+      triggerTileSelection(
+        props.map,
+        tileName,
+        targetFeature,
+        props.areaValues,
+        handleSearchResults,
+      )
+    }
   }
+}
+
+// Handle bbox selection from search modal
+const handleBboxSelected = (bbox: number[]) => {
+  // Get current settings from localStorage
+  const stored = localStorage.getItem('ftw-search-settings')
+  let currentSettings = {
+    startDate: '',
+    endDate: '',
+    cloudCover: 10,
+    areaCoverage: 60,
+  }
+
+  if (stored) {
+    try {
+      const parsed = JSON.parse(stored)
+      currentSettings = {
+        startDate: parsed.startDate || '',
+        endDate: parsed.endDate || '',
+        cloudCover: parsed.cloudCover || 10,
+        areaCoverage: parsed.areaCoverage || 60,
+      }
+    } catch (error) {
+      console.error('Error parsing stored settings:', error)
+    }
+  }
+
+  // Set the drawn extent for the area of interest
+  drawnExtent.value = bbox
+
+  // For bbox searches, we don't have a specific tile ID, so we'll use a placeholder
+  // and trigger the search with the custom bbox
+  const placeholderTileId = `bbox_${Date.now()}`
+
+  // Trigger the search with the custom bbox
+  handleSearchResults(placeholderTileId, bbox, currentSettings)
+}
+
+// Handle setting currentMgrsTileId from search modal
+const handleSetCurrentMgrsTileId = (tileId: string) => {
+  currentMgrsTileId.value = tileId
+}
+
+// Handle setting activeTileId from search modal
+const handleSetActiveTileId = (tileId: string) => {
+  activeTileId.value = tileId
+}
+
+// Handle setting secondActiveTileId from search modal
+const handleSetSecondActiveTileId = (tileId: string) => {
+  secondActiveTileId.value = tileId
 }
 
 // Expose methods to parent components
@@ -177,6 +237,10 @@ defineExpose({
       :map="props.map"
       @update:is-open="isSearchModalOpen = $event"
       @tile-selected="handleTileSelected"
+      @bbox-selected="handleBboxSelected"
+      @set-current-mgrs-tile-id="handleSetCurrentMgrsTileId"
+      @set-active-tile-id="handleSetActiveTileId"
+      @set-second-active-tile-id="handleSetSecondActiveTileId"
     />
 
     <!-- About Dialog -->
