@@ -12,6 +12,7 @@ import { mdiCog, mdiInformation, mdiMagnify } from '@mdi/js'
 
 const props = defineProps<{
   map: Map
+  areaValues: { min_area_km2: number; max_area_km2: number }
 }>()
 
 const emit = defineEmits<{
@@ -19,7 +20,7 @@ const emit = defineEmits<{
 }>()
 
 const { currentBbox, handleSearchResults } = useSearch()
-const { drawnExtent, currentMgrsTileId } = useAreaOfInterest()
+const { drawnExtent, currentMgrsTileId, triggerTileSelection } = useAreaOfInterest()
 
 const processingMode = ref<'smallAreaProcessing' | 'batchProcessing' | null>('smallAreaProcessing')
 const ftwAboutDialogShown = localStorage.getItem('ftw-about-dialog-shown') !== 'true'
@@ -114,61 +115,7 @@ const handleTileSelected = (tileName: string) => {
     const features = (s2GridLayer as any).getSource().getFeatures()
     const targetFeature = features.find((f: any) => f.get('Name') === tileName)
 
-    if (targetFeature) {
-      // Get current settings from localStorage
-      const stored = localStorage.getItem('ftw-search-settings')
-      let currentSettings = {
-        startDate: '',
-        endDate: '',
-        cloudCover: 10,
-        areaCoverage: 60,
-      }
-
-      if (stored) {
-        try {
-          const parsed = JSON.parse(stored)
-          currentSettings = {
-            startDate: parsed.startDate || '',
-            endDate: parsed.endDate || '',
-            cloudCover: parsed.cloudCover || 10,
-            areaCoverage: parsed.areaCoverage || 60,
-          }
-        } catch (error) {
-          console.error('Error parsing stored settings:', error)
-        }
-      }
-
-      // Set the current MGRS tile ID
-      currentMgrsTileId.value = tileName
-
-      // Get the feature's extent and calculate bounding box
-      const geometry = targetFeature.getGeometry()
-      if (geometry) {
-        const extent = geometry.getExtent()
-
-        // Set the current grid extent for the drawing functionality
-        const { currentGridExtent, drawnExtent } = useAreaOfInterest()
-        currentGridExtent.value = extent
-
-        // Create a bounding box within the grid (similar to what happens in triggerTileSelection)
-        const gridWidth = extent[2] - extent[0]
-        const gridHeight = extent[3] - extent[1]
-        const shrinkFactor = 0.15 // 15% shrink from each side (70% total)
-
-        const bbox = [
-          extent[0] + gridWidth * shrinkFactor, // minLon
-          extent[1] + gridHeight * shrinkFactor, // minLat
-          extent[2] - gridWidth * shrinkFactor, // maxLon
-          extent[3] - gridHeight * shrinkFactor, // maxLat
-        ]
-
-        // Set the drawn extent for the area of interest
-        drawnExtent.value = bbox
-
-        // Trigger the search with the selected tile and calculated bbox
-        handleSearchResults(tileName, bbox, currentSettings)
-      }
-    }
+    triggerTileSelection(props.map, tileName, targetFeature, props.areaValues, handleSearchResults)
   }
 }
 

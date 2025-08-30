@@ -42,6 +42,7 @@ extentFeature.on('change', () => {
   const bbox = extentFeature.getGeometry()?.getExtent() || null
   drawnExtent.value = bbox // Update the drawn extent in the composable
 })
+
 const drawVectorLayer: VectorLayer<VectorSource> = new VectorLayer({
   source: new VectorSource({
     features: [extentFeature],

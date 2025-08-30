@@ -16,7 +16,14 @@ const dataCabinetRef = ref<InstanceType<typeof DataCabinet> | null>(null)
 const areaValues = ref<{ min_area_km2: number; max_area_km2: number } | null>(null)
 const geoJSONResults = ref<any[]>([])
 
-const { addMapClickHandler, drawnExtent, currentMgrsTileId, activeTileId, secondActiveTileId, triggerTileSelection } = useAreaOfInterest()
+const {
+  addMapClickHandler,
+  drawnExtent,
+  currentMgrsTileId,
+  activeTileId,
+  secondActiveTileId,
+  triggerTileSelection,
+} = useAreaOfInterest()
 const { searchResults, handleSearchResults } = useSearch()
 const { setupPermalink } = usePermalink()
 
@@ -91,15 +98,16 @@ onMounted(async () => {
           mgrsTileId,
           dataCabinetRef,
           areaValues.value!,
-          handleSearchResults
+          handleSearchResults,
         )
-      }
+      },
     )
   }
 })
 
 // Expose methods to parent components
 defineExpose({
+  areaValues,
   updateGeoJSONResults,
 })
 </script>
@@ -110,6 +118,7 @@ defineExpose({
     <DataCabinet
       v-if="map"
       :map="map as Map"
+      :areaValues="areaValues!"
       ref="dataCabinetRef"
       @updateGeoJSONResults="updateGeoJSONResults"
     />
