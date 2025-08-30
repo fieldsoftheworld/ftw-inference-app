@@ -91,7 +91,6 @@ onMounted(async () => {
           mgrsTileId,
           dataCabinetRef,
           areaValues.value!,
-          searchResults,
           handleSearchResults
         )
       }
