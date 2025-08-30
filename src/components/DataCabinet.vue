@@ -4,10 +4,11 @@ import { fromExtent } from 'ol/geom/Polygon'
 import { ref, watch } from 'vue'
 import ProcessingPanel from './ProcessingPanel.vue'
 import SettingsModal from './SettingsModal.vue'
+import SearchModal from './SearchModal.vue'
 import { useSearch } from '../composables/useSearch'
 import { getArea } from 'ol/sphere'
 import { useAreaOfInterest } from '../composables/useAreaOfInterest'
-import { mdiCog, mdiInformation } from '@mdi/js'
+import { mdiCog, mdiInformation, mdiMagnify } from '@mdi/js'
 
 const props = defineProps<{
   map: Map
@@ -31,6 +32,7 @@ watch(dontShowAgain, (newValue) => {
 
 // Settings state
 const isSettingsModalOpen = ref(false)
+const isSearchModalOpen = ref(false)
 
 // Load settings from localStorage or use defaults
 const loadSettingsFromStorage = () => {
@@ -97,6 +99,79 @@ const handleSettingsSave = (newSettings: any) => {
   }
 }
 
+// Handle tile selection from search modal
+const handleTileSelected = (tileName: string) => {
+  // Find the tile feature on the map and trigger the tile selection
+  const layers = props.map.getLayers().getArray()
+  const s2GridLayer = layers.find(
+    (layer) =>
+      layer.get('name') === 's2-grid' ||
+      (layer.get('properties') && layer.get('properties').name === 's2-grid') ||
+      ((layer as any).getSource && (layer as any).getSource().getFeatures),
+  )
+
+  if (s2GridLayer && (s2GridLayer as any).getSource) {
+    const features = (s2GridLayer as any).getSource().getFeatures()
+    const targetFeature = features.find((f: any) => f.get('Name') === tileName)
+
+    if (targetFeature) {
+      // Get current settings from localStorage
+      const stored = localStorage.getItem('ftw-search-settings')
+      let currentSettings = {
+        startDate: '',
+        endDate: '',
+        cloudCover: 10,
+        areaCoverage: 60,
+      }
+
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored)
+          currentSettings = {
+            startDate: parsed.startDate || '',
+            endDate: parsed.endDate || '',
+            cloudCover: parsed.cloudCover || 10,
+            areaCoverage: parsed.areaCoverage || 60,
+          }
+        } catch (error) {
+          console.error('Error parsing stored settings:', error)
+        }
+      }
+
+      // Set the current MGRS tile ID
+      currentMgrsTileId.value = tileName
+
+      // Get the feature's extent and calculate bounding box
+      const geometry = targetFeature.getGeometry()
+      if (geometry) {
+        const extent = geometry.getExtent()
+
+        // Set the current grid extent for the drawing functionality
+        const { currentGridExtent, drawnExtent } = useAreaOfInterest()
+        currentGridExtent.value = extent
+
+        // Create a bounding box within the grid (similar to what happens in triggerTileSelection)
+        const gridWidth = extent[2] - extent[0]
+        const gridHeight = extent[3] - extent[1]
+        const shrinkFactor = 0.15 // 15% shrink from each side (70% total)
+
+        const bbox = [
+          extent[0] + gridWidth * shrinkFactor, // minLon
+          extent[1] + gridHeight * shrinkFactor, // minLat
+          extent[2] - gridWidth * shrinkFactor, // maxLon
+          extent[3] - gridHeight * shrinkFactor, // maxLat
+        ]
+
+        // Set the drawn extent for the area of interest
+        drawnExtent.value = bbox
+
+        // Trigger the search with the selected tile and calculated bbox
+        handleSearchResults(tileName, bbox, currentSettings)
+      }
+    }
+  }
+}
+
 // Expose methods to parent components
 defineExpose({
   handleProcessingToggle: (isOpen: boolean) => handleProcessingToggle(isOpen),
@@ -113,6 +188,13 @@ defineExpose({
         :icon="mdiCog"
         @click="handleSettingsClick"
         title="Settings"
+      ></v-btn>
+      <v-btn
+        density="compact"
+        variant="plain"
+        :icon="mdiMagnify"
+        @click="isSearchModalOpen = true"
+        title="Search S2 Tiles"
       ></v-btn>
       <v-btn
         density="compact"
@@ -140,6 +222,14 @@ defineExpose({
       :initial-settings="settings"
       @update:is-open="isSettingsModalOpen = $event"
       @save="handleSettingsSave"
+    />
+
+    <!-- Search Modal -->
+    <SearchModal
+      :is-open="isSearchModalOpen"
+      :map="props.map"
+      @update:is-open="isSearchModalOpen = $event"
+      @tile-selected="handleTileSelected"
     />
 
     <!-- About Dialog -->

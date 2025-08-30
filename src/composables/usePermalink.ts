@@ -1,6 +1,5 @@
 import { ref, type Ref } from 'vue'
 import type { Map } from 'ol'
-import type { View } from 'ol'
 
 export interface PermalinkState {
   zoom: number
