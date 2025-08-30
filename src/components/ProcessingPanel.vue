@@ -16,6 +16,7 @@ import { useStacLayer } from '../composables/useStacLayer'
 import { useAreaOfInterest } from '../composables/useAreaOfInterest'
 import PropertyDisplay from './PropertyDisplay.vue'
 import { formatMeasurementDisplay } from '../functions/format-measurement-display'
+import { usePermalink } from '../composables/usePermalink'
 
 const props = defineProps<{
   map: Map
@@ -31,6 +32,7 @@ const emit = defineEmits<{
 const { addStacLayer, removeStacLayer } = useStacLayer()
 const { removeExtentInteraction, removeDrawVectorLayer, drawnExtent } = useAreaOfInterest()
 const { projectMessage, dismissMessage } = useProjectMessage()
+const { updateTileSelection } = usePermalink()
 
 const {
   currentBbox,
@@ -291,6 +293,14 @@ const handleViewOnMap = (
       }
     }
   }
+
+  // Update permalink after tile selection changes
+  updateTileSelection(
+    props.map,
+    currentMgrsTileId.value,
+    activeTileId.value,
+    secondActiveTileId.value,
+  )
 }
 
 const getActiveTileThumbnail = (isSecond: boolean = false) => {

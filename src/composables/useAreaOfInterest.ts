@@ -21,8 +21,10 @@ import { showWarning } from '../functions/snackbar'
 import { booleanWithin as turfBooleanWithin } from '@turf/boolean-within'
 import { useSearch, type SearchResults } from './useSearch'
 import { Feature as GeoJSONFeature, Polygon as GeoJSONPolygon } from 'geojson'
+import { usePermalink } from './usePermalink'
 
 const { clearSearchResults } = useSearch()
+const { updateTileSelection } = usePermalink()
 
 const extentInteraction = shallowRef<ExtentInteraction | null>(null)
 const currentMgrsTileId = ref<string | null>(null)
@@ -424,6 +426,127 @@ function addMapClickHandler(
   })
 }
 
+// Function to programmatically trigger tile selection and search
+function triggerTileSelection(
+  map: Map,
+  mgrsTileId: string,
+  dataCabinetRef: Ref<InstanceType<typeof DataCabinet> | null>,
+  areaValues: { min_area_km2: number; max_area_km2: number },
+  handleSearchResults: (mgrsTileId: string, bbox?: number[], settings?: any) => void,
+) {
+  // Set the current MGRS tile ID
+  currentMgrsTileId.value = mgrsTileId
+
+  // Find the feature on the map with this MGRS tile ID
+  const layers = map.getLayers().getArray()
+  let targetFeature: any = null
+
+  for (const layer of layers) {
+    // Check if this is a vector layer with features
+    if ('getSource' in layer && typeof (layer as any).getSource === 'function') {
+      const source = (layer as any).getSource()
+      if (source && typeof source.getFeatures === 'function') {
+        const features = source.getFeatures()
+        targetFeature = features.find((f: any) => f.get('Name') === mgrsTileId)
+        if (targetFeature) break
+      }
+    }
+  }
+
+  if (targetFeature) {
+    // Get the feature's extent
+    const geometry = targetFeature.getGeometry()
+    if (geometry) {
+      const extent = geometry.getExtent()
+      currentGridExtent.value = extent
+
+      // Calculate the bounding box based on area values
+      const bboxExtent = calculateBoundingBox(extent, areaValues)
+
+      // Set initial bounding box
+      const bboxPolygon = fromExtent(bboxExtent)
+      extentFeature.setGeometry(bboxPolygon)
+
+      const validStyle = new Style({
+        stroke: new Stroke({
+          color: 'rgba(0, 136, 136, 1)',
+          width: 2,
+        }),
+        fill: new Fill({
+          color: 'rgba(0, 136, 136, 0.1)',
+        }),
+      })
+
+      // Adjust draw vector layer extent and style
+      drawVectorLayer.setExtent(currentGridExtent.value!)
+      drawVectorLayer.setStyle(validStyle)
+
+      // Add padding to the extent for view fitting
+      const padding = 50
+      const paddedExtent = buffer(extent, padding)
+
+      // Fit the view to the extent
+      map.getView().fit(paddedExtent, {
+        duration: 1000,
+        maxZoom: 13,
+      })
+
+      // Create a smaller bbox within the grid to avoid overlap with adjacent grids
+      const gridWidth = extent[2] - extent[0]
+      const gridHeight = extent[3] - extent[1]
+      const shrinkFactor = 0.15 // 15% shrink from each side (70% total)
+
+      const bbox = [
+        extent[0] + gridWidth * shrinkFactor, // minLon
+        extent[1] + gridHeight * shrinkFactor, // minLat
+        extent[2] - gridWidth * shrinkFactor, // maxLon
+        extent[3] - gridHeight * shrinkFactor, // maxLat
+      ]
+
+      // Call the search function
+      if (currentMgrsTileId.value) {
+        // Get current settings from localStorage to apply to the search
+        const stored = localStorage.getItem('ftw-search-settings')
+        let currentSettings = {
+          startDate: '',
+          endDate: '',
+          cloudCover: 10,
+          areaCoverage: 60,
+        }
+
+        if (stored) {
+          try {
+            const parsed = JSON.parse(stored)
+            currentSettings = {
+              startDate: parsed.startDate || '',
+              endDate: parsed.endDate || '',
+              cloudCover: parsed.cloudCover || 10,
+              areaCoverage: parsed.areaCoverage || 60,
+            }
+          } catch (error) {
+            console.error('Error parsing stored settings:', error)
+          }
+        }
+
+        handleSearchResults(currentMgrsTileId.value, bbox, currentSettings)
+
+        // Open the Batch Processing accordion
+        if (dataCabinetRef.value?.handleProcessingToggle) {
+          dataCabinetRef.value.handleProcessingToggle(true)
+        }
+      }
+
+      // Add the layer and interactions
+      if (!map.getLayers().getArray().includes(drawVectorLayer)) {
+        map.addLayer(drawVectorLayer)
+      }
+
+      // Create and add Modify interaction with size restriction
+      const extentInteraction = addExtentInteraction(map, bboxExtent)
+    }
+  }
+}
+
 export function useAreaOfInterest() {
   return {
     drawnExtent,
@@ -437,5 +560,14 @@ export function useAreaOfInterest() {
     secondActiveTileId,
     setBlockMapClicks,
     clearResultsAndZoomToGrid,
+    triggerTileSelection,
+    updatePermalink: (map: Map) => {
+      updateTileSelection(
+        map,
+        currentMgrsTileId.value,
+        activeTileId.value,
+        secondActiveTileId.value,
+      )
+    },
   }
 }
