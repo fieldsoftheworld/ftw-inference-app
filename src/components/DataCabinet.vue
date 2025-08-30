@@ -17,8 +17,8 @@ const emit = defineEmits<{
   (e: 'updateGeoJSONResults', results: any[]): void
 }>()
 
-const { currentBbox } = useSearch()
-const { drawnExtent } = useAreaOfInterest()
+const { currentBbox, handleSearchResults } = useSearch()
+const { drawnExtent, currentMgrsTileId } = useAreaOfInterest()
 
 const processingMode = ref<'smallAreaProcessing' | 'batchProcessing' | null>('smallAreaProcessing')
 const ftwAboutDialogShown = localStorage.getItem('ftw-about-dialog-shown') !== 'true'
@@ -59,20 +59,20 @@ const loadSettingsFromStorage = () => {
 const settings = ref(loadSettingsFromStorage())
 
 // Apply stored settings to form inputs when component mounts
-const applyStoredSettingsToForm = () => {
-  const startDateInput = document.getElementById('start-date') as HTMLInputElement
-  const endDateInput = document.getElementById('end-date') as HTMLInputElement
-  const cloudCoverInput = document.getElementById('cloud-cover') as HTMLInputElement
-  const areaCoverageInput = document.getElementById('area-coverage') as HTMLInputElement
+// const applyStoredSettingsToForm = () => {
+//   const startDateInput = document.getElementById('start-date') as HTMLInputElement
+//   const endDateInput = document.getElementById('end-date') as HTMLInputElement
+//   const cloudCoverInput = document.getElementById('cloud-cover') as HTMLInputElement
+//   const areaCoverageInput = document.getElementById('area-coverage') as HTMLInputElement
 
-  if (startDateInput) startDateInput.value = settings.value.startDate
-  if (endDateInput) endDateInput.value = settings.value.endDate
-  if (cloudCoverInput) cloudCoverInput.value = settings.value.cloudCover.toString()
-  if (areaCoverageInput) areaCoverageInput.value = settings.value.areaCoverage.toString()
-}
+//   if (startDateInput) startDateInput.value = settings.value.startDate
+//   if (endDateInput) endDateInput.value = settings.value.endDate
+//   if (cloudCoverInput) cloudCoverInput.value = settings.value.cloudCover.toString()
+//   if (areaCoverageInput) areaCoverageInput.value = settings.value.areaCoverage.toString()
+// }
 
 // Apply settings to form inputs when component mounts
-applyStoredSettingsToForm()
+// applyStoredSettingsToForm()
 
 const handleProcessingToggle = (isOpen: boolean) => {
   if (!currentBbox.value) return
@@ -89,7 +89,12 @@ const handleSettingsClick = () => {
 
 const handleSettingsSave = (newSettings: any) => {
   settings.value = newSettings
-  applyStoredSettingsToForm()
+
+  // If there's an active search area, refresh the search with new settings
+  if (currentBbox.value && currentMgrsTileId.value) {
+    // Trigger a new search with the updated settings
+    handleSearchResults(currentMgrsTileId.value, currentBbox.value, newSettings)
+  }
 }
 
 // Expose methods to parent components

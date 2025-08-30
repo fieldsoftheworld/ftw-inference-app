@@ -233,7 +233,7 @@ function addMapClickHandler(
   areaValues: { min_area_km2: number; max_area_km2: number },
   drawnExtent: Ref<Extent | null>,
   searchResults: SearchResults,
-  handleSearchResults: (mgrsTileId: string, bbox?: number[]) => void,
+  handleSearchResults: (mgrsTileId: string, bbox?: number[], settings?: any) => void,
 ) {
   // Add click handler
   map?.on('click', (event) => {
@@ -326,7 +326,30 @@ function addMapClickHandler(
 
         // Call the search function through the ref and open the Batch Processing accordion
         if (currentMgrsTileId.value) {
-          handleSearchResults(currentMgrsTileId.value, bbox)
+          // Get current settings from localStorage to apply to the search
+          const stored = localStorage.getItem('ftw-search-settings')
+          let currentSettings = {
+            startDate: '',
+            endDate: '',
+            cloudCover: 10,
+            areaCoverage: 60,
+          }
+
+          if (stored) {
+            try {
+              const parsed = JSON.parse(stored)
+              currentSettings = {
+                startDate: parsed.startDate || '',
+                endDate: parsed.endDate || '',
+                cloudCover: parsed.cloudCover || 10,
+                areaCoverage: parsed.areaCoverage || 60,
+              }
+            } catch (error) {
+              console.error('Error parsing stored settings:', error)
+            }
+          }
+
+          handleSearchResults(currentMgrsTileId.value, bbox, currentSettings)
           // Open the Batch Processing accordion
           if (dataCabinetRef.value?.handleProcessingToggle) {
             dataCabinetRef.value.handleProcessingToggle(true)
