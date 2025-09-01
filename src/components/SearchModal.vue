@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import type { Map } from 'ol'
 import { mdiMagnify, mdiClose } from '@mdi/js'
 
@@ -24,6 +24,8 @@ const searchQuery = ref('')
 const searchResults = ref<any[]>([])
 const isSearching = ref(false)
 const selectedTile = ref<any>(null)
+const availableTiles = ref<any[]>([])
+const showTileDropdown = ref(false)
 
 // Bbox input fields
 const bboxInputs = ref({
@@ -37,25 +39,36 @@ const bboxInputs = ref({
 const windowA = ref('')
 const windowB = ref('')
 
+const shouldShowDropdown = computed(() => {
+  return (
+    showTileDropdown.value &&
+    ((searchQuery.value.trim() && filteredTiles.value.length > 0) ||
+      (!searchQuery.value.trim() && availableTiles.value.length > 0))
+  )
+})
+
 // Close modal
 const closeModal = () => {
   emit('update:isOpen', false)
   searchQuery.value = ''
   searchResults.value = []
   selectedTile.value = null
+  showTileDropdown.value = false
 }
 
-// Search for S2 tiles
-const searchTiles = () => {
-  if (!searchQuery.value.trim()) {
-    searchResults.value = []
+// Load available S2 tiles from the map layer
+const loadAvailableTiles = () => {
+  if (!props.map) {
     return
   }
 
-  isSearching.value = true
-
-  // Get the S2 Grid layer from the map
   const layers = props.map.getLayers().getArray()
+
+  // Log all layer names for debugging
+  layers.forEach((layer, index) => {
+    const name = layer.get('name') || layer.get('properties')?.name || 'unnamed'
+  })
+
   const s2GridLayer = layers.find(
     (layer) =>
       layer.get('name') === 's2-grid' ||
@@ -65,25 +78,45 @@ const searchTiles = () => {
 
   if (s2GridLayer && (s2GridLayer as any).getSource) {
     const features = (s2GridLayer as any).getSource().getFeatures()
-    const query = searchQuery.value.toLowerCase().trim()
 
-    // Search in the Name property of features
-    const results = features
-      .filter((feature: any) => {
-        const name = feature.get('Name')
-        return name && name.toLowerCase().includes(query)
-      })
-      .slice(0, 10) // Limit to 10 results
-
-    searchResults.value = results
+    availableTiles.value = features
+      .map((feature: any) => ({
+        feature,
+        name: feature.get('Name'),
+        geometry: feature.getGeometry(),
+      }))
+      .filter((tile: any) => tile.name) // Only include tiles with names
+      .sort((a: any, b: any) => a.name.localeCompare(b.name)) // Sort alphabetically
   }
 }
 
-// Navigate to selected tile
-const navigateToTile = (tile: any) => {
-  if (!tile) return
+// Filter tiles based on search query
+const filteredTiles = computed(() => {
+  if (!searchQuery.value.trim()) {
+    return availableTiles.value.sort((a: any, b: any) => a.name.localeCompare(b.name)).slice(0, 20) // Show first 20 tiles by default
+  }
 
-  const geometry = tile.getGeometry()
+  const query = searchQuery.value.toLowerCase().trim()
+  return availableTiles.value
+    .filter((tile: any) => tile.name.toLowerCase().includes(query))
+    .slice(0, 20) // Limit to 20 results
+})
+
+// Select a tile from the dropdown
+const selectTile = (tile: any) => {
+  selectedTile.value = tile
+  searchQuery.value = tile.name
+  showTileDropdown.value = false
+}
+
+// Navigate to selected tile and perform search
+const navigateToTileAndSearch = () => {
+  if (!selectedTile.value) {
+    alert('Please select an S2 grid tile first')
+    return
+  }
+
+  const geometry = selectedTile.value.geometry
   if (geometry) {
     const extent = geometry.getExtent()
 
@@ -95,103 +128,112 @@ const navigateToTile = (tile: any) => {
     })
 
     // Emit the tile selection event so the parent can handle it
-    const tileName = tile.get('Name')
+    const tileName = selectedTile.value.name
     if (tileName) {
       emit('tileSelected', tileName)
+      emit('setCurrentMgrsTileId', tileName)
     }
 
-    // Close the modal
+    // Set activeTileId and secondActiveTileId based on window values
+    if (windowA.value.trim()) {
+      emit('setActiveTileId', windowA.value.trim())
+    }
+    if (windowB.value.trim()) {
+      emit('setSecondActiveTileId', windowB.value.trim())
+    }
+
+    // If we have bbox coordinates, validate and emit them
+    const hasBboxInput =
+      bboxInputs.value.minLon &&
+      bboxInputs.value.minLat &&
+      bboxInputs.value.maxLon &&
+      bboxInputs.value.maxLat
+
+    if (hasBboxInput) {
+      const { minLon, minLat, maxLon, maxLat } = bboxInputs.value
+      const bbox = [parseFloat(minLon), parseFloat(minLat), parseFloat(maxLon), parseFloat(maxLat)]
+
+      // Validate coordinate ranges
+      if (bbox[0] < -180 || bbox[0] > 180 || bbox[2] < -180 || bbox[2] > 180) {
+        alert('Longitude must be between -180 and 180')
+        return
+      }
+      if (bbox[1] < -90 || bbox[1] > 90 || bbox[3] < -90 || bbox[3] > 90) {
+        alert('Latitude must be between -90 and 90')
+        return
+      }
+      if (bbox[0] >= bbox[2] || bbox[1] >= bbox[3]) {
+        alert('Invalid bbox: min coordinates must be less than max coordinates')
+        return
+      }
+
+      // Emit the bbox selection event
+      emit('bboxSelected', bbox)
+    }
+
+    // Close the modal after navigation
     closeModal()
   }
 }
 
-// Handle search input
+// Handle search input for filtering tiles
 const handleSearchInput = () => {
-  if (searchQuery.value.trim()) {
-    searchTiles()
-  } else {
-    searchResults.value = []
-  }
+  // Always show dropdown when typing
+  showTileDropdown.value = true
 }
 
-// Handle unified search
+// Handle unified search (now just validates and calls navigateToTileAndSearch)
 const handleUnifiedSearch = () => {
-  const hasTileSearch = searchQuery.value.trim()
-  const hasBboxInput =
-    bboxInputs.value.minLon &&
-    bboxInputs.value.minLat &&
-    bboxInputs.value.maxLon &&
-    bboxInputs.value.maxLat
-
-  if (!hasTileSearch && !hasBboxInput) {
-    alert('Please enter either a tile name or bbox coordinates')
+  if (!selectedTile.value) {
+    alert('Please select an S2 grid tile first')
     return
   }
 
-  // If we have a tile search query, set the currentMgrsTileId
-  if (hasTileSearch) {
-    emit('setCurrentMgrsTileId', searchQuery.value.trim())
-  }
+  navigateToTileAndSearch()
+}
 
-  // Set activeTileId and secondActiveTileId based on window values
-  if (windowA.value.trim()) {
-    emit('setActiveTileId', windowA.value.trim())
-  }
-  if (windowB.value.trim()) {
-    emit('setSecondActiveTileId', windowB.value.trim())
-  }
+// Close dropdown when clicking outside
+const closeDropdown = () => {
+  showTileDropdown.value = false
+}
 
-  // If we have bbox coordinates, validate them
-  if (hasBboxInput) {
-    const { minLon, minLat, maxLon, maxLat } = bboxInputs.value
-    const bbox = [parseFloat(minLon), parseFloat(minLat), parseFloat(maxLon), parseFloat(maxLat)]
-
-    // Validate coordinate ranges
-    if (bbox[0] < -180 || bbox[0] > 180 || bbox[2] < -180 || bbox[2] > 180) {
-      alert('Longitude must be between -180 and 180')
-      return
-    }
-    if (bbox[1] < -90 || bbox[1] > 90 || bbox[3] < -90 || bbox[3] > 90) {
-      alert('Latitude must be between -90 and 90')
-      return
-    }
-    if (bbox[0] >= bbox[2] || bbox[1] >= bbox[3]) {
-      alert('Invalid bbox: min coordinates must be less than max coordinates')
-      return
-    }
-
-    // Emit the bbox selection event
-    emit('bboxSelected', bbox)
-
-    // Fit the map view to the bbox extent
-    const extent = bbox
-    props.map.getView().fit(extent, {
-      duration: 1000,
-      maxZoom: 13,
-      padding: [50, 50, 50, 50],
-    })
-  }
-
-  // If we have tile search, perform it
-  if (hasTileSearch) {
-    searchTiles()
-  } else {
-    // If only bbox, close modal after navigation
-    closeModal()
+// Handle click outside dropdown
+const handleClickOutside = (event: Event) => {
+  const target = event.target as HTMLElement
+  if (!target.closest('.tile-input-wrapper')) {
+    closeDropdown()
   }
 }
 
-// Computed properties
-const hasResults = computed(() => searchResults.value.length > 0)
+// Load tiles when component mounts
+onMounted(() => {
+  // Try to load tiles immediately if map is available
+  if (props.map) {
+    loadAvailableTiles()
+  }
 
-const hasAnyInput = computed(() => {
-  return (
-    searchQuery.value.trim() ||
-    (bboxInputs.value.minLon &&
-      bboxInputs.value.minLat &&
-      bboxInputs.value.maxLon &&
-      bboxInputs.value.maxLat)
-  )
+  // Add click outside listener
+  document.addEventListener('click', handleClickOutside)
+})
+
+// Watch for map changes to reload tiles
+watch(
+  () => props.map,
+  (newMap) => {
+    if (newMap) {
+      loadAvailableTiles()
+      // If no tiles loaded, retry after a delay
+      if (availableTiles.value.length === 0) {
+        setTimeout(() => loadAvailableTiles(), 500)
+      }
+    }
+  },
+  { immediate: true },
+)
+
+// Clean up event listener
+onUnmounted(() => {
+  document.removeEventListener('click', handleClickOutside)
 })
 </script>
 
@@ -199,7 +241,7 @@ const hasAnyInput = computed(() => {
   <div v-if="isOpen" class="modal-overlay" @click="closeModal">
     <div class="modal-content" @click.stop>
       <div class="modal-header">
-        <h3>Enter Search Parameters</h3>
+        <h3>Select S2 Grid and Search Parameters</h3>
         <button class="close-button" @click="closeModal">
           <v-icon :icon="mdiClose" size="small" />
         </button>
@@ -208,28 +250,70 @@ const hasAnyInput = computed(() => {
       <div class="modal-body">
         <div class="search-container">
           <div class="search-input-wrapper">
-            <input
-              v-model="searchQuery"
-              type="text"
-              placeholder="Enter S2 tile name (e.g., 12SXA, 13TDE)"
-              class="search-input"
-              @input="handleSearchInput"
-              @keyup.enter="searchTiles"
-            />
+            <!-- S2 Grid Selection Dropdown -->
+            <div class="tile-selection-section">
+              <h4>S2 Grid Selection:</h4>
+              <div class="tile-input-wrapper">
+                <input
+                  v-model="searchQuery"
+                  type="text"
+                  placeholder="Search for S2 tile (e.g., 12SXA, 13TDE)"
+                  class="search-input"
+                  @input="handleSearchInput"
+                  @focus="showTileDropdown = true"
+                />
 
-            <!-- Dropdown for matching tiles -->
-            <div v-if="searchQuery.trim() && hasResults" class="tile-dropdown">
-              <div
-                v-for="tile in searchResults"
-                :key="tile.get('Name')"
-                class="dropdown-item"
-                @click="navigateToTile(tile)"
-              >
-                {{ tile.get('Name') }}
+                <!-- Search icon -->
+                <div class="search-icon">
+                  <v-icon :icon="mdiMagnify" size="small" />
+                </div>
+
+                <!-- Dropdown for available tiles -->
+                <div v-if="shouldShowDropdown" class="tile-dropdown">
+                  <div
+                    v-for="tile in filteredTiles"
+                    :key="tile.name"
+                    class="dropdown-item"
+                    @click="selectTile(tile)"
+                  >
+                    {{ tile.name }}
+                  </div>
+                </div>
+
+                <!-- No results message -->
+                <div
+                  v-if="showTileDropdown && searchQuery.trim() && filteredTiles.length === 0"
+                  class="no-results"
+                >
+                  No tiles found matching "{{ searchQuery }}"
+                </div>
+
+                <!-- Show available tiles when no search query -->
+                <div
+                  v-if="showTileDropdown && !searchQuery.trim() && availableTiles.length > 0"
+                  class="tile-dropdown"
+                >
+                  <div class="dropdown-header">Available S2 Tiles:</div>
+                  <div
+                    v-for="tile in availableTiles.slice(0, 20)"
+                    :key="tile.name"
+                    class="dropdown-item"
+                    @click="selectTile(tile)"
+                  >
+                    {{ tile.name }}
+                  </div>
+                </div>
+
+                <!-- Selected tile display -->
+                <div v-if="selectedTile" class="selected-tile">
+                  <strong>Selected:</strong> {{ selectedTile.name }}
+                </div>
               </div>
             </div>
+
             <!-- Bbox Input Section -->
             <div class="bbox-section">
+              <h4>Bounding Box (Optional):</h4>
               <div class="bbox-inputs">
                 <div class="bbox-row">
                   <div class="bbox-input-group">
@@ -280,7 +364,7 @@ const hasAnyInput = computed(() => {
 
             <!-- Window A and B Inputs -->
             <div class="window-section">
-              <h4>Window A|B:</h4>
+              <h4>Window A|B (Optional):</h4>
               <div class="window-inputs">
                 <div class="window-row">
                   <div class="window-input-group">
@@ -311,10 +395,10 @@ const hasAnyInput = computed(() => {
           color="primary"
           @click="handleUnifiedSearch"
           :loading="isSearching"
-          :disabled="!hasAnyInput"
+          :disabled="!selectedTile"
           class="search-button"
         >
-          Search
+          Navigate to Tile & Search
         </v-btn>
       </div>
     </div>
@@ -322,13 +406,42 @@ const hasAnyInput = computed(() => {
 </template>
 
 <style scoped>
+.tile-selection-section {
+  margin-bottom: 1rem;
+  padding: 1rem;
+  background-color: rgba(0, 136, 136, 0.05);
+  border: 1px solid rgba(0, 136, 136, 0.2);
+  border-radius: 4px;
+}
+
+.tile-selection-section h4 {
+  margin: 0 0 0.75rem 0;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 1rem;
+}
+
+.tile-input-wrapper {
+  position: relative;
+  z-index: 1001; /* Ensure dropdown appears above other elements */
+}
+
+.selected-tile {
+  margin-top: 0.5rem;
+  padding: 0.5rem;
+  background-color: rgba(0, 136, 136, 0.2);
+  border: 1px solid rgba(0, 136, 136, 0.4);
+  border-radius: 4px;
+  color: rgba(0, 136, 136, 1);
+  font-size: 0.875rem;
+}
+
 .search-input-wrapper {
   position: relative; /* Required for dropdown positioning */
 }
 
 .tile-dropdown {
   position: absolute;
-  top: 50px; /* Position below the input */
+  top: 100%; /* Position below the input */
   left: 0;
   width: 100%;
   background-color: rgba(0, 0, 0, 0.9);
@@ -336,8 +449,9 @@ const hasAnyInput = computed(() => {
   border-radius: 4px;
   max-height: 200px;
   overflow-y: auto;
-  z-index: 10;
+  z-index: 1000; /* Higher z-index to ensure visibility */
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  margin-top: 2px; /* Small gap from input */
 }
 
 .dropdown-item {
@@ -352,6 +466,16 @@ const hasAnyInput = computed(() => {
   background-color: rgba(255, 255, 255, 0.1);
   border-color: rgba(0, 136, 136, 0.6);
 }
+
+.dropdown-header {
+  padding: 0.75rem 0.75rem 0.75rem 2.5rem;
+  font-weight: bold;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 0.9rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  margin-bottom: 0.5rem;
+}
+
 .modal-overlay {
   position: fixed;
   top: 0;
@@ -504,6 +628,15 @@ const hasAnyInput = computed(() => {
   text-align: center;
   padding: 1rem;
   color: rgba(255, 255, 255, 0.7);
+  background-color: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  margin-top: 2px;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  width: 100%;
+  z-index: 1000;
 }
 
 .help-text {
