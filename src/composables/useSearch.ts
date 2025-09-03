@@ -2,13 +2,13 @@ import { Polygon } from 'geojson'
 import { type Ref, ref } from 'vue'
 import searchStacApi from '../functions/search-stac-api'
 
-interface SearchResult {
+export interface SearchResult {
   id: string
   date: string
   cloudCover: number | string
   thumbnailUrl: string
   bounds: number[] | null
-  tiffUrl: string
+  tiffUrl: string // URL to the true color TIFF
   areaCoverage?: number | string
   geometry?: Polygon
   itemUrl?: string // URL to the STAC item
