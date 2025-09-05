@@ -94,38 +94,33 @@ const fitMapToResult = (result: any) => {
     return
   }
 
-  try {
-    // Get the extent of the feature
-    const extent = result.geometry.getExtent()
-    if (
-      !extent ||
-      extent.every((coord: number) => coord === 0) ||
-      extent.some((coord: number) => isNaN(coord))
-    ) {
-      showWarning('Invalid extent for this result.')
-      return
-    }
-
-    // The extent is already in CRS84 (EPSG:4326), so no transformation needed
-    const transformedExtent = extent
-
-    // Calculate dynamic padding based on screen dimensions
-    const screenWidth = window.innerWidth
-    const screenHeight = window.innerHeight
-    // Use a percentage of screen dimensions for padding
-    // This ensures the geometry fits regardless of screen size
-    const paddingX = Math.max(100, screenWidth * 0.1) // At least 100px or 15% of screen width
-    const paddingY = Math.max(100, screenHeight * 0.1) // At least 100px or 10% of screen height
-
-    // Fit the map to the result's extent with dynamic padding
-    props.map.getView().fit(transformedExtent, {
-      duration: 1000,
-      padding: [paddingY, paddingX + 325, paddingY, paddingX + 175], // [top, right, bottom, left]
-    })
-  } catch (error) {
-    console.error('Error fitting map to result:', error)
-    showWarning('Error fitting map to result.')
+  // Get the extent of the feature
+  const extent = result.geometry.getExtent()
+  if (
+    !extent ||
+    extent.every((coord: number) => coord === 0) ||
+    extent.some((coord: number) => isNaN(coord))
+  ) {
+    showWarning('Invalid extent for this result.')
+    return
   }
+
+  // The extent is already in CRS84 (EPSG:4326), so no transformation needed
+  const transformedExtent = extent
+
+  // Calculate dynamic padding based on screen dimensions
+  const screenWidth = window.innerWidth
+  const screenHeight = window.innerHeight
+  // Use a percentage of screen dimensions for padding
+  // This ensures the geometry fits regardless of screen size
+  const paddingX = Math.max(100, screenWidth * 0.1) // At least 100px or 15% of screen width
+  const paddingY = Math.max(100, screenHeight * 0.1) // At least 100px or 10% of screen height
+
+  // Fit the map to the result's extent with dynamic padding
+  props.map.getView().fit(transformedExtent, {
+    duration: 1000,
+    padding: [paddingY, paddingX + 325, paddingY, paddingX + 175], // [top, right, bottom, left]
+  })
 }
 
 // Watch for changes in geoJSONResults to auto-open the list when new results arrive
