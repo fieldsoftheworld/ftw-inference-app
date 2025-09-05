@@ -482,7 +482,6 @@ function triggerTileSelection(
       drawVectorLayer.setExtent(currentGridExtent.value!)
       drawVectorLayer.setStyle(validStyle)
 
-      // Create and add Modify interaction with size restriction
       addExtentInteraction(map, bboxExtent, areaValues, searchResults)
 
       // Add padding to the extent for view fitting
