@@ -13,30 +13,36 @@ git clone https://github.com/fieldsoftheworld/ftw-inference-api.git
 ```
 
 ### Step 2: Set Up the API
+The API is always being updated, so it is best to follow the directions directly in the [API repository](https://github.com/fieldsoftheworld/ftw-inference-api).
+
+Prerequisites:
+- [Docker](https://docs.docker.com/get-docker/) (required for local DynamoDB)
+- [Pixi](https://pixi.sh/latest/#installation) (package manager)
 
 ```sh
 # Navigate to API directory
 cd ftw-inference-api
 
-# Create and activate conda environment (recommended)
-conda env create -f server/env.yml
-conda activate ftw-inference-api
+# Copy environment configuration
+cp .env.example .env
 
-# Install dependencies
-pip install -r server/requirements.txt
-pip install -r server/requirements-dev.txt  # For development
+# Configure local DynamoDB in .env file (uncomment these lines):
+# DYNAMODB__DYNAMODB_ENDPOINT="http://localhost:8001"
+# AWS_ACCESS_KEY_ID="fake_key_id" 
+# AWS_SECRET_ACCESS_KEY="fake_secret_key"
 
-# Download precomputed models for examples api endpoint
-cd server/data/models
+# Download precomputed models for api endpoint
 # Store the .ckpt files from <https://github.com/fieldsoftheworld/ftw-baselines/releases/tag/v1>
 # in this directory
 
-# Start the API server
-cd ../..
-python run.py --host 127.0.0.1 --port 8080 --debug
+# Start local DynamoDB
+pixi run dynamodb-local
+
+# In a new terminal, start the API server
+pixi run start
 ```
 
-The API will be available at `http://127.0.0.1:8080`
+The API will be available at `http://localhost:8000`
 
 ### Step 3: Set Up the Frontend App
 
