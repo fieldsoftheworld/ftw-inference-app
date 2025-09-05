@@ -13,6 +13,7 @@ import { mdiCog, mdiInformation, mdiMagnify } from '@mdi/js'
 const props = defineProps<{
   map: Map
   areaValues: { min_area_km2: number; max_area_km2: number }
+  dataCabinetRef: any
 }>()
 
 const emit = defineEmits<{
@@ -179,6 +180,35 @@ const handleSetSecondActiveTileId = (tileId: string) => {
   secondActiveTileId.value = tileId
 }
 
+// Handle combined tile and bbox selection from search modal
+const handleTileAndBboxSelected = (tileName: string, bbox?: number[]) => {
+  // Find the tile feature on the map and trigger the tile selection with bbox
+  const layers = props.map.getLayers().getArray()
+  const s2GridLayer = layers.find(
+    (layer) =>
+      layer.get('name') === 's2-grid' ||
+      (layer.get('properties') && layer.get('properties').name === 's2-grid') ||
+      ((layer as any).getSource && (layer as any).getSource().getFeatures),
+  )
+
+  if (s2GridLayer && (s2GridLayer as any).getSource) {
+    const features = (s2GridLayer as any).getSource().getFeatures()
+    const targetFeature = features.find((f: any) => f.get('Name') === tileName)
+
+    if (targetFeature) {
+      // Use the updated triggerTileSelection with bbox parameter
+      triggerTileSelection(
+        props.map,
+        tileName,
+        props.dataCabinetRef,
+        props.areaValues,
+        handleSearchResults,
+        bbox,
+      )
+    }
+  }
+}
+
 // Expose methods to parent components
 defineExpose({
   handleProcessingToggle: (isOpen: boolean) => handleProcessingToggle(isOpen),
@@ -239,6 +269,7 @@ defineExpose({
       @update:is-open="isSearchModalOpen = $event"
       @tile-selected="handleTileSelected"
       @bbox-selected="handleBboxSelected"
+      @tile-and-bbox-selected="handleTileAndBboxSelected"
       @set-current-mgrs-tile-id="handleSetCurrentMgrsTileId"
       @set-active-tile-id="handleSetActiveTileId"
       @set-second-active-tile-id="handleSetSecondActiveTileId"

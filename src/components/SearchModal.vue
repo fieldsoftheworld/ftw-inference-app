@@ -15,6 +15,7 @@ interface Emits {
   (e: 'update:isOpen', value: boolean): void
   (e: 'tileSelected', tileName: string): void
   (e: 'bboxSelected', bbox: number[]): void
+  (e: 'tileAndBboxSelected', tileName: string, bbox?: number[]): void
   (e: 'setCurrentMgrsTileId', tileId: string): void
   (e: 'setActiveTileId', tileId: string): void
   (e: 'setSecondActiveTileId', tileId: string): void
@@ -23,7 +24,7 @@ interface Emits {
 const props = defineProps<Props>()
 const emit = defineEmits<Emits>()
 
-// Use the area calculation function from the composable
+// Use the area calculation function and drawnExtent from the composable
 const { calculateArea } = useAreaOfInterest()
 
 const searchQuery = ref('')
@@ -94,6 +95,13 @@ const closeModal = () => {
   selectedTile.value = null
   showTileDropdown.value = false
   areaErrorMessage.value = ''
+  // Clear bbox inputs and drawnExtent
+  bboxInputs.value = {
+    minLon: '',
+    minLat: '',
+    maxLon: '',
+    maxLat: '',
+  }
 }
 
 // Load available S2 tiles from the map layer
@@ -211,9 +219,21 @@ const navigateToTileAndSearch = () => {
         areaErrorMessage.value = areaValidation.message
         return
       }
-
       // Emit the bbox selection event
       emit('bboxSelected', bbox)
+    }
+
+    // Emit combined tile and bbox selection event
+    if (tileName) {
+      const bbox = hasBboxInput
+        ? [
+            parseFloat(bboxInputs.value.minLon),
+            parseFloat(bboxInputs.value.minLat),
+            parseFloat(bboxInputs.value.maxLon),
+            parseFloat(bboxInputs.value.maxLat),
+          ]
+        : undefined
+      emit('tileAndBboxSelected', tileName, bbox)
     }
 
     // Close the modal after navigation

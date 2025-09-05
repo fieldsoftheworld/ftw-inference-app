@@ -435,6 +435,7 @@ function triggerTileSelection(
   dataCabinetRef: Ref<InstanceType<typeof DataCabinet> | null>,
   areaValues: { min_area_km2: number; max_area_km2: number },
   handleSearchResults: (mgrsTileId: string, bbox?: number[], settings?: any) => void,
+  bbox?: number[],
 ) {
   // Set the current MGRS tile ID
   currentMgrsTileId.value = mgrsTileId
@@ -463,8 +464,13 @@ function triggerTileSelection(
       currentGridExtent.value = extent
 
       // Calculate the bounding box based on area values
-      const bboxExtent = calculateBoundingBox(extent, areaValues)
-
+      let bboxExtent: Extent
+      if (bbox) {
+        // Convert bbox from WGS84 (EPSG:4326) to Web Mercator (EPSG:3857)
+        bboxExtent = transformExtent(bbox, 'EPSG:4326', 'EPSG:3857')
+      } else {
+        bboxExtent = calculateBoundingBox(extent, areaValues)
+      }
       // Set initial bounding box
       const bboxPolygon = fromExtent(bboxExtent)
       extentFeature.setGeometry(bboxPolygon)
@@ -472,7 +478,6 @@ function triggerTileSelection(
       if (!map.getLayers().getArray().includes(drawVectorLayer)) {
         map.addLayer(drawVectorLayer)
       }
-
       // Adjust draw vector layer extent and style
       drawVectorLayer.setExtent(currentGridExtent.value!)
       drawVectorLayer.setStyle(validStyle)
@@ -490,17 +495,25 @@ function triggerTileSelection(
         maxZoom: 13,
       })
 
-      // Create a smaller bbox within the grid to avoid overlap with adjacent grids
-      const gridWidth = extent[2] - extent[0]
-      const gridHeight = extent[3] - extent[1]
-      const shrinkFactor = 0.15 // 15% shrink from each side (70% total)
+      // Use provided bbox or create a smaller bbox within the grid to avoid overlap with adjacent grids
+      let finalBbox: number[]
 
-      const bbox = [
-        extent[0] + gridWidth * shrinkFactor, // minLon
-        extent[1] + gridHeight * shrinkFactor, // minLat
-        extent[2] - gridWidth * shrinkFactor, // maxLon
-        extent[3] - gridHeight * shrinkFactor, // maxLat
-      ]
+      if (bbox) {
+        // Use the provided bbox
+        finalBbox = bbox
+      } else {
+        // Create a smaller bbox within the grid to avoid overlap with adjacent grids
+        const gridWidth = extent[2] - extent[0]
+        const gridHeight = extent[3] - extent[1]
+        const shrinkFactor = 0.15 // 15% shrink from each side (70% total)
+
+        finalBbox = [
+          extent[0] + gridWidth * shrinkFactor, // minLon
+          extent[1] + gridHeight * shrinkFactor, // minLat
+          extent[2] - gridWidth * shrinkFactor, // maxLon
+          extent[3] - gridHeight * shrinkFactor, // maxLat
+        ]
+      }
 
       // Call the search function
       if (currentMgrsTileId.value) {
@@ -527,7 +540,7 @@ function triggerTileSelection(
           }
         }
 
-        handleSearchResults(currentMgrsTileId.value, bbox, currentSettings)
+        handleSearchResults(currentMgrsTileId.value, finalBbox, currentSettings)
 
         // Open the Batch Processing accordion
         if (dataCabinetRef.value?.handleProcessingToggle) {
@@ -546,6 +559,7 @@ function triggerTileSelection(
 export function useAreaOfInterest() {
   return {
     drawnExtent,
+    extentFeature,
     addExtentInteraction,
     removeExtentInteraction,
     removeDrawVectorLayer,

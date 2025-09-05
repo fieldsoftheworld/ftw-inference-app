@@ -18,7 +18,6 @@ const geoJSONResults = ref<any[]>([])
 
 const {
   addMapClickHandler,
-  drawnExtent,
   currentMgrsTileId,
   activeTileId,
   secondActiveTileId,
@@ -118,6 +117,7 @@ defineExpose({
       v-if="map"
       :map="map as Map"
       :areaValues="areaValues!"
+      :dataCabinetRef="dataCabinetRef"
       ref="dataCabinetRef"
       @updateGeoJSONResults="updateGeoJSONResults"
     />
