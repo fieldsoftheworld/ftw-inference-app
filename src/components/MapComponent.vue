@@ -3,6 +3,7 @@ import { ref, onMounted, shallowRef } from 'vue'
 import { Map, View } from 'ol'
 import DataCabinet from './DataCabinet.vue'
 import Snackbar from './Snackbar.vue'
+import ProcessingResults from './ProcessingResults.vue'
 import createS2GridLayer from '../layers/S2-Grid-Layer'
 import createCloudlessLayer from '../layers/S2-Cloudless-Layer'
 import { generateJWT } from '../functions/generate-jwt'
@@ -12,9 +13,18 @@ import { useSearch } from '../composables/useSearch'
 const map = shallowRef<Map | null>(null)
 const dataCabinetRef = ref<InstanceType<typeof DataCabinet> | null>(null)
 const areaValues = ref<{ min_area_km2: number; max_area_km2: number } | null>(null)
+const geoJSONResults = ref<any[]>([])
 
 const { addMapClickHandler, drawnExtent } = useAreaOfInterest()
 const { searchResults, handleSearchResults } = useSearch()
+
+const updateGeoJSONResults = (results: any[]) => {
+  geoJSONResults.value = results
+}
+
+const clearResults = () => {
+  geoJSONResults.value = []
+}
 
 onMounted(async () => {
   map.value = new Map({
@@ -66,12 +76,28 @@ onMounted(async () => {
     map.value.addLayer(s2GridLayer)
   }
 })
+
+// Expose methods to parent components
+defineExpose({
+  updateGeoJSONResults,
+})
 </script>
 
 <template>
   <div class="map-wrapper">
     <div id="map" class="map-container"></div>
-    <DataCabinet v-if="map" :map="map as Map" ref="dataCabinetRef" />
+    <DataCabinet
+      v-if="map"
+      :map="map as Map"
+      ref="dataCabinetRef"
+      @updateGeoJSONResults="updateGeoJSONResults"
+    />
+    <ProcessingResults
+      v-if="map"
+      :map="map as Map"
+      :geoJSONResults="geoJSONResults"
+      @clearResults="clearResults"
+    />
     <Snackbar />
   </div>
 </template>

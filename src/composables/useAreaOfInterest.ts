@@ -12,8 +12,10 @@ import { transformExtent } from 'ol/proj'
 import { getArea } from 'ol/sphere'
 import { showWarning } from '../functions/snackbar'
 import { booleanWithin as turfBooleanWithin } from '@turf/boolean-within'
-import { type SearchResults } from './useSearch'
+import { useSearch, type SearchResults } from './useSearch'
 import { Feature as GeoJSONFeature, Polygon as GeoJSONPolygon } from 'geojson'
+
+const { clearSearchResults } = useSearch()
 
 const extentInteraction = shallowRef<ExtentInteraction | null>(null)
 const currentMgrsTileId = ref<string | null>(null)
@@ -23,6 +25,8 @@ const secondActiveTileId = ref<string | null>(null)
 const currentGridExtent = ref<Extent | null>(null)
 /** User bbox */
 const drawnExtent = ref<Extent | null>(null)
+/** Flag to block map clicks when results are displayed */
+const blockMapClicks = ref(false)
 
 const extentFeature: Feature<Polygon> = new Feature()
 extentFeature.on('change', () => {
@@ -64,6 +68,69 @@ function removeExtentInteraction() {
   }
   extentInteraction.value.dispose()
   extentInteraction.value = null
+}
+
+function removeDrawVectorLayer(map: Map) {
+  if (drawVectorLayer && map.getLayers().getArray().includes(drawVectorLayer)) {
+    map.removeLayer(drawVectorLayer)
+    drawVectorLayer.getSource()?.dispose()
+  }
+}
+
+function setBlockMapClicks(block: boolean) {
+  blockMapClicks.value = block
+}
+
+function clearResultsAndZoomToGrid(map: Map) {
+  // Clear the results by setting blockMapClicks to false
+  blockMapClicks.value = false
+
+  // Remove the GeoJSON results layer from the map
+  const layers = map.getLayers().getArray()
+  const resultsLayer = layers.find(
+    (layer) =>
+      // Look for the layer with zIndex 1001 (our GeoJSON results layer)
+      (layer as any).getZIndex &&
+      (layer as any).getZIndex() === 1001 &&
+      (layer as any).getSource &&
+      (layer as any).getSource() &&
+      typeof (layer as any).getSource().getFeatures === 'function',
+  )
+
+  if (resultsLayer) {
+    map.removeLayer(resultsLayer)
+    // Dispose of the layer source to free memory
+    if ((resultsLayer as any).getSource) {
+      ;(resultsLayer as any).getSource().dispose()
+    }
+  }
+
+  // Store the current grid extent before clearing it
+  const gridExtent = currentGridExtent.value
+
+  // Clear search results
+  clearSearchResults()
+
+  // Reset S2 grid selection state
+  currentMgrsTileId.value = null
+  activeTileId.value = null
+  secondActiveTileId.value = null
+  currentGridExtent.value = null
+  drawnExtent.value = null
+
+  // Remove the draw vector layer if it exists
+  removeDrawVectorLayer(map)
+
+  // Zoom back to the stored grid extent if available
+  if (gridExtent) {
+    const padding = 50
+    const paddedExtent = buffer(gridExtent, padding)
+
+    map.getView().fit(paddedExtent, {
+      duration: 1000,
+      maxZoom: 13,
+    })
+  }
 }
 
 // Function to check if all coordinates of a polygon are within an extent
@@ -163,6 +230,11 @@ function addMapClickHandler(
 ) {
   // Add click handler
   map?.on('click', (event) => {
+    // Block map clicks if results are displayed
+    if (blockMapClicks.value) {
+      return
+    }
+
     removeExtentInteraction()
 
     const feature = map.forEachFeatureAtPixel(event.pixel, (feature) => feature)
@@ -318,10 +390,13 @@ export function useAreaOfInterest() {
     drawnExtent,
     addExtentInteraction,
     removeExtentInteraction,
+    removeDrawVectorLayer,
     addMapClickHandler,
     currentMgrsTileId,
     currentGridExtent,
     activeTileId,
     secondActiveTileId,
+    setBlockMapClicks,
+    clearResultsAndZoomToGrid,
   }
 }

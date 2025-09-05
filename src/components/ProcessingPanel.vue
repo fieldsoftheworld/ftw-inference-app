@@ -14,6 +14,8 @@ import GeoJSON from 'ol/format/GeoJSON'
 import { FeatureCollection } from 'geojson'
 import { useStacLayer } from '../composables/useStacLayer'
 import { useAreaOfInterest } from '../composables/useAreaOfInterest'
+import PropertyDisplay from './PropertyDisplay.vue'
+import { formatMeasurementDisplay } from '../functions/format-measurement-display'
 
 const props = defineProps<{
   map: Map
@@ -23,10 +25,11 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: 'update:isOpen', value: boolean): void
+  (e: 'updateGeoJSONResults', results: any[]): void
 }>()
 
 const { addStacLayer, removeStacLayer } = useStacLayer()
-const { removeExtentInteraction, drawnExtent } = useAreaOfInterest()
+const { removeExtentInteraction, removeDrawVectorLayer, drawnExtent } = useAreaOfInterest()
 const { projectMessage, dismissMessage } = useProjectMessage()
 
 const { currentBbox, hasMore, isLoading, searchResults, searchStatus } = useSearch()
@@ -63,6 +66,12 @@ const isSecondResultsOpen = ref(false)
 const retryTimeout = ref<number | null>(null)
 const vectorLayer = shallowRef<VectorLayer<VectorSource> | null>(null)
 
+// Properties display state
+const selectedFeature = ref<any>(null)
+const propertiesBoxPosition = ref<{ x: number; y: number } | null>(null)
+const originalClickPosition = ref<{ x: number; y: number } | null>(null)
+const showPropertiesBox = ref(false)
+
 const toggleAccordion = () => {
   isOpen.value = !isOpen.value
   emit('update:isOpen', isOpen.value)
@@ -74,6 +83,94 @@ const toggleFirstResults = () => {
 
 const toggleSecondResults = () => {
   isSecondResultsOpen.value = !isSecondResultsOpen.value
+}
+
+const handleMapClick = (event: any) => {
+  // Check if click is on a feature from our vector layer
+  const pixel = event.pixel
+  let clickedFeature: any = null
+
+  // Check if we clicked on a feature from our results layer
+  props.map.forEachFeatureAtPixel(pixel, (feature) => {
+    // Only process features from our results layer
+    if (
+      vectorLayer.value
+        ?.getSource()
+        ?.getFeatures()
+        .includes(feature as any)
+    ) {
+      clickedFeature = feature
+      return true // Stop after finding a feature from our results layer
+    }
+    return false // Continue checking other features
+  })
+
+  if (clickedFeature) {
+    // Clicked on a feature from our results layer
+    selectedFeature.value = clickedFeature
+    const properties = clickedFeature.getProperties()
+    // Remove geometry and other non-property fields
+    const { geometry, ...cleanProperties } = properties
+    selectedFeature.value.cleanProperties = Object.entries(cleanProperties).map(([key, value]) => {
+      return {
+        key,
+        value,
+        formattedValue: formatMeasurementDisplay(value as string | number, key),
+      }
+    })
+    // Store original click position for arrow indicator
+    originalClickPosition.value = { x: pixel[0], y: pixel[1] }
+
+    // Calculate optimal position for the properties box to avoid screen edges
+    const optimalPosition = calculateOptimalPosition(pixel[0], pixel[1])
+    propertiesBoxPosition.value = optimalPosition
+    showPropertiesBox.value = true
+  } else {
+    // Clicked outside our results layer features, hide properties box
+    hidePropertiesBox()
+  }
+}
+
+const hidePropertiesBox = () => {
+  showPropertiesBox.value = false
+  selectedFeature.value = null
+  propertiesBoxPosition.value = null
+  originalClickPosition.value = null
+}
+
+const calculateOptimalPosition = (clickX: number, clickY: number) => {
+  const boxWidth = 300 // Approximate width of properties box
+  const boxHeight = 200 // Approximate height of properties box
+  const margin = 20 // Minimum margin from screen edges
+
+  let optimalX = clickX
+  let optimalY = clickY
+
+  // Get viewport dimensions
+  const viewportWidth = window.innerWidth
+  const viewportHeight = window.innerHeight
+
+  // Adjust X position if too close to right edge
+  if (clickX + boxWidth + margin > viewportWidth) {
+    optimalX = clickX - boxWidth - margin
+  }
+
+  // Adjust X position if too close to left edge
+  if (optimalX < margin) {
+    optimalX = margin
+  }
+
+  // Adjust Y position if too close to bottom edge
+  if (clickY + boxHeight + margin > viewportHeight) {
+    optimalY = clickY - boxHeight - margin
+  }
+
+  // Adjust Y position if too close to top edge
+  if (optimalY < margin) {
+    optimalY = margin
+  }
+
+  return { x: optimalX, y: optimalY }
 }
 
 // Function to load more results
@@ -227,7 +324,20 @@ const formatAreaCoverage = (coverage: number | string | undefined) => {
 }
 
 const fitMapToBbox = (bbox: number[]) => {
+  // Validate bbox before processing
+  if (!bbox || bbox.length !== 4 || bbox.some((coord) => isNaN(coord) || coord === 0)) {
+    console.warn('Invalid bbox provided to fitMapToBbox:', bbox)
+    return
+  }
+
   const extent: Extent = transformExtent(bbox, 'EPSG:4326', 'EPSG:3857')
+
+  // Validate transformed extent
+  if (!extent || extent.some((coord) => isNaN(coord))) {
+    console.warn('Invalid transformed extent:', extent)
+    return
+  }
+
   // TODO: FIX ISSUE WITH SCROLLING AND CHANGE LAYER COLOR
   props.map.getView().fit(extent, {
     padding: [50, 50, 50, 50],
@@ -249,17 +359,48 @@ const displayGeoJSON = (geojson: FeatureCollection & { crs: { properties: { name
     }).readFeatures(geojson),
   })
 
+  // Check if we have valid features
+  if (source.getFeatures().length === 0) {
+    showWarning(
+      'No valid features found in the processing results. Please try again with a different area or settings.',
+    )
+    return null
+  }
+
   vectorLayer.value = new VectorLayer({
     source: source,
     style: {
-      'fill-color': 'rgba(0, 136, 136, 0.1)',
-      'stroke-color': 'rgba(0, 136, 136, 1)',
+      'fill-color': 'rgba(255, 255, 0, 0.1)',
+      'stroke-color': 'rgba(255, 255, 0, 1)',
       'stroke-width': 2,
     },
+    zIndex: 1001, // Higher than S2-grid-layer (1000)
   })
 
+  // Ensure the results layer is on top by setting a high z-index
   props.map.addLayer(vectorLayer.value)
-  return transformExtent(source.getExtent(), 'EPSG:3857', 'EPSG:4326')
+
+  // Emit the GeoJSON results to the parent component
+  const results = source.getFeatures().map((feature) => ({
+    id: feature.getId() || `feature-${Date.now()}-${Math.random()}`,
+    geometry: feature.getGeometry(),
+    properties: feature.getProperties(),
+  }))
+  emit('updateGeoJSONResults', results)
+
+  // Add map click handler to detect feature clicks and show properties
+  props.map.on('click', handleMapClick)
+
+  // Get the extent and validate it
+  const extent = source.getExtent()
+  if (!extent || extent.every((coord) => coord === 0) || extent.some((coord) => isNaN(coord))) {
+    showWarning(
+      'Invalid extent generated from processing results. Please try again with a different area or settings.',
+    )
+    return null
+  }
+
+  return transformExtent(extent, 'EPSG:3857', 'EPSG:4326')
 }
 
 const handleSmallAreaProcessingRequest = async () => {
@@ -324,16 +465,43 @@ const handleSmallAreaProcessingRequest = async () => {
     const data = await response.json()
 
     // Display GeoJSON if available
-    if (data && data.features) {
+    if (data && data.features && Array.isArray(data.features) && data.features.length > 0) {
       const extent = displayGeoJSON(data)
-      // Fit map to bbox
-      fitMapToBbox(extent)
+      // Fit map to bbox only if we have a valid extent
+      if (extent) {
+        fitMapToBbox(extent)
+        projectMessage.value = { type: 'success', text: 'Small area processed successfully' }
+        // Remove the editable bbox since we have results
+        removeDrawVectorLayer(props.map)
+      } else {
+        // displayGeoJSON returned null, which means no valid features or invalid extent
+        projectMessage.value = {
+          type: 'warning',
+          text: 'Processing completed but no valid results were generated. Please try again with a different area or settings.',
+        }
+        // Clear warning message after 5 seconds
+        setTimeout(() => {
+          if (projectMessage.value?.type === 'warning') {
+            projectMessage.value = null
+          }
+        }, 5000)
+      }
+    } else {
+      projectMessage.value = {
+        type: 'warning',
+        text: 'Processing completed but no valid results were generated. Please try again with a different area or settings.',
+      }
+      // Clear warning message after 5 seconds
+      setTimeout(() => {
+        if (projectMessage.value?.type === 'warning') {
+          projectMessage.value = null
+        }
+      }, 5000)
     }
+
     removeStacLayer(props.map)
     removeStacLayer(props.map, true)
     removeExtentInteraction()
-
-    projectMessage.value = { type: 'success', text: 'Small area processed successfully' }
   } catch (error) {
     console.error('Error processing small area:', error)
     projectMessage.value = {
@@ -533,7 +701,9 @@ const handleCompareTiles = async () => {
           if (data && data.features) {
             const extent = displayGeoJSON(data)
             // Fit map to bbox
-            fitMapToBbox(extent)
+            if (extent) {
+              fitMapToBbox(extent)
+            }
           }
           removeStacLayer(props.map)
           removeStacLayer(props.map, true)
@@ -543,6 +713,8 @@ const handleCompareTiles = async () => {
             type: 'success',
             text: 'Batch processing completed',
           }
+          // Remove the editable bbox since batch processing completed successfully
+          removeDrawVectorLayer(props.map)
           // Clear message after 3 seconds
           setTimeout(() => {
             projectMessage.value = null
@@ -587,6 +759,13 @@ const handleCompareTiles = async () => {
     }
   }
 }
+
+// Clean up map click handler when component is unmounted
+onUnmounted(() => {
+  if (props.map) {
+    props.map.un('click', handleMapClick)
+  }
+})
 
 // Expose methods to parent components
 defineExpose({
@@ -786,6 +965,41 @@ defineExpose({
         </div>
       </div>
     </transition>
+
+    <!-- Properties Box -->
+    <div
+      v-if="showPropertiesBox && selectedFeature && propertiesBoxPosition"
+      class="properties-box"
+      :style="{
+        left: propertiesBoxPosition.x + 'px',
+        top: propertiesBoxPosition.y + 'px',
+      }"
+    >
+      <!-- Arrow indicator pointing to the clicked feature -->
+      <div
+        v-if="
+          originalClickPosition &&
+          (propertiesBoxPosition.x !== originalClickPosition.x ||
+            propertiesBoxPosition.y !== originalClickPosition.y)
+        "
+        class="properties-arrow"
+        :style="{
+          left: originalClickPosition.x - propertiesBoxPosition.x + 'px',
+          top: originalClickPosition.y - propertiesBoxPosition.y + 'px',
+        }"
+      ></div>
+      <div class="properties-header">
+        <h4>Field Properties</h4>
+        <button class="close-properties" @click="hidePropertiesBox">×</button>
+      </div>
+      <div class="properties-content">
+        <PropertyDisplay
+          v-for="property in selectedFeature.cleanProperties"
+          :key="property.key"
+          :property="property"
+        />
+      </div>
+    </div>
   </div>
 </template>
 
@@ -822,6 +1036,9 @@ defineExpose({
   margin-top: 1rem;
   display: flex;
   flex-direction: column;
+}
+
+.results-container {
   flex: 1;
   min-height: 0;
   overflow: hidden;
@@ -1089,5 +1306,62 @@ defineExpose({
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* Properties Box Styles */
+.properties-box {
+  position: fixed;
+  background-color: rgba(0, 0, 0, 0.95);
+  border: 2px solid rgba(0, 136, 136, 0.8);
+  border-radius: 8px;
+  padding: 0;
+  min-width: 250px;
+  max-width: 350px;
+  z-index: 10000;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(10px);
+}
+
+.properties-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid rgba(0, 136, 136, 0.3);
+  background-color: rgba(0, 136, 136, 0.1);
+}
+
+.properties-header h4 {
+  margin: 0;
+  color: rgba(0, 136, 136, 1);
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.close-properties {
+  background: none;
+  border: none;
+  color: rgba(0, 136, 136, 0.8);
+  font-size: 1.5rem;
+  cursor: pointer;
+  padding: 0;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.close-properties:hover {
+  color: rgba(0, 136, 136, 1);
+  background-color: rgba(0, 136, 136, 0.2);
+}
+
+.properties-content {
+  padding: 1rem;
+  max-height: 300px;
+  overflow-y: auto;
 }
 </style>

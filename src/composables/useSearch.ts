@@ -50,6 +50,14 @@ const handleSearchResults = async (mgrsTileId: string, bbox?: number[], settings
   }
 }
 
+const clearSearchResults = () => {
+  searchResults.value = []
+  hasMore.value = false
+  isLoading.value = false
+  searchStatus.value = ''
+  currentBbox.value = undefined
+}
+
 export function useSearch() {
   return {
     isLoading,
@@ -58,5 +66,6 @@ export function useSearch() {
     searchResults,
     hasMore,
     handleSearchResults,
+    clearSearchResults,
   }
 }
