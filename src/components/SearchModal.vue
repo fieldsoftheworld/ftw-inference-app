@@ -2,10 +2,13 @@
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import type { Map } from 'ol'
 import { mdiMagnify, mdiClose } from '@mdi/js'
+import { useAreaOfInterest } from '../composables/useAreaOfInterest'
+import { fromExtent } from 'ol/geom/Polygon'
 
 interface Props {
   isOpen: boolean
   map: Map
+  areaValues: { min_area_km2: number; max_area_km2: number }
 }
 
 interface Emits {
@@ -19,6 +22,9 @@ interface Emits {
 
 const props = defineProps<Props>()
 const emit = defineEmits<Emits>()
+
+// Use the area calculation function from the composable
+const { calculateArea } = useAreaOfInterest()
 
 const searchQuery = ref('')
 const searchResults = ref<any[]>([])
@@ -39,6 +45,9 @@ const bboxInputs = ref({
 const windowA = ref('')
 const windowB = ref('')
 
+// Error message for area validation
+const areaErrorMessage = ref('')
+
 const shouldShowDropdown = computed(() => {
   return (
     showTileDropdown.value &&
@@ -47,6 +56,36 @@ const shouldShowDropdown = computed(() => {
   )
 })
 
+// Function to calculate bbox area in square kilometers using the composable
+const calculateBboxArea = (bbox: number[]): number => {
+  // Create a polygon from the bbox
+  const polygon = fromExtent(bbox)
+
+  // Use the composable's calculateArea function
+  return calculateArea(polygon, false)
+}
+
+// Function to validate bbox area
+const validateBboxArea = (bbox: number[]): { isValid: boolean; message: string } => {
+  const area = calculateBboxArea(bbox)
+
+  if (area < props.areaValues.min_area_km2) {
+    return {
+      isValid: false,
+      message: `Bounding box area (${area.toFixed(2)} km²) is too small. Minimum area required: ${props.areaValues.min_area_km2} km²`,
+    }
+  }
+
+  if (area > props.areaValues.max_area_km2) {
+    return {
+      isValid: false,
+      message: `Bounding box area (${area.toFixed(2)} km²) is too large. Maximum area allowed: ${props.areaValues.max_area_km2} km²`,
+    }
+  }
+
+  return { isValid: true, message: '' }
+}
+
 // Close modal
 const closeModal = () => {
   emit('update:isOpen', false)
@@ -54,6 +93,7 @@ const closeModal = () => {
   searchResults.value = []
   selectedTile.value = null
   showTileDropdown.value = false
+  areaErrorMessage.value = ''
 }
 
 // Load available S2 tiles from the map layer
@@ -148,6 +188,9 @@ const navigateToTileAndSearch = () => {
       const { minLon, minLat, maxLon, maxLat } = bboxInputs.value
       const bbox = [parseFloat(minLon), parseFloat(minLat), parseFloat(maxLon), parseFloat(maxLat)]
 
+      // Clear any previous area error message
+      areaErrorMessage.value = ''
+
       // Validate coordinate ranges
       if (bbox[0] < -180 || bbox[0] > 180 || bbox[2] < -180 || bbox[2] > 180) {
         alert('Longitude must be between -180 and 180')
@@ -159,6 +202,13 @@ const navigateToTileAndSearch = () => {
       }
       if (bbox[0] >= bbox[2] || bbox[1] >= bbox[3]) {
         alert('Invalid bbox: min coordinates must be less than max coordinates')
+        return
+      }
+
+      // Validate bbox area
+      const areaValidation = validateBboxArea(bbox)
+      if (!areaValidation.isValid) {
+        areaErrorMessage.value = areaValidation.message
         return
       }
 
@@ -175,6 +225,11 @@ const navigateToTileAndSearch = () => {
 const handleSearchInput = () => {
   // Always show dropdown when typing
   showTileDropdown.value = true
+}
+
+// Handle bbox input changes to clear error messages
+const handleBboxInputChange = () => {
+  areaErrorMessage.value = ''
 }
 
 // Handle unified search (now just validates and calls navigateToTileAndSearch)
@@ -313,6 +368,7 @@ onUnmounted(() => {
                       step="any"
                       placeholder="-180.0"
                       class="bbox-input"
+                      @input="handleBboxInputChange"
                     />
                   </div>
                   <div class="bbox-input-group">
@@ -323,6 +379,7 @@ onUnmounted(() => {
                       step="any"
                       placeholder="-90.0"
                       class="bbox-input"
+                      @input="handleBboxInputChange"
                     />
                   </div>
                 </div>
@@ -335,6 +392,7 @@ onUnmounted(() => {
                       step="any"
                       placeholder="180.0"
                       class="bbox-input"
+                      @input="handleBboxInputChange"
                     />
                   </div>
                   <div class="bbox-input-group">
@@ -345,9 +403,15 @@ onUnmounted(() => {
                       step="any"
                       placeholder="90.0"
                       class="bbox-input"
+                      @input="handleBboxInputChange"
                     />
                   </div>
                 </div>
+              </div>
+
+              <!-- Area validation error message -->
+              <div v-if="areaErrorMessage" class="area-error-message">
+                {{ areaErrorMessage }}
               </div>
             </div>
 
@@ -699,6 +763,17 @@ onUnmounted(() => {
 
 .bbox-input::placeholder {
   color: rgba(255, 255, 255, 0.5);
+}
+
+.area-error-message {
+  margin-top: 0.75rem;
+  padding: 0.75rem;
+  background-color: rgba(255, 0, 0, 0.1);
+  border: 1px solid rgba(255, 0, 0, 0.3);
+  border-radius: 4px;
+  color: #ff6b6b;
+  font-size: 0.875rem;
+  text-align: center;
 }
 
 .window-section {

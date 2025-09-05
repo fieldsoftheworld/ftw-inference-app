@@ -219,9 +219,9 @@ function isPolygonWithinExtent(polygon: Polygon, extent: Extent): boolean {
 }
 
 // Function to calculate area in square kilometers
-function calculateArea(geometry: Polygon): number {
+function calculateArea(geometry: Polygon, convertProjection: boolean = true): number {
   // Transform to EPSG:4326 for accurate area calculation
-  const area = getArea(geometry, { projection: 'EPSG:3857' })
+  const area = getArea(geometry, { projection: convertProjection ? 'EPSG:3857' : 'EPSG:4326' })
   return area / 1000000 // Convert to square kilometers
 }
 
@@ -303,7 +303,6 @@ function addMapClickHandler(
   map: Map,
   dataCabinetRef: Ref<InstanceType<typeof DataCabinet> | null>,
   areaValues: { min_area_km2: number; max_area_km2: number },
-  drawnExtent: Ref<Extent | null>,
   searchResults: SearchResults,
   handleSearchResults: (mgrsTileId: string, bbox?: number[], settings?: any) => void,
 ) {
@@ -558,6 +557,7 @@ export function useAreaOfInterest() {
     setBlockMapClicks,
     clearResultsAndZoomToGrid,
     triggerTileSelection,
+    calculateArea,
     updatePermalink: (map: Map) => {
       updateTileSelection(
         map,

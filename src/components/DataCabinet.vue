@@ -235,6 +235,7 @@ defineExpose({
     <SearchModal
       :is-open="isSearchModalOpen"
       :map="props.map"
+      :area-values="props.areaValues"
       @update:is-open="isSearchModalOpen = $event"
       @tile-selected="handleTileSelected"
       @bbox-selected="handleBboxSelected"

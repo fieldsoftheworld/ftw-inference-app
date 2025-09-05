@@ -78,7 +78,6 @@ onMounted(async () => {
       map.value as Map,
       dataCabinetRef,
       areaValues.value,
-      drawnExtent,
       searchResults,
       handleSearchResults,
     )
