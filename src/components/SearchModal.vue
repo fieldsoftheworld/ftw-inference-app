@@ -64,11 +64,6 @@ const loadAvailableTiles = () => {
 
   const layers = props.map.getLayers().getArray()
 
-  // Log all layer names for debugging
-  layers.forEach((layer, index) => {
-    const name = layer.get('name') || layer.get('properties')?.name || 'unnamed'
-  })
-
   const s2GridLayer = layers.find(
     (layer) =>
       layer.get('name') === 's2-grid' ||
@@ -205,13 +200,7 @@ const handleClickOutside = (event: Event) => {
   }
 }
 
-// Load tiles when component mounts
 onMounted(() => {
-  // Try to load tiles immediately if map is available
-  if (props.map) {
-    loadAvailableTiles()
-  }
-
   // Add click outside listener
   document.addEventListener('click', handleClickOutside)
 })

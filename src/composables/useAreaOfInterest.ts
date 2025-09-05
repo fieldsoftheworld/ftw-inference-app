@@ -23,8 +23,28 @@ import { useSearch, type SearchResults } from './useSearch'
 import { Feature as GeoJSONFeature, Polygon as GeoJSONPolygon } from 'geojson'
 import { usePermalink } from './usePermalink'
 
-const { clearSearchResults } = useSearch()
+const { clearSearchResults, searchResults } = useSearch()
 const { updateTileSelection } = usePermalink()
+
+const invalidStyle = new Style({
+  stroke: new Stroke({
+    color: 'rgba(255, 255, 0, 1)',
+    width: 2,
+  }),
+  fill: new Fill({
+    color: 'rgba(255, 255, 0, 0.1)',
+  }),
+})
+
+const validStyle = new Style({
+  stroke: new Stroke({
+    color: 'rgba(0, 136, 136, 1)',
+    width: 2,
+  }),
+  fill: new Fill({
+    color: 'rgba(0, 136, 136, 0.1)',
+  }),
+})
 
 const extentInteraction = shallowRef<ExtentInteraction | null>(null)
 const currentMgrsTileId = ref<string | null>(null)
@@ -50,7 +70,12 @@ const drawVectorLayer: VectorLayer<VectorSource> = new VectorLayer({
   zIndex: 1001,
 })
 
-function addExtentInteraction(map: Map, bboxExtent: Extent) {
+function addExtentInteraction(
+  map: Map,
+  bboxExtent: Extent,
+  areaValues: { min_area_km2: number; max_area_km2: number },
+  searchResults: SearchResults,
+) {
   extentInteraction.value = new ExtentInteraction({
     extent: bboxExtent,
     createCondition: never,
@@ -62,6 +87,50 @@ function addExtentInteraction(map: Map, bboxExtent: Extent) {
     }),
   })
   map.addInteraction(extentInteraction.value)
+
+  let warningShown = false
+
+  extentInteraction.value.on('extentchanged', (event) => {
+    const newExtent = event.extent
+    const geometry = fromExtent(newExtent)
+
+    const area = calculateArea(geometry)
+    const isWithinExtent = currentGridExtent.value
+      ? isPolygonWithinExtent(geometry, currentGridExtent.value)
+      : false
+    // Check if the polygon is within the grid extent and within size limits
+
+    if (area > areaValues?.max_area_km2 || area < areaValues?.min_area_km2 || !isWithinExtent) {
+      if (!warningShown) {
+        // Show notification for each validation error
+        if (area > areaValues?.max_area_km2) {
+          showWarning(
+            `Bounding box area exceeds ${areaValues?.max_area_km2} square kilometers. Using last valid state.`,
+          )
+        }
+        if (area < areaValues?.min_area_km2) {
+          showWarning(
+            `Bounding box area is less than ${areaValues?.min_area_km2} square kilometers. Using last valid state.`,
+          )
+        }
+        if (!isWithinExtent) {
+          showWarning(
+            'Running inference across Sentinel 2 tile boundaries is not yet supported. Move your bbox to the selected tile, or select a different tile.',
+          )
+        }
+        warningShown = true
+        drawVectorLayer?.setStyle(invalidStyle)
+      }
+    } else {
+      warningShown = false
+      extentFeature.setGeometry(geometry)
+      drawVectorLayer.setStyle(validStyle)
+
+      // Check geometry containment if both tiles are selected
+      checkBboxContainment(newExtent, drawnExtent, searchResults)
+    }
+  })
+
   return extentInteraction.value
 }
 
@@ -280,26 +349,6 @@ function addMapClickHandler(
         const bboxPolygon = fromExtent(bboxExtent)
         extentFeature.setGeometry(bboxPolygon)
 
-        const invalidStyle = new Style({
-          stroke: new Stroke({
-            color: 'rgba(255, 255, 0, 1)',
-            width: 2,
-          }),
-          fill: new Fill({
-            color: 'rgba(255, 255, 0, 0.1)',
-          }),
-        })
-
-        const validStyle = new Style({
-          stroke: new Stroke({
-            color: 'rgba(0, 136, 136, 1)',
-            width: 2,
-          }),
-          fill: new Fill({
-            color: 'rgba(0, 136, 136, 0.1)',
-          }),
-        })
-
         // Adjust draw vector layer extent and style
         drawVectorLayer.setExtent(currentGridExtent.value)
         drawVectorLayer.setStyle(validStyle)
@@ -367,54 +416,7 @@ function addMapClickHandler(
         }
 
         // Create and add Modify interaction with size restriction
-        const extentInteraction = addExtentInteraction(map, bboxExtent)
-
-        let warningShown = false
-
-        extentInteraction.on('extentchanged', (event) => {
-          const newExtent = event.extent
-          const geometry = fromExtent(newExtent)
-
-          const area = calculateArea(geometry)
-          const isWithinExtent = currentGridExtent.value
-            ? isPolygonWithinExtent(geometry, currentGridExtent.value)
-            : false
-          // Check if the polygon is within the grid extent and within size limits
-
-          if (
-            area > areaValues?.max_area_km2 ||
-            area < areaValues?.min_area_km2 ||
-            !isWithinExtent
-          ) {
-            if (!warningShown) {
-              // Show notification for each validation error
-              if (area > areaValues?.max_area_km2) {
-                showWarning(
-                  `Bounding box area exceeds ${areaValues?.max_area_km2} square kilometers. Using last valid state.`,
-                )
-              }
-              if (area < areaValues?.min_area_km2) {
-                showWarning(
-                  `Bounding box area is less than ${areaValues?.min_area_km2} square kilometers. Using last valid state.`,
-                )
-              }
-              if (!isWithinExtent) {
-                showWarning(
-                  'Running inference across Sentinel 2 tile boundaries is not yet supported. Move your bbox to the selected tile, or select a different tile.',
-                )
-              }
-              warningShown = true
-              drawVectorLayer?.setStyle(invalidStyle)
-            }
-          } else {
-            warningShown = false
-            extentFeature.setGeometry(geometry)
-            drawVectorLayer.setStyle(validStyle)
-
-            // Check geometry containment if both tiles are selected
-            checkBboxContainment(newExtent, drawnExtent, searchResults)
-          }
-        })
+        addExtentInteraction(map, bboxExtent, areaValues, searchResults)
       }
     } else {
       // If clicked outside a feature, clear the selection
@@ -468,19 +470,16 @@ function triggerTileSelection(
       const bboxPolygon = fromExtent(bboxExtent)
       extentFeature.setGeometry(bboxPolygon)
 
-      const validStyle = new Style({
-        stroke: new Stroke({
-          color: 'rgba(0, 136, 136, 1)',
-          width: 2,
-        }),
-        fill: new Fill({
-          color: 'rgba(0, 136, 136, 0.1)',
-        }),
-      })
+      if (!map.getLayers().getArray().includes(drawVectorLayer)) {
+        map.addLayer(drawVectorLayer)
+      }
 
       // Adjust draw vector layer extent and style
       drawVectorLayer.setExtent(currentGridExtent.value!)
       drawVectorLayer.setStyle(validStyle)
+
+      // Create and add Modify interaction with size restriction
+      addExtentInteraction(map, bboxExtent, areaValues, searchResults)
 
       // Add padding to the extent for view fitting
       const padding = 50
