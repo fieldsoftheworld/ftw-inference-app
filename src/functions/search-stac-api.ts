@@ -88,7 +88,7 @@ export default async function searchStacApi(
   try {
     // Build request body for POST
     const requestBody: any = {
-      collections: ['sentinel-2-l2a'],
+      collections: ['sentinel-2-c1-l2a'],
       limit: 20,
       query: {
         ['eo:cloud_cover']: {
