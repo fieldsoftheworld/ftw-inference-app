@@ -680,15 +680,16 @@ const handleCompareTiles = async () => {
           clearInterval(pollInterval)
 
           // Fetch batch processing results
-          const resultsResponse = await fetch(
-            `${import.meta.env.VITE_FTW_INFERENCE_OUTPUT_URL}${projectStatus.results.polygons}`,
-            {
-              headers: {
-                'Content-Type': 'application/json',
-                Authorization: `Bearer ${token}`,
-              },
+          const resultPolygons = projectStatus.results.polygons
+          const url = resultPolygons.startsWith('http')
+            ? resultPolygons
+            : `${import.meta.env.VITE_FTW_INFERENCE_OUTPUT_URL || ''}${resultPolygons}`
+          const resultsResponse = await fetch(url, {
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${token}`,
             },
-          )
+          })
           if (!resultsResponse.ok) {
             throw new Error(
               `Failed to fetch batch processing results: ${resultsResponse.statusText}`,
