@@ -13,9 +13,11 @@ git clone https://github.com/fieldsoftheworld/ftw-inference-api.git
 ```
 
 ### Step 2: Set Up the API
+
 The API is always being updated, so it is best to follow the directions directly in the [API repository](https://github.com/fieldsoftheworld/ftw-inference-api).
 
 Prerequisites:
+
 - [Docker](https://docs.docker.com/get-docker/) (required for local DynamoDB)
 - [Pixi](https://pixi.sh/latest/#installation) (package manager)
 
@@ -28,7 +30,7 @@ cp .env.example .env
 
 # Configure local DynamoDB in .env file (uncomment these lines):
 # DYNAMODB__DYNAMODB_ENDPOINT="http://localhost:8001"
-# AWS_ACCESS_KEY_ID="fake_key_id" 
+# AWS_ACCESS_KEY_ID="fake_key_id"
 # AWS_SECRET_ACCESS_KEY="fake_secret_key"
 
 # Download precomputed models for api endpoint
@@ -55,10 +57,19 @@ npm install
 
 # Create environment file
 echo "VITE_API_BASE_URL=http://127.0.0.1:8080/v1/" > .env.development
-echo "VITE_FTW_INFERENCE_OUTPUT_URL=https://source.coop/ftw/ftw-inference-output/" > .env.development
 
 # Start the development server
 npm run dev
+```
+
+Optionally, to get access to model results from a local ftw-inference-api instance, run
+
+    npx serve --cors ../ftw-inference-api/server/data/results/
+
+and add the VITE_FTW_INFERENCE_OUTPUT_URL environment variable pointing to that dev server:
+
+```sh
+echo "VITE_FTW_INFERENCE_OUTPUT_URL=http://127.0.0.1:3000/" > .env.development
 ```
 
 The app will be available at `http://localhost:5173`
