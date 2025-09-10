@@ -861,7 +861,7 @@ defineExpose({
                     class="result-thumbnail"
                     @click="handleViewOnMap(result.tiffUrl, result.bounds, result?.id, false)"
                   >
-                    <img :src="result.thumbnailUrl" alt="Preview" crossorigin="anonymous" />
+                    <img :src="result.thumbnailUrl" alt="Preview" />
                   </div>
                   <div class="result-header">
                     <h3>{{ result?.id }}</h3>
@@ -910,11 +910,7 @@ defineExpose({
                 <!-- Show first accordion's active tile first -->
                 <div v-if="activeTileId" class="result-item active disabled">
                   <div class="result-thumbnail">
-                    <img
-                      :src="getActiveTileThumbnail(false)"
-                      alt="Preview"
-                      crossorigin="anonymous"
-                    />
+                    <img :src="getActiveTileThumbnail(false)" alt="Preview" />
                   </div>
                   <div class="result-header">
                     <h3>{{ activeTileId }}</h3>
@@ -939,7 +935,7 @@ defineExpose({
                       class="result-thumbnail"
                       @click="handleViewOnMap(result.tiffUrl, result.bounds, result?.id, true)"
                     >
-                      <img :src="result.thumbnailUrl" alt="Preview" crossorigin="anonymous" />
+                      <img :src="result.thumbnailUrl" alt="Preview" />
                     </div>
                     <div class="result-header">
                       <h3>{{ result?.id }}</h3>
