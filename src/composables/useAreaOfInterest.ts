@@ -1,6 +1,13 @@
 import { Feature, type Map } from 'ol'
 import { never } from 'ol/events/condition'
-import { buffer, containsCoordinate, type Extent } from 'ol/extent'
+import {
+  buffer,
+  containsCoordinate,
+  getHeight,
+  getIntersection,
+  getWidth,
+  type Extent,
+} from 'ol/extent'
 import ExtentInteraction from 'ol/interaction/Extent'
 import { Fill, Stroke, Style } from 'ol/style'
 import { ref, type Ref, shallowRef } from 'vue'
@@ -255,7 +262,16 @@ function addMapClickHandler(
         const extent = geometry.getExtent()
         currentGridExtent.value = extent // Store the current grid extent
         // Calculate the bounding box based on area values
-        const bboxExtent = calculateBoundingBox(extent, areaValues)
+        const extentAtClickedPosition = [
+          event.coordinate[0] - getWidth(extent) / 2,
+          event.coordinate[1] - getHeight(extent) / 2,
+          event.coordinate[0] + getWidth(extent) / 2,
+          event.coordinate[1] + getHeight(extent) / 2,
+        ]
+        const bboxExtent = getIntersection(
+          extent,
+          calculateBoundingBox(extentAtClickedPosition, areaValues),
+        )
 
         // Set initial bounding box
         const bboxPolygon = fromExtent(bboxExtent)
@@ -287,10 +303,10 @@ function addMapClickHandler(
 
         // Add padding to the extent for view fitting
         const padding = 50
-        const paddedExtent = buffer(extent, padding)
 
         // Fit the view to the extent
-        map.getView().fit(paddedExtent, {
+        map.getView().fit(extentAtClickedPosition, {
+          padding: [padding, padding, padding, padding],
           duration: 1000,
           maxZoom: 13,
         })
