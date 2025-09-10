@@ -59,13 +59,13 @@ export function usePermalink() {
         // Parse search settings
         for (let i = 6; i < parts.length; i++) {
           const part = parts[i]
-          if (part.startsWith('s:')) {
+          if (part.startsWith('start_date:')) {
             result.startDate = part.substring(2)
-          } else if (part.startsWith('e:')) {
+          } else if (part.startsWith('end_date:')) {
             result.endDate = part.substring(2)
-          } else if (part.startsWith('c:')) {
+          } else if (part.startsWith('cloud_cover:')) {
             result.cloudCover = parseInt(part.substring(2))
-          } else if (part.startsWith('a:')) {
+          } else if (part.startsWith('area_coverage:')) {
             result.areaCoverage = parseInt(part.substring(2))
           }
         }
@@ -112,10 +112,11 @@ export function usePermalink() {
         try {
           const parsed = JSON.parse(stored)
           // Add search settings to the hash
-          if (parsed.startDate) hashParts.push(`s:${parsed.startDate}`)
-          if (parsed.endDate) hashParts.push(`e:${parsed.endDate}`)
-          if (parsed.cloudCover !== undefined) hashParts.push(`c:${parsed.cloudCover}`)
-          if (parsed.areaCoverage !== undefined) hashParts.push(`a:${parsed.areaCoverage}`)
+          if (parsed.startDate) hashParts.push(`start_date:${parsed.startDate}`)
+          if (parsed.endDate) hashParts.push(`end_date:${parsed.endDate}`)
+          if (parsed.cloudCover !== undefined) hashParts.push(`cloud_cover:${parsed.cloudCover}`)
+          if (parsed.areaCoverage !== undefined)
+            hashParts.push(`area_coverage:${parsed.areaCoverage}`)
         } catch (error) {
           console.error('Error parsing stored settings for permalink:', error)
         }

@@ -59,7 +59,7 @@ const blockMapClicks = ref(false)
 
 const extentFeature: Feature<Polygon> = new Feature()
 extentFeature.on('change', () => {
-  const bbox = extentFeature.getGeometry()?.getExtent() || null
+  const bbox = extentFeature?.getGeometry()?.getExtent() || null
   drawnExtent.value = bbox // Update the drawn extent in the composable
 })
 
@@ -439,6 +439,7 @@ function triggerTileSelection(
 ) {
   // Set the current MGRS tile ID
   currentMgrsTileId.value = mgrsTileId
+  removeExtentInteraction()
 
   // Find the feature on the map with this MGRS tile ID
   const layers = map.getLayers().getArray()
@@ -474,15 +475,9 @@ function triggerTileSelection(
       // Set initial bounding box
       const bboxPolygon = fromExtent(bboxExtent)
       extentFeature.setGeometry(bboxPolygon)
-
-      if (!map.getLayers().getArray().includes(drawVectorLayer)) {
-        map.addLayer(drawVectorLayer)
-      }
       // Adjust draw vector layer extent and style
       drawVectorLayer.setExtent(currentGridExtent.value!)
       drawVectorLayer.setStyle(validStyle)
-
-      addExtentInteraction(map, bboxExtent, areaValues, searchResults)
 
       // Add padding to the extent for view fitting
       const padding = 50
@@ -546,11 +541,12 @@ function triggerTileSelection(
           dataCabinetRef.value.handleProcessingToggle(true)
         }
       }
-
+      console.log(map.getLayers().getArray())
       // Add the layer and interactions
-      if (!map.getLayers().getArray().includes(drawVectorLayer)) {
+      if (!layers.includes(drawVectorLayer)) {
         map.addLayer(drawVectorLayer)
       }
+      addExtentInteraction(map, bboxExtent, areaValues, searchResults)
     }
   }
 }

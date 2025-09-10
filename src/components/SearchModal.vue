@@ -34,13 +34,8 @@ const selectedTile = ref<any>(null)
 const availableTiles = ref<any[]>([])
 const showTileDropdown = ref(false)
 
-// Bbox input fields
-const bboxInputs = ref({
-  minLon: '',
-  minLat: '',
-  maxLon: '',
-  maxLat: '',
-})
+// Bbox input field (single array input)
+const bboxInput = ref('')
 
 // Window A and B input fields
 const windowA = ref('')
@@ -64,6 +59,37 @@ const calculateBboxArea = (bbox: number[]): number => {
 
   // Use the composable's calculateArea function
   return calculateArea(polygon, false)
+}
+
+// Function to parse bbox input string into array
+const parseBboxInput = (input: string): { isValid: boolean; bbox: number[]; error: string } => {
+  if (!input.trim()) {
+    return { isValid: false, bbox: [], error: 'Bbox input is empty' }
+  }
+
+  try {
+    // Remove any whitespace and parse as JSON array
+    const cleanedInput = input.trim()
+    const bbox = JSON.parse(cleanedInput)
+
+    // Validate it's an array with 4 numbers
+    if (!Array.isArray(bbox) || bbox.length !== 4) {
+      return { isValid: false, bbox: [], error: 'Bbox must be an array with exactly 4 numbers' }
+    }
+
+    // Validate all elements are numbers
+    if (!bbox.every((val) => typeof val === 'number' && !isNaN(val))) {
+      return { isValid: false, bbox: [], error: 'All bbox values must be valid numbers' }
+    }
+
+    return { isValid: true, bbox, error: '' }
+  } catch (error) {
+    return {
+      isValid: false,
+      bbox: [],
+      error: 'Invalid bbox format. Expected format: [minLon, minLat, maxLon, maxLat]',
+    }
+  }
 }
 
 // Function to validate bbox area
@@ -95,13 +121,8 @@ const closeModal = () => {
   selectedTile.value = null
   showTileDropdown.value = false
   areaErrorMessage.value = ''
-  // Clear bbox inputs and drawnExtent
-  bboxInputs.value = {
-    minLon: '',
-    minLat: '',
-    maxLon: '',
-    maxLat: '',
-  }
+  // Clear bbox input
+  bboxInput.value = ''
 }
 
 // Load available S2 tiles from the map layer
@@ -186,18 +207,20 @@ const navigateToTileAndSearch = () => {
     }
 
     // If we have bbox coordinates, validate and emit them
-    const hasBboxInput =
-      bboxInputs.value.minLon &&
-      bboxInputs.value.minLat &&
-      bboxInputs.value.maxLon &&
-      bboxInputs.value.maxLat
+    const hasBboxInput = bboxInput.value.trim()
 
     if (hasBboxInput) {
-      const { minLon, minLat, maxLon, maxLat } = bboxInputs.value
-      const bbox = [parseFloat(minLon), parseFloat(minLat), parseFloat(maxLon), parseFloat(maxLat)]
-
       // Clear any previous area error message
       areaErrorMessage.value = ''
+
+      // Parse the bbox input
+      const parseResult = parseBboxInput(bboxInput.value)
+      if (!parseResult.isValid) {
+        areaErrorMessage.value = parseResult.error
+        return
+      }
+
+      const bbox = parseResult.bbox
 
       // Validate coordinate ranges
       if (bbox[0] < -180 || bbox[0] > 180 || bbox[2] < -180 || bbox[2] > 180) {
@@ -225,14 +248,7 @@ const navigateToTileAndSearch = () => {
 
     // Emit combined tile and bbox selection event
     if (tileName) {
-      const bbox = hasBboxInput
-        ? [
-            parseFloat(bboxInputs.value.minLon),
-            parseFloat(bboxInputs.value.minLat),
-            parseFloat(bboxInputs.value.maxLon),
-            parseFloat(bboxInputs.value.maxLat),
-          ]
-        : undefined
+      const bbox = hasBboxInput ? parseBboxInput(bboxInput.value).bbox : undefined
       emit('tileAndBboxSelected', tileName, bbox)
     }
 
@@ -379,52 +395,17 @@ onUnmounted(() => {
             <div class="bbox-section">
               <h4>Bounding Box (Optional):</h4>
               <div class="bbox-inputs">
-                <div class="bbox-row">
-                  <div class="bbox-input-group">
-                    <label>Min Longitude</label>
-                    <input
-                      v-model="bboxInputs.minLon"
-                      type="number"
-                      step="any"
-                      placeholder="-180.0"
-                      class="bbox-input"
-                      @input="handleBboxInputChange"
-                    />
-                  </div>
-                  <div class="bbox-input-group">
-                    <label>Min Latitude</label>
-                    <input
-                      v-model="bboxInputs.minLat"
-                      type="number"
-                      step="any"
-                      placeholder="-90.0"
-                      class="bbox-input"
-                      @input="handleBboxInputChange"
-                    />
-                  </div>
-                </div>
-                <div class="bbox-row">
-                  <div class="bbox-input-group">
-                    <label>Max Longitude</label>
-                    <input
-                      v-model="bboxInputs.maxLon"
-                      type="number"
-                      step="any"
-                      placeholder="180.0"
-                      class="bbox-input"
-                      @input="handleBboxInputChange"
-                    />
-                  </div>
-                  <div class="bbox-input-group">
-                    <label>Max Latitude</label>
-                    <input
-                      v-model="bboxInputs.maxLat"
-                      type="number"
-                      step="any"
-                      placeholder="90.0"
-                      class="bbox-input"
-                      @input="handleBboxInputChange"
-                    />
+                <div class="bbox-input-group">
+                  <label>Bbox Array [minLon, minLat, maxLon, maxLat]</label>
+                  <input
+                    v-model="bboxInput"
+                    type="text"
+                    placeholder="[-180.0, -90.0, 180.0, 90.0]"
+                    class="bbox-input"
+                    @input="handleBboxInputChange"
+                  />
+                  <div class="bbox-help-text">
+                    Enter bbox as JSON array format: [minLon, minLat, maxLon, maxLat]
                   </div>
                 </div>
               </div>
@@ -783,6 +764,13 @@ onUnmounted(() => {
 
 .bbox-input::placeholder {
   color: rgba(255, 255, 255, 0.5);
+}
+
+.bbox-help-text {
+  margin-top: 0.5rem;
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.6);
+  font-style: italic;
 }
 
 .area-error-message {
