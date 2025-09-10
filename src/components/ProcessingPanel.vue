@@ -32,7 +32,15 @@ const { addStacLayer, removeStacLayer } = useStacLayer()
 const { removeExtentInteraction, removeDrawVectorLayer, drawnExtent } = useAreaOfInterest()
 const { projectMessage, dismissMessage } = useProjectMessage()
 
-const { currentBbox, hasMore, isLoading, searchResults, searchStatus } = useSearch()
+const {
+  currentBbox,
+  hasMore,
+  isLoading,
+  searchResults,
+  searchStatus,
+  availableCollections,
+  selectedCollection,
+} = useSearch()
 const { currentGridExtent, currentMgrsTileId, activeTileId, secondActiveTileId } =
   useAreaOfInterest()
 
@@ -845,6 +853,15 @@ defineExpose({
             </button>
           </div>
 
+          <v-radio-group density="compact" v-model="selectedCollection">
+            <v-radio
+              v-for="collection in availableCollections"
+              :key="collection[0]"
+              :label="collection[0]"
+              :value="collection"
+            />
+          </v-radio-group>
+
           <div class="accordion-header" @click="toggleFirstResults">
             <h3 class="active-tile-id">{{ activeTileId ? activeTileId : 'Select a tile' }}</h3>
             <span class="accordion-icon" :class="{ open: isFirstResultsOpen }">▼</span>
@@ -862,7 +879,7 @@ defineExpose({
                     class="result-thumbnail"
                     @click="handleViewOnMap(result.tiffUrl, result.bounds, result?.id, false)"
                   >
-                    <img :src="result.thumbnailUrl" alt="Preview" crossorigin="anonymous" />
+                    <img :src="result.thumbnailUrl" alt="Preview" />
                   </div>
                   <div class="result-header">
                     <h3>{{ result?.id }}</h3>
@@ -911,11 +928,7 @@ defineExpose({
                 <!-- Show first accordion's active tile first -->
                 <div v-if="activeTileId" class="result-item active disabled">
                   <div class="result-thumbnail">
-                    <img
-                      :src="getActiveTileThumbnail(false)"
-                      alt="Preview"
-                      crossorigin="anonymous"
-                    />
+                    <img :src="getActiveTileThumbnail(false)" alt="Preview" />
                   </div>
                   <div class="result-header">
                     <h3>{{ activeTileId }}</h3>
@@ -940,7 +953,7 @@ defineExpose({
                       class="result-thumbnail"
                       @click="handleViewOnMap(result.tiffUrl, result.bounds, result?.id, true)"
                     >
-                      <img :src="result.thumbnailUrl" alt="Preview" crossorigin="anonymous" />
+                      <img :src="result.thumbnailUrl" alt="Preview" />
                     </div>
                     <div class="result-header">
                       <h3>{{ result?.id }}</h3>
