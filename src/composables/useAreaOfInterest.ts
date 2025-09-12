@@ -413,10 +413,11 @@ function addMapClickHandler(
             }
           }
 
-          handleSearchResults(currentMgrsTileId.value, bbox, currentSettings)
+          // Pass WGS84 bbox to search
+          const wgs84Bbox = transformExtent(bbox, 'EPSG:3857', 'EPSG:4326') as [number, number, number, number]
+          handleSearchResults(currentMgrsTileId.value, wgs84Bbox, currentSettings)
           
           // Update permalink with initial bbox
-          const wgs84Bbox = transformExtent(bbox, 'EPSG:3857', 'EPSG:4326') as [number, number, number, number]
           updateTileSelection(
             map,
             currentMgrsTileId.value,
@@ -517,7 +518,7 @@ function triggerTileSelection(
       let finalBbox: number[]
 
       if (bbox) {
-        // Use the provided bbox
+        // Use the provided bbox (already WGS84)
         finalBbox = bbox
       } else {
         // Create a smaller bbox within the grid to avoid overlap with adjacent grids
@@ -558,7 +559,11 @@ function triggerTileSelection(
           }
         }
 
-        handleSearchResults(currentMgrsTileId.value, finalBbox, currentSettings)
+        // Ensure WGS84 bbox passed to search
+        const wgs84Final = bbox
+          ? bbox
+          : (transformExtent(finalBbox, 'EPSG:3857', 'EPSG:4326') as number[])
+        handleSearchResults(currentMgrsTileId.value, wgs84Final, currentSettings)
 
         // Update permalink with initial bbox
         const wgs84FinalBbox = transformExtent(finalBbox, 'EPSG:3857', 'EPSG:4326') as [number, number, number, number]

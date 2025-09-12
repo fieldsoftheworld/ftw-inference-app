@@ -125,19 +125,9 @@ export default async function searchStacApi(
       requestBody.datetime = `../${endDate}`
     }
 
-    // Add bbox parameter if provided
+    // Add bbox parameter if provided (expected in EPSG:4326, WGS84)
     if (bbox && bbox.length === 4) {
-      // Convert from EPSG:3857 to EPSG:4326 (WGS84) if needed
-      const [minX, minY, maxX, maxY] = bbox
-
-      // Import the transform function from OpenLayers
-      const { transform } = await import('ol/proj')
-
-      // Transform coordinates from EPSG:3857 to EPSG:4326
-      const [minLon, minLat] = transform([minX, minY], 'EPSG:3857', 'EPSG:4326')
-      const [maxLon, maxLat] = transform([maxX, maxY], 'EPSG:3857', 'EPSG:4326')
-
-      requestBody.bbox = [minLon, minLat, maxLon, maxLat]
+      requestBody.bbox = bbox
     }
 
     // Add the pagination token if we're loading more results
