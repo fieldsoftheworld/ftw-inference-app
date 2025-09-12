@@ -22,6 +22,7 @@ const {
   activeTileId,
   secondActiveTileId,
   triggerTileSelection,
+  drawnExtent,
 } = useAreaOfInterest()
 const { searchResults, handleSearchResults } = useSearch()
 const { setupPermalink } = usePermalink()
@@ -99,6 +100,12 @@ onMounted(async () => {
           handleSearchResults,
           bbox,
         )
+      },
+      () => {
+        if (!drawnExtent.value) return undefined
+        const { transformExtent } = require('ol/proj')
+        const wgs84 = transformExtent(drawnExtent.value, 'EPSG:3857', 'EPSG:4326') as [number, number, number, number]
+        return wgs84
       },
     )
   }

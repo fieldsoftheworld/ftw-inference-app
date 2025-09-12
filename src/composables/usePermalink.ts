@@ -18,6 +18,7 @@ export interface PermalinkState {
 
 export function usePermalink() {
   const shouldUpdate = ref(true)
+  const lastBbox = ref<[number, number, number, number] | undefined>(undefined)
 
   // Default values
   const defaultState: PermalinkState = {
@@ -125,26 +126,29 @@ export function usePermalink() {
 
     // If we have a currentMgrsTileId, include bbox and search settings
     if (currentMgrsTileId) {
-      // Add bbox if provided (right after grid cell)
-      if (bbox) {
+      // Decide which bbox to use: newly provided or last known
+      const bboxToUse = bbox ?? lastBbox.value
+
+      // Add bbox if available (right after grid cell)
+      if (bboxToUse) {
         // Round to 8 significant digits
-        const roundedBbox = bbox.map(coord => parseFloat(coord.toPrecision(8)))
+        const roundedBbox = bboxToUse.map(coord => parseFloat(coord.toPrecision(8)))
         hashParts.push(`bbox:${roundedBbox.join(',')}`)
-        
-        // Only add search settings when we're updating with a bbox
-        const stored = localStorage.getItem('ftw-search-settings')
-        if (stored) {
-          try {
-            const parsed = JSON.parse(stored)
-            // Add search settings to the hash
-            if (parsed.startDate) hashParts.push(`start_date:${parsed.startDate}`)
-            if (parsed.endDate) hashParts.push(`end_date:${parsed.endDate}`)
-            if (parsed.cloudCover !== undefined) hashParts.push(`cloud_cover:${parsed.cloudCover}`)
-            if (parsed.areaCoverage !== undefined)
-              hashParts.push(`area_coverage:${parsed.areaCoverage}`)
-          } catch (error) {
-            console.error('Error parsing stored settings for permalink:', error)
-          }
+      }
+      
+      // Add search settings when we have a currentMgrsTileId (regardless of bbox)
+      const stored = localStorage.getItem('ftw-search-settings')
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored)
+          // Add search settings to the hash
+          if (parsed.startDate) hashParts.push(`start_date:${parsed.startDate}`)
+          if (parsed.endDate) hashParts.push(`end_date:${parsed.endDate}`)
+          if (parsed.cloudCover !== undefined) hashParts.push(`cloud_cover:${parsed.cloudCover}`)
+          if (parsed.areaCoverage !== undefined)
+            hashParts.push(`area_coverage:${parsed.areaCoverage}`)
+        } catch (error) {
+          console.error('Error parsing stored settings for permalink:', error)
         }
       }
     }
@@ -157,7 +161,12 @@ export function usePermalink() {
       currentMgrsTileId,
       activeTileId,
       secondActiveTileId,
-      bbox,
+      bbox: bbox ?? lastBbox.value,
+    }
+
+    // Persist last known bbox if a new one was provided
+    if (bbox) {
+      lastBbox.value = bbox
     }
 
     window.history.pushState(state, 'map', hash)
@@ -186,6 +195,7 @@ export function usePermalink() {
     activeTileId: Ref<string | null>,
     secondActiveTileId: Ref<string | null>,
     onTileRestore?: (mgrsTileId: string, searchSettings?: any, bbox?: [number, number, number, number]) => void,
+    getCurrentBbox?: () => [number, number, number, number] | undefined,
   ) => {
     // Restore initial state from URL
     const initialState = parsePermalink()
@@ -195,6 +205,8 @@ export function usePermalink() {
     currentMgrsTileId.value = initialState.currentMgrsTileId
     activeTileId.value = initialState.activeTileId
     secondActiveTileId.value = initialState.secondActiveTileId
+    // Seed last bbox from initial state, if present
+    lastBbox.value = initialState.bbox
 
     // If we have a restored MGRS tile ID, trigger the search
     if (initialState.currentMgrsTileId && onTileRestore) {
@@ -214,7 +226,14 @@ export function usePermalink() {
 
     // Update permalink when map moves
     map.on('moveend', async () => {
-      await updatePermalink(map, currentMgrsTileId.value, activeTileId.value, secondActiveTileId.value)
+      const currentBbox = getCurrentBbox ? getCurrentBbox() : undefined
+      await updatePermalink(
+        map,
+        currentMgrsTileId.value,
+        activeTileId.value,
+        secondActiveTileId.value,
+        currentBbox ?? lastBbox.value,
+      )
     })
 
     // Handle browser back/forward navigation
@@ -243,6 +262,9 @@ export function usePermalink() {
 
         onTileRestore(state.currentMgrsTileId, searchSettings, state.bbox)
       }
+
+      // Update last bbox from history state
+      lastBbox.value = state.bbox
 
       shouldUpdate.value = false
     })

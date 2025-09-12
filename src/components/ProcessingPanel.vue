@@ -307,11 +307,19 @@ const handleViewOnMap = (
   }
 
   // Update permalink after tile selection changes
+  // Get current bbox from drawnExtent and convert to WGS84
+  let bbox: [number, number, number, number] | undefined
+  if (drawnExtent.value) {
+    const wgs84Extent = transformExtent(drawnExtent.value, 'EPSG:3857', 'EPSG:4326')
+    bbox = wgs84Extent as [number, number, number, number]
+  }
+  
   updateTileSelection(
     props.map,
     currentMgrsTileId.value,
     activeTileId.value,
     secondActiveTileId.value,
+    bbox,
   )
 }
 
