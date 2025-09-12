@@ -15,6 +15,9 @@ export default function createS2GridLayer() {
       }).readFeatures(s2GridData) as Feature<Geometry>[],
     }),
     zIndex: 1000,
+    properties: {
+      name: 's2-grid'
+    },
     style: new Style({
       stroke: new Stroke({
         color: 'rgba(0, 136, 136, 1)', // Green color

@@ -9,14 +9,22 @@ import createCloudlessLayer from '../layers/S2-Cloudless-Layer'
 import { generateJWT } from '../functions/generate-jwt'
 import { useAreaOfInterest } from '../composables/useAreaOfInterest'
 import { useSearch } from '../composables/useSearch'
+import { usePermalink } from '../composables/usePermalink'
 
 const map = shallowRef<Map | null>(null)
 const dataCabinetRef = ref<InstanceType<typeof DataCabinet> | null>(null)
 const areaValues = ref<{ min_area_km2: number; max_area_km2: number } | null>(null)
 const geoJSONResults = ref<any[]>([])
 
-const { addMapClickHandler, drawnExtent } = useAreaOfInterest()
+const {
+  addMapClickHandler,
+  currentMgrsTileId,
+  activeTileId,
+  secondActiveTileId,
+  triggerTileSelection,
+} = useAreaOfInterest()
 const { searchResults, handleSearchResults } = useSearch()
+const { setupPermalink } = usePermalink()
 
 const updateGeoJSONResults = (results: any[]) => {
   geoJSONResults.value = results
@@ -69,16 +77,35 @@ onMounted(async () => {
       map.value as Map,
       dataCabinetRef,
       areaValues.value,
-      drawnExtent,
       searchResults,
       handleSearchResults,
     )
     map.value.addLayer(s2GridLayer)
+
+    // Setup permalink functionality
+    setupPermalink(
+      map.value,
+      currentMgrsTileId,
+      activeTileId,
+      secondActiveTileId,
+      (mgrsTileId: string) => {
+        // This callback will be called when a permalink is loaded with a tile ID
+        // It will automatically trigger the search and tile selection
+        triggerTileSelection(
+          map.value!,
+          mgrsTileId,
+          dataCabinetRef,
+          areaValues.value!,
+          handleSearchResults,
+        )
+      },
+    )
   }
 })
 
 // Expose methods to parent components
 defineExpose({
+  areaValues,
   updateGeoJSONResults,
 })
 </script>
@@ -89,6 +116,8 @@ defineExpose({
     <DataCabinet
       v-if="map"
       :map="map as Map"
+      :areaValues="areaValues!"
+      :dataCabinetRef="dataCabinetRef"
       ref="dataCabinetRef"
       @updateGeoJSONResults="updateGeoJSONResults"
     />

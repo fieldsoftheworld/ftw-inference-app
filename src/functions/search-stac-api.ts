@@ -68,10 +68,25 @@ export interface SearchSettings {
 }
 
 // Function to convert date string to RFC3339 format
-const convertToRFC3339 = (dateString: string): string => {
+const convertToRFC3339 = (dateString: string, isEndDate: boolean = false): string => {
   if (!dateString) return ''
+
+  // Handle month input format (YYYY-MM) by appending appropriate day
+  let fullDateString = dateString
+  if (dateString.match(/^\d{4}-\d{2}$/)) {
+    if (isEndDate) {
+      // For end date, use the last day of the month
+      const [year, month] = dateString.split('-')
+      const lastDay = new Date(parseInt(year), parseInt(month), 0).getDate()
+      fullDateString = `${dateString}-${lastDay.toString().padStart(2, '0')}`
+    } else {
+      // For start date, use the first day of the month
+      fullDateString = dateString + '-01'
+    }
+  }
+
   // Create a Date object and convert to ISO string (RFC3339 format)
-  return new Date(dateString).toISOString()
+  return new Date(fullDateString).toISOString()
 }
 
 // Function to search the STAC API
@@ -82,7 +97,7 @@ export default async function searchStacApi(
 ): Promise<SearchResponse | undefined> {
   // Use provided settings or fall back to DOM elements
   const startDate = settings?.startDate ? convertToRFC3339(settings.startDate) : ''
-  const endDate = settings?.endDate ? convertToRFC3339(settings.endDate) : ''
+  const endDate = settings?.endDate ? convertToRFC3339(settings.endDate, true) : ''
   const cloudCover = settings?.cloudCover || 10
   const areaCoverage = settings?.areaCoverage || 60
 

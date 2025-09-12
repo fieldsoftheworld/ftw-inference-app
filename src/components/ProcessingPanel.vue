@@ -16,6 +16,7 @@ import { useStacLayer } from '../composables/useStacLayer'
 import { useAreaOfInterest } from '../composables/useAreaOfInterest'
 import PropertyDisplay from './PropertyDisplay.vue'
 import { formatMeasurementDisplay } from '../functions/format-measurement-display'
+import { usePermalink } from '../composables/usePermalink'
 
 const props = defineProps<{
   map: Map
@@ -31,6 +32,7 @@ const emit = defineEmits<{
 const { addStacLayer, removeStacLayer } = useStacLayer()
 const { removeExtentInteraction, removeDrawVectorLayer, drawnExtent } = useAreaOfInterest()
 const { projectMessage, dismissMessage } = useProjectMessage()
+const { updateTileSelection } = usePermalink()
 
 const {
   currentBbox,
@@ -40,6 +42,7 @@ const {
   searchStatus,
   availableCollections,
   selectedCollection,
+  handleSearchResults,
 } = useSearch()
 const { currentGridExtent, currentMgrsTileId, activeTileId, secondActiveTileId } =
   useAreaOfInterest()
@@ -71,6 +74,7 @@ const isProcessing = ref(false)
 const projectTitle = ref(new Date().toISOString())
 const isFirstResultsOpen = ref(false)
 const isSecondResultsOpen = ref(false)
+const hasLoadedMore = ref(false)
 const retryTimeout = ref<number | null>(null)
 const vectorLayer = shallowRef<VectorLayer<VectorSource> | null>(null)
 
@@ -79,6 +83,30 @@ const selectedFeature = ref<any>(null)
 const propertiesBoxPosition = ref<{ x: number; y: number } | null>(null)
 const originalClickPosition = ref<{ x: number; y: number } | null>(null)
 const showPropertiesBox = ref(false)
+
+// For loadMore, we need to pass the same settings as the initial search
+// Get current settings from localStorage since that's where they're stored
+const stored = localStorage.getItem('ftw-search-settings')
+let currentSettings = {
+  startDate: '',
+  endDate: '',
+  cloudCover: 10,
+  areaCoverage: 60,
+}
+
+if (stored) {
+  try {
+    const parsed = JSON.parse(stored)
+    currentSettings = {
+      startDate: parsed.startDate || '',
+      endDate: parsed.endDate || '',
+      cloudCover: parsed.cloudCover || 10,
+      areaCoverage: parsed.areaCoverage || 60,
+    }
+  } catch (error) {
+    console.error('Error parsing stored settings:', error)
+  }
+}
 
 const toggleAccordion = () => {
   isOpen.value = !isOpen.value
@@ -187,34 +215,11 @@ const loadMore = async () => {
 
   isLoading.value = true
   try {
-    // For loadMore, we need to pass the same settings as the initial search
-    // Get current settings from localStorage since that's where they're stored
-    const stored = localStorage.getItem('ftw-search-settings')
-    let currentSettings = {
-      startDate: '',
-      endDate: '',
-      cloudCover: 10,
-      areaCoverage: 60,
-    }
-
-    if (stored) {
-      try {
-        const parsed = JSON.parse(stored)
-        currentSettings = {
-          startDate: parsed.startDate || '',
-          endDate: parsed.endDate || '',
-          cloudCover: parsed.cloudCover || 10,
-          areaCoverage: parsed.areaCoverage || 60,
-        }
-      } catch (error) {
-        console.error('Error parsing stored settings:', error)
-      }
-    }
-
     const response = await searchStacApi(currentBbox.value, false, currentSettings)
     if (response) {
-      searchResults.value = [...searchResults.value, ...response.results]
+      searchResults.value = response.results
       hasMore.value = response.hasMore
+      hasLoadedMore.value = true // Mark that loadMore has been called
 
       if (response.results.length === 0) {
         searchStatus.value = `No more images found. Try adjusting your filters (date range, cloud cover, area coverage) to increase the likelihood of finding more results.`
@@ -226,6 +231,15 @@ const loadMore = async () => {
   } finally {
     isLoading.value = false
   }
+}
+
+// Function to reset to original search results
+const resetToOriginalSearch = async () => {
+  if (!currentMgrsTileId.value || !currentBbox.value) return
+
+  // Use the existing handleSearchResults function to reset to original search
+  await handleSearchResults(currentMgrsTileId.value, currentBbox.value, currentSettings)
+  hasLoadedMore.value = false // Reset the flag
 }
 
 const handleViewOnMap = (
@@ -291,6 +305,14 @@ const handleViewOnMap = (
       }
     }
   }
+
+  // Update permalink after tile selection changes
+  updateTileSelection(
+    props.map,
+    currentMgrsTileId.value,
+    activeTileId.value,
+    secondActiveTileId.value,
+  )
 }
 
 const getActiveTileThumbnail = (isSecond: boolean = false) => {
@@ -899,14 +921,24 @@ defineExpose({
                 </div>
               </template>
 
-              <button
-                v-if="hasMore"
-                @click="loadMore"
-                class="load-more-button"
-                :disabled="isLoading"
-              >
-                Load More
-              </button>
+              <div class="button-group">
+                <button
+                  v-if="hasMore"
+                  @click="loadMore"
+                  class="load-more-button"
+                  :disabled="isLoading"
+                >
+                  Load More
+                </button>
+                <button
+                  v-if="hasLoadedMore"
+                  @click="resetToOriginalSearch"
+                  class="reset-button"
+                  :disabled="isLoading"
+                >
+                  Reset
+                </button>
+              </div>
             </div>
           </transition>
 
@@ -965,14 +997,24 @@ defineExpose({
                   </div>
                 </template>
 
-                <button
-                  v-if="hasMore"
-                  @click="loadMore"
-                  class="load-more-button"
-                  :disabled="isLoading"
-                >
-                  Load More
-                </button>
+                <div class="button-group">
+                  <button
+                    v-if="hasMore"
+                    @click="loadMore"
+                    class="load-more-button"
+                    :disabled="isLoading"
+                  >
+                    Load More
+                  </button>
+                  <button
+                    v-if="hasLoadedMore"
+                    @click="resetToOriginalSearch"
+                    class="reset-button"
+                    :disabled="isLoading"
+                  >
+                    Reset
+                  </button>
+                </div>
               </div>
             </transition>
           </div>
@@ -1274,8 +1316,7 @@ defineExpose({
   padding: 0.75rem;
   border-radius: 4px;
   cursor: pointer;
-  width: 100%;
-  margin-top: 1rem;
+  flex: 1;
   font-size: 0.875rem;
 }
 
@@ -1285,6 +1326,32 @@ defineExpose({
 
 .load-more-button:disabled {
   background-color: rgba(0, 136, 136, 0.4);
+  cursor: not-allowed;
+}
+
+.button-group {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.reset-button {
+  background-color: rgba(255, 165, 0, 0.8);
+  color: white;
+  border: none;
+  padding: 0.75rem;
+  border-radius: 4px;
+  cursor: pointer;
+  flex: 1;
+  font-size: 0.875rem;
+}
+
+.reset-button:hover {
+  background-color: rgba(255, 165, 0, 1);
+}
+
+.reset-button:disabled {
+  background-color: rgba(255, 165, 0, 0.4);
   cursor: not-allowed;
 }
 

@@ -29,17 +29,6 @@ const saveSettings = () => {
   // Save settings to localStorage
   localStorage.setItem('ftw-search-settings', JSON.stringify(settings.value))
 
-  // Update the form inputs with the new settings
-  const startDateInput = document.getElementById('start-date') as HTMLInputElement
-  const endDateInput = document.getElementById('end-date') as HTMLInputElement
-  const cloudCoverInput = document.getElementById('cloud-cover') as HTMLInputElement
-  const areaCoverageInput = document.getElementById('area-coverage') as HTMLInputElement
-
-  if (startDateInput) startDateInput.value = settings.value.startDate
-  if (endDateInput) endDateInput.value = settings.value.endDate
-  if (cloudCoverInput) cloudCoverInput.value = settings.value.cloudCover.toString()
-  if (areaCoverageInput) areaCoverageInput.value = settings.value.areaCoverage.toString()
-
   emit('save', settings.value)
   closeModal()
 }
