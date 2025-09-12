@@ -128,6 +128,19 @@ function addExtentInteraction(
 
       // Check geometry containment if both tiles are selected
       checkBboxContainment(newExtent, drawnExtent, searchResults)
+      
+      // Update permalink with new bbox
+      if (currentMgrsTileId.value) {
+        const wgs84Extent = transformExtent(newExtent, 'EPSG:3857', 'EPSG:4326')
+        const bbox = wgs84Extent as [number, number, number, number]
+        updateTileSelection(
+          map,
+          currentMgrsTileId.value,
+          activeTileId.value,
+          secondActiveTileId.value,
+          bbox,
+        )
+      }
     }
   })
 
@@ -401,6 +414,17 @@ function addMapClickHandler(
           }
 
           handleSearchResults(currentMgrsTileId.value, bbox, currentSettings)
+          
+          // Update permalink with initial bbox
+          const wgs84Bbox = transformExtent(bbox, 'EPSG:3857', 'EPSG:4326') as [number, number, number, number]
+          updateTileSelection(
+            map,
+            currentMgrsTileId.value,
+            activeTileId.value,
+            secondActiveTileId.value,
+            wgs84Bbox,
+          )
+          
           // Open the Batch Processing accordion
           if (dataCabinetRef.value?.handleProcessingToggle) {
             dataCabinetRef.value.handleProcessingToggle(true)
@@ -536,6 +560,16 @@ function triggerTileSelection(
 
         handleSearchResults(currentMgrsTileId.value, finalBbox, currentSettings)
 
+        // Update permalink with initial bbox
+        const wgs84FinalBbox = transformExtent(finalBbox, 'EPSG:3857', 'EPSG:4326') as [number, number, number, number]
+        updateTileSelection(
+          map,
+          currentMgrsTileId.value,
+          activeTileId.value,
+          secondActiveTileId.value,
+          wgs84FinalBbox,
+        )
+
         // Open the Batch Processing accordion
         if (dataCabinetRef.value?.handleProcessingToggle) {
           dataCabinetRef.value.handleProcessingToggle(true)
@@ -567,12 +601,20 @@ export function useAreaOfInterest() {
     clearResultsAndZoomToGrid,
     triggerTileSelection,
     calculateArea,
-    updatePermalink: (map: Map) => {
-      updateTileSelection(
+    updatePermalink: async (map: Map) => {
+      // Get current bbox from drawnExtent and convert to WGS84
+      let bbox: [number, number, number, number] | undefined
+      if (drawnExtent.value) {
+        const wgs84Extent = transformExtent(drawnExtent.value, 'EPSG:3857', 'EPSG:4326')
+        bbox = wgs84Extent as [number, number, number, number]
+      }
+      
+      await updateTileSelection(
         map,
         currentMgrsTileId.value,
         activeTileId.value,
         secondActiveTileId.value,
+        bbox,
       )
     },
   }

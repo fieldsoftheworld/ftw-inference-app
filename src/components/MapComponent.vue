@@ -64,8 +64,8 @@ onMounted(async () => {
     }
   } catch (error) {
     areaValues.value = {
-      min_area_km2: 500,
-      max_area_km2: 100,
+      min_area_km2: 100,
+      max_area_km2: 500,
     }
     console.error('Error fetching area values:', error)
   }
@@ -83,12 +83,12 @@ onMounted(async () => {
     map.value.addLayer(s2GridLayer)
 
     // Setup permalink functionality
-    setupPermalink(
+    await setupPermalink(
       map.value,
       currentMgrsTileId,
       activeTileId,
       secondActiveTileId,
-      (mgrsTileId: string) => {
+      (mgrsTileId: string, searchSettings?: any, bbox?: [number, number, number, number]) => {
         // This callback will be called when a permalink is loaded with a tile ID
         // It will automatically trigger the search and tile selection
         triggerTileSelection(
@@ -97,6 +97,7 @@ onMounted(async () => {
           dataCabinetRef,
           areaValues.value!,
           handleSearchResults,
+          bbox,
         )
       },
     )

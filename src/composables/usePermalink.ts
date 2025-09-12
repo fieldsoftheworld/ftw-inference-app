@@ -7,6 +7,8 @@ export interface PermalinkState {
   currentMgrsTileId: string | null
   activeTileId: string | null
   secondActiveTileId: string | null
+  // Bounding box in longitude/latitude format [minx, miny, maxx, maxy]
+  bbox?: [number, number, number, number]
   // Search settings - only included when currentMgrsTileId is present
   startDate?: string
   endDate?: string
@@ -56,17 +58,24 @@ export function usePermalink() {
           result.secondActiveTileId = parts[5]
         }
 
-        // Parse search settings
+        // Parse bbox and search settings (bbox comes first after tile IDs)
         for (let i = 6; i < parts.length; i++) {
           const part = parts[i]
-          if (part.startsWith('start_date:')) {
-            result.startDate = part.substring(2)
+          if (part.startsWith('bbox:')) {
+            // Parse bbox in format "bbox:minx,miny,maxx,maxy"
+            const bboxStr = part.substring(5) // Remove "bbox:" prefix
+            const bboxCoords = bboxStr.split(',').map(coord => parseFloat(coord))
+            if (bboxCoords.length === 4 && bboxCoords.every(coord => !isNaN(coord))) {
+              result.bbox = bboxCoords as [number, number, number, number]
+            }
+          } else if (part.startsWith('start_date:')) {
+            result.startDate = part.substring(11) // Remove "start_date:" prefix
           } else if (part.startsWith('end_date:')) {
-            result.endDate = part.substring(2)
+            result.endDate = part.substring(9) // Remove "end_date:" prefix
           } else if (part.startsWith('cloud_cover:')) {
-            result.cloudCover = parseInt(part.substring(2))
+            result.cloudCover = parseInt(part.substring(12)) // Remove "cloud_cover:" prefix
           } else if (part.startsWith('area_coverage:')) {
-            result.areaCoverage = parseInt(part.substring(2))
+            result.areaCoverage = parseInt(part.substring(14)) // Remove "area_coverage:" prefix
           }
         }
 
@@ -80,11 +89,12 @@ export function usePermalink() {
   }
 
   // Update permalink in URL
-  const updatePermalink = (
+  const updatePermalink = async (
     map: Map,
     currentMgrsTileId: string | null,
     activeTileId: string | null,
     secondActiveTileId: string | null,
+    bbox?: [number, number, number, number],
   ) => {
     if (!shouldUpdate.value) {
       shouldUpdate.value = true
@@ -97,28 +107,44 @@ export function usePermalink() {
 
     if (!center || zoom === undefined) return
 
+    // Convert center from Web Mercator to WGS84 (lat/long)
+    const { transform } = await import('ol/proj')
+    const wgs84Center = transform(center, 'EPSG:3857', 'EPSG:4326')
+
     // Build hash parts, excluding null values
-    const hashParts = [zoom.toFixed(2), center[0].toFixed(2), center[1].toFixed(2)]
+    const hashParts = [
+      zoom.toFixed(2), 
+      parseFloat(wgs84Center[0].toPrecision(6)), 
+      parseFloat(wgs84Center[1].toPrecision(6))
+    ]
 
     // Only add non-null tile IDs to the hash
     if (currentMgrsTileId) hashParts.push(currentMgrsTileId)
     if (activeTileId) hashParts.push(activeTileId)
     if (secondActiveTileId) hashParts.push(secondActiveTileId)
 
-    // If we have a currentMgrsTileId, include search settings
+    // If we have a currentMgrsTileId, include bbox and search settings
     if (currentMgrsTileId) {
-      const stored = localStorage.getItem('ftw-search-settings')
-      if (stored) {
-        try {
-          const parsed = JSON.parse(stored)
-          // Add search settings to the hash
-          if (parsed.startDate) hashParts.push(`start_date:${parsed.startDate}`)
-          if (parsed.endDate) hashParts.push(`end_date:${parsed.endDate}`)
-          if (parsed.cloudCover !== undefined) hashParts.push(`cloud_cover:${parsed.cloudCover}`)
-          if (parsed.areaCoverage !== undefined)
-            hashParts.push(`area_coverage:${parsed.areaCoverage}`)
-        } catch (error) {
-          console.error('Error parsing stored settings for permalink:', error)
+      // Add bbox if provided (right after grid cell)
+      if (bbox) {
+        // Round to 8 significant digits
+        const roundedBbox = bbox.map(coord => parseFloat(coord.toPrecision(8)))
+        hashParts.push(`bbox:${roundedBbox.join(',')}`)
+        
+        // Only add search settings when we're updating with a bbox
+        const stored = localStorage.getItem('ftw-search-settings')
+        if (stored) {
+          try {
+            const parsed = JSON.parse(stored)
+            // Add search settings to the hash
+            if (parsed.startDate) hashParts.push(`start_date:${parsed.startDate}`)
+            if (parsed.endDate) hashParts.push(`end_date:${parsed.endDate}`)
+            if (parsed.cloudCover !== undefined) hashParts.push(`cloud_cover:${parsed.cloudCover}`)
+            if (parsed.areaCoverage !== undefined)
+              hashParts.push(`area_coverage:${parsed.areaCoverage}`)
+          } catch (error) {
+            console.error('Error parsing stored settings for permalink:', error)
+          }
         }
       }
     }
@@ -131,17 +157,22 @@ export function usePermalink() {
       currentMgrsTileId,
       activeTileId,
       secondActiveTileId,
+      bbox,
     }
 
     window.history.pushState(state, 'map', hash)
   }
 
   // Restore map state from permalink
-  const restoreMapState = (map: Map, state: PermalinkState) => {
+  const restoreMapState = async (map: Map, state: PermalinkState) => {
     const view = map.getView()
 
+    // Convert center from WGS84 (lat/long) to Web Mercator
+    const { transform } = await import('ol/proj')
+    const webMercatorCenter = transform(state.center, 'EPSG:4326', 'EPSG:3857')
+
     // Set center and zoom
-    view.setCenter(state.center)
+    view.setCenter(webMercatorCenter)
     view.setZoom(state.zoom)
 
     // Note: Tile IDs will be restored by the calling component
@@ -149,16 +180,16 @@ export function usePermalink() {
   }
 
   // Setup permalink functionality
-  const setupPermalink = (
+  const setupPermalink = async (
     map: Map,
     currentMgrsTileId: Ref<string | null>,
     activeTileId: Ref<string | null>,
     secondActiveTileId: Ref<string | null>,
-    onTileRestore?: (mgrsTileId: string, searchSettings?: any) => void,
+    onTileRestore?: (mgrsTileId: string, searchSettings?: any, bbox?: [number, number, number, number]) => void,
   ) => {
     // Restore initial state from URL
     const initialState = parsePermalink()
-    restoreMapState(map, initialState)
+    await restoreMapState(map, initialState)
 
     // Update the refs with the restored values
     currentMgrsTileId.value = initialState.currentMgrsTileId
@@ -177,23 +208,23 @@ export function usePermalink() {
 
       // Use setTimeout to ensure the map is fully initialized
       setTimeout(() => {
-        onTileRestore(initialState.currentMgrsTileId!, searchSettings)
+        onTileRestore(initialState.currentMgrsTileId!, searchSettings, initialState.bbox)
       }, 100)
     }
 
     // Update permalink when map moves
-    map.on('moveend', () => {
-      updatePermalink(map, currentMgrsTileId.value, activeTileId.value, secondActiveTileId.value)
+    map.on('moveend', async () => {
+      await updatePermalink(map, currentMgrsTileId.value, activeTileId.value, secondActiveTileId.value)
     })
 
     // Handle browser back/forward navigation
-    window.addEventListener('popstate', (event) => {
+    window.addEventListener('popstate', async (event) => {
       if (event.state === null) {
         return
       }
 
       const state = event.state as PermalinkState
-      restoreMapState(map, state)
+      await restoreMapState(map, state)
 
       // Update the refs
       currentMgrsTileId.value = state.currentMgrsTileId
@@ -210,7 +241,7 @@ export function usePermalink() {
           areaCoverage: state.areaCoverage || 60,
         }
 
-        onTileRestore(state.currentMgrsTileId, searchSettings)
+        onTileRestore(state.currentMgrsTileId, searchSettings, state.bbox)
       }
 
       shouldUpdate.value = false
@@ -218,13 +249,14 @@ export function usePermalink() {
   }
 
   // Update permalink when tile selection changes
-  const updateTileSelection = (
+  const updateTileSelection = async (
     map: Map,
     currentMgrsTileId: string | null,
     activeTileId: string | null,
     secondActiveTileId: string | null,
+    bbox?: [number, number, number, number],
   ) => {
-    updatePermalink(map, currentMgrsTileId, activeTileId, secondActiveTileId)
+    await updatePermalink(map, currentMgrsTileId, activeTileId, secondActiveTileId, bbox)
   }
 
   return {
