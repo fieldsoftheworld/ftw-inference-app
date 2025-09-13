@@ -16,6 +16,8 @@ export interface SearchResult {
 
 export type SearchResults = Ref<SearchResult[]>
 
+export const searchResults = ref<SearchResult[]>([])
+
 const availableCollections = [['sentinel-2-c1-l2a'], ['sentinel-2-l2a']]
 
 const hasMore = ref(false)
@@ -23,13 +25,12 @@ const isLoading = ref(false)
 const searchStatus = ref('')
 /** Grid extent, reduced by shrink factor (70% of grid extent) */
 const currentBbox = ref<number[] | undefined>(undefined)
-const searchResults = ref<SearchResult[]>([])
 const selectedCollection = ref<string[]>(availableCollections[0])
 
 let unwatch: () => void
 
 // Function to handle search results
-const handleSearchResults = async (
+export const handleSearchResults = async (
   mgrsTileId: string,
   bbox?: number[],
   settings: SearchSettings = {} as SearchSettings,
@@ -69,7 +70,7 @@ const handleSearchResults = async (
   )
 }
 
-const clearSearchResults = () => {
+export const clearSearchResults = () => {
   searchResults.value = []
   hasMore.value = false
   isLoading.value = false

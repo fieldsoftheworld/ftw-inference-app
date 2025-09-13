@@ -6,12 +6,12 @@ import {
   getHeight,
   getIntersection,
   getWidth,
+  isEmpty,
   type Extent,
 } from 'ol/extent'
 import ExtentInteraction from 'ol/interaction/Extent'
 import { Fill, Stroke, Style } from 'ol/style'
 import { ref, type Ref, shallowRef } from 'vue'
-import type DataCabinet from '../components/DataCabinet.vue'
 import VectorLayer from 'ol/layer/Vector'
 import VectorSource from 'ol/source/Vector'
 import Polygon, { fromExtent } from 'ol/geom/Polygon'
@@ -19,12 +19,8 @@ import { transformExtent } from 'ol/proj'
 import { getArea } from 'ol/sphere'
 import { showWarning } from '../functions/snackbar'
 import { booleanWithin as turfBooleanWithin } from '@turf/boolean-within'
-import { useSearch, type SearchResults } from './useSearch'
+import { clearSearchResults, searchResults, type SearchResults } from './useSearch'
 import { Feature as GeoJSONFeature, Polygon as GeoJSONPolygon } from 'geojson'
-import { usePermalink } from './usePermalink'
-
-const { clearSearchResults, searchResults } = useSearch()
-const { updateTileSelection } = usePermalink()
 
 const invalidStyle = new Style({
   stroke: new Stroke({
@@ -47,9 +43,9 @@ const validStyle = new Style({
 })
 
 const extentInteraction = shallowRef<ExtentInteraction | null>(null)
-const currentMgrsTileId = ref<string | null>(null)
-const activeTileId = ref<string | null>(null)
-const secondActiveTileId = ref<string | null>(null)
+export const currentMgrsTileId = ref<string | null>(null)
+export const activeTileId = ref<string | null>(null)
+export const secondActiveTileId = ref<string | null>(null)
 /** Full grid extent */
 const currentGridExtent = ref<Extent | null>(null)
 /** User bbox */
@@ -301,7 +297,6 @@ const checkBboxContainment = (
 
 function addMapClickHandler(
   map: Map,
-  dataCabinetRef: Ref<InstanceType<typeof DataCabinet> | null>,
   areaValues: { min_area_km2: number; max_area_km2: number },
   searchResults: SearchResults,
   handleSearchResults: (mgrsTileId: string, bbox?: number[], settings?: any) => void,
@@ -315,9 +310,10 @@ function addMapClickHandler(
 
     removeExtentInteraction()
 
-    const feature = map.forEachFeatureAtPixel(event.pixel, (feature) => feature)
+    const features = map.getFeaturesAtPixel(event.pixel)
 
-    if (feature) {
+    let extentFound = false
+    for (const feature of features) {
       // Get the MGRS Tile ID from the feature properties
       const mgrsTileId = feature.get('Name')
       currentMgrsTileId.value = mgrsTileId
@@ -343,6 +339,9 @@ function addMapClickHandler(
           extent,
           calculateBoundingBox(extentAtClickedPosition, areaValues),
         )
+        if (isEmpty(bboxExtent)) {
+          continue
+        }
 
         // Set initial bounding box
         const bboxPolygon = fromExtent(bboxExtent)
@@ -401,10 +400,6 @@ function addMapClickHandler(
           }
 
           handleSearchResults(currentMgrsTileId.value, bbox, currentSettings)
-          // Open the Batch Processing accordion
-          if (dataCabinetRef.value?.handleProcessingToggle) {
-            dataCabinetRef.value.handleProcessingToggle(true)
-          }
         } else {
           console.error('S2 Grid Layer: Current MGRS Tile ID is null')
         }
@@ -416,8 +411,11 @@ function addMapClickHandler(
 
         // Create and add Modify interaction with size restriction
         addExtentInteraction(map, bboxExtent, areaValues, searchResults)
+        extentFound = true
+        break
       }
-    } else {
+    }
+    if (!extentFound) {
       // If clicked outside a feature, clear the selection
       if (drawVectorLayer) {
         map.removeLayer(drawVectorLayer)
@@ -429,10 +427,9 @@ function addMapClickHandler(
 }
 
 // Function to programmatically trigger tile selection and search
-function triggerTileSelection(
+export function triggerTileSelection(
   map: Map,
   mgrsTileId: string,
-  dataCabinetRef: Ref<InstanceType<typeof DataCabinet> | null>,
   areaValues: { min_area_km2: number; max_area_km2: number },
   handleSearchResults: (mgrsTileId: string, bbox?: number[], settings?: any) => void,
   bbox?: number[],
@@ -535,13 +532,7 @@ function triggerTileSelection(
         }
 
         handleSearchResults(currentMgrsTileId.value, finalBbox, currentSettings)
-
-        // Open the Batch Processing accordion
-        if (dataCabinetRef.value?.handleProcessingToggle) {
-          dataCabinetRef.value.handleProcessingToggle(true)
-        }
       }
-      console.log(map.getLayers().getArray())
       // Add the layer and interactions
       if (!layers.includes(drawVectorLayer)) {
         map.addLayer(drawVectorLayer)
@@ -567,13 +558,5 @@ export function useAreaOfInterest() {
     clearResultsAndZoomToGrid,
     triggerTileSelection,
     calculateArea,
-    updatePermalink: (map: Map) => {
-      updateTileSelection(
-        map,
-        currentMgrsTileId.value,
-        activeTileId.value,
-        secondActiveTileId.value,
-      )
-    },
   }
 }
