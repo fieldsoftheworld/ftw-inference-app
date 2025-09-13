@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, shallowRef } from 'vue'
+import { ref, onMounted } from 'vue'
 import { Map, View } from 'ol'
 import DataCabinet from './DataCabinet.vue'
 import Snackbar from './Snackbar.vue'
@@ -10,19 +10,13 @@ import { generateJWT } from '../functions/generate-jwt'
 import { useAreaOfInterest } from '../composables/useAreaOfInterest'
 import { useSearch } from '../composables/useSearch'
 import { usePermalink } from '../composables/usePermalink'
+import { useMap } from '../composables/useMap'
 
-const map = shallowRef<Map | null>(null)
+const { map, areaValues } = useMap()
 const dataCabinetRef = ref<InstanceType<typeof DataCabinet> | null>(null)
-const areaValues = ref<{ min_area_km2: number; max_area_km2: number } | null>(null)
 const geoJSONResults = ref<any[]>([])
 
-const {
-  addMapClickHandler,
-  currentMgrsTileId,
-  activeTileId,
-  secondActiveTileId,
-  triggerTileSelection,
-} = useAreaOfInterest()
+const { addMapClickHandler } = useAreaOfInterest()
 const { searchResults, handleSearchResults } = useSearch()
 const { setupPermalink } = usePermalink()
 
@@ -73,33 +67,11 @@ onMounted(async () => {
   // Add S2 Grid layer after map is initialized
   if (map.value) {
     const s2GridLayer = createS2GridLayer()
-    addMapClickHandler(
-      map.value as Map,
-      dataCabinetRef,
-      areaValues.value,
-      searchResults,
-      handleSearchResults,
-    )
+    addMapClickHandler(map.value as Map, areaValues.value, searchResults, handleSearchResults)
     map.value.addLayer(s2GridLayer)
 
     // Setup permalink functionality
-    setupPermalink(
-      map.value,
-      currentMgrsTileId,
-      activeTileId,
-      secondActiveTileId,
-      (mgrsTileId: string) => {
-        // This callback will be called when a permalink is loaded with a tile ID
-        // It will automatically trigger the search and tile selection
-        triggerTileSelection(
-          map.value!,
-          mgrsTileId,
-          dataCabinetRef,
-          areaValues.value!,
-          handleSearchResults,
-        )
-      },
-    )
+    setupPermalink()
   }
 })
 

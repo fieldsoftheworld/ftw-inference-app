@@ -16,6 +16,8 @@ export interface SearchResult {
 
 export type SearchResults = Ref<SearchResult[]>
 
+export const searchResults = ref<SearchResult[]>([])
+
 const availableCollections = [['sentinel-2-c1-l2a'], ['sentinel-2-l2a']]
 
 const hasMore = ref(false)
@@ -23,13 +25,12 @@ const isLoading = ref(false)
 const searchStatus = ref('')
 /** Grid extent, reduced by shrink factor (70% of grid extent) */
 const currentBbox = ref<number[] | undefined>(undefined)
-const searchResults = ref<SearchResult[]>([])
 const selectedCollection = ref<string[]>(availableCollections[0])
 
 let unwatch: () => void
 
 // Function to handle search results
-const handleSearchResults = async (
+export const handleSearchResults = async (
   mgrsTileId: string,
   bbox?: number[],
   settings: SearchSettings = {} as SearchSettings,
@@ -39,37 +40,36 @@ const handleSearchResults = async (
 
   currentBbox.value = bbox
 
+  const performSearch = async () => {
+    settings.collections = selectedCollection.value
+    try {
+      const response = await searchStacApi(bbox, true, settings)
+      if (response) {
+        searchResults.value = response.results
+        hasMore.value = response.hasMore
+
+        if (response.results.length === 0) {
+          searchStatus.value = `No images found. Try adjusting your filters (date range, cloud cover, area coverage) to increase the likelihood of finding results.`
+        } else {
+          searchStatus.value = `Found ${response.results.length} images`
+        }
+      }
+    } catch (error: unknown) {
+      console.error('DataCabinet: Error searching:', error)
+      searchStatus.value = `Error searching: ${error instanceof Error ? error.message : 'Unknown error'}`
+    } finally {
+      isLoading.value = false
+    }
+  }
+  await performSearch()
+
   if (unwatch) {
     unwatch()
   }
-  unwatch = watch(
-    selectedCollection,
-    async (newCollection) => {
-      settings.collections = newCollection
-      try {
-        const response = await searchStacApi(bbox, true, settings)
-        if (response) {
-          searchResults.value = response.results
-          hasMore.value = response.hasMore
-
-          if (response.results.length === 0) {
-            searchStatus.value = `No images found. Try adjusting your filters (date range, cloud cover, area coverage) to increase the likelihood of finding results.`
-          } else {
-            searchStatus.value = `Found ${response.results.length} images`
-          }
-        }
-      } catch (error: unknown) {
-        console.error('DataCabinet: Error searching:', error)
-        searchStatus.value = `Error searching: ${error instanceof Error ? error.message : 'Unknown error'}`
-      } finally {
-        isLoading.value = false
-      }
-    },
-    { immediate: true },
-  )
+  unwatch = watch(selectedCollection, performSearch)
 }
 
-const clearSearchResults = () => {
+export const clearSearchResults = () => {
   searchResults.value = []
   hasMore.value = false
   isLoading.value = false

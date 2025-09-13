@@ -1,14 +1,12 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
-import type { Map } from 'ol'
 import { mdiMagnify, mdiClose } from '@mdi/js'
 import { useAreaOfInterest } from '../composables/useAreaOfInterest'
 import { fromExtent } from 'ol/geom/Polygon'
+import { useMap } from '../composables/useMap'
 
 interface Props {
   isOpen: boolean
-  map: Map
-  areaValues: { min_area_km2: number; max_area_km2: number }
 }
 
 interface Emits {
@@ -24,6 +22,7 @@ interface Emits {
 const props = defineProps<Props>()
 const emit = defineEmits<Emits>()
 
+const { map, areaValues } = useMap()
 // Use the area calculation function and drawnExtent from the composable
 const { calculateArea } = useAreaOfInterest()
 
@@ -94,19 +93,22 @@ const parseBboxInput = (input: string): { isValid: boolean; bbox: number[]; erro
 
 // Function to validate bbox area
 const validateBboxArea = (bbox: number[]): { isValid: boolean; message: string } => {
+  if (!areaValues.value) {
+    return { isValid: false, message: 'Area values are not available' }
+  }
   const area = calculateBboxArea(bbox)
 
-  if (area < props.areaValues.min_area_km2) {
+  if (area < areaValues.value.min_area_km2) {
     return {
       isValid: false,
-      message: `Bounding box area (${area.toFixed(2)} km²) is too small. Minimum area required: ${props.areaValues.min_area_km2} km²`,
+      message: `Bounding box area (${area.toFixed(2)} km²) is too small. Minimum area required: ${areaValues.value.min_area_km2} km²`,
     }
   }
 
-  if (area > props.areaValues.max_area_km2) {
+  if (area > areaValues.value.max_area_km2) {
     return {
       isValid: false,
-      message: `Bounding box area (${area.toFixed(2)} km²) is too large. Maximum area allowed: ${props.areaValues.max_area_km2} km²`,
+      message: `Bounding box area (${area.toFixed(2)} km²) is too large. Maximum area allowed: ${areaValues.value.max_area_km2} km²`,
     }
   }
 
@@ -127,11 +129,11 @@ const closeModal = () => {
 
 // Load available S2 tiles from the map layer
 const loadAvailableTiles = () => {
-  if (!props.map) {
+  if (!map.value) {
     return
   }
 
-  const layers = props.map.getLayers().getArray()
+  const layers = map.value.getLayers().getArray()
 
   const s2GridLayer = layers.find(
     (layer) =>
@@ -185,7 +187,7 @@ const navigateToTileAndSearch = () => {
     const extent = geometry.getExtent()
 
     // Fit the map view to the tile extent with padding
-    props.map.getView().fit(extent, {
+    map.value?.getView().fit(extent, {
       duration: 1000,
       maxZoom: 13,
       padding: [50, 50, 50, 50],
@@ -298,7 +300,7 @@ onMounted(() => {
 
 // Watch for map changes to reload tiles
 watch(
-  () => props.map,
+  () => map.value,
   (newMap) => {
     if (newMap) {
       loadAvailableTiles()
@@ -318,7 +320,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div v-if="isOpen" class="modal-overlay" @click="closeModal">
+  <div v-if="props.isOpen" class="modal-overlay" @click="closeModal">
     <div class="modal-content" @click.stop>
       <div class="modal-header">
         <h3>Select S2 Grid and Search Parameters</h3>

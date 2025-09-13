@@ -6,12 +6,12 @@ import {
   getHeight,
   getIntersection,
   getWidth,
+  isEmpty,
   type Extent,
 } from 'ol/extent'
 import ExtentInteraction from 'ol/interaction/Extent'
 import { Fill, Stroke, Style } from 'ol/style'
-import { ref, type Ref, shallowRef } from 'vue'
-import type DataCabinet from '../components/DataCabinet.vue'
+import { nextTick, ref, type Ref, shallowRef, watch } from 'vue'
 import VectorLayer from 'ol/layer/Vector'
 import VectorSource from 'ol/source/Vector'
 import Polygon, { fromExtent } from 'ol/geom/Polygon'
@@ -19,12 +19,9 @@ import { transformExtent } from 'ol/proj'
 import { getArea } from 'ol/sphere'
 import { showWarning } from '../functions/snackbar'
 import { booleanWithin as turfBooleanWithin } from '@turf/boolean-within'
-import { useSearch, type SearchResults } from './useSearch'
+import { clearSearchResults, searchResults, type SearchResults } from './useSearch'
 import { Feature as GeoJSONFeature, Polygon as GeoJSONPolygon } from 'geojson'
-import { usePermalink } from './usePermalink'
-
-const { clearSearchResults, searchResults } = useSearch()
-const { updateTileSelection } = usePermalink()
+import { areaValues, map } from './useMap'
 
 const invalidStyle = new Style({
   stroke: new Stroke({
@@ -47,20 +44,44 @@ const validStyle = new Style({
 })
 
 const extentInteraction = shallowRef<ExtentInteraction | null>(null)
-const currentMgrsTileId = ref<string | null>(null)
-const activeTileId = ref<string | null>(null)
-const secondActiveTileId = ref<string | null>(null)
+export const currentMgrsTileId = ref<string | null>(null)
+export const activeTileId = ref<string | null>(null)
+export const secondActiveTileId = ref<string | null>(null)
 /** Full grid extent */
-const currentGridExtent = ref<Extent | null>(null)
+const currentGridExtent = shallowRef<Extent | null>(null)
 /** User bbox */
-const drawnExtent = ref<Extent | null>(null)
+export const drawnExtent = shallowRef<Extent | null>(null)
 /** Flag to block map clicks when results are displayed */
 const blockMapClicks = ref(false)
 
 const extentFeature: Feature<Polygon> = new Feature()
+
+let updatingDrawnExtent = false
+watch(
+  drawnExtent,
+  (newValue) => {
+    if (updatingDrawnExtent) {
+      return
+    }
+    updatingDrawnExtent = true
+    extentFeature.setGeometry(newValue ? fromExtent(newValue) : undefined)
+    if (newValue) {
+      extentInteraction.value?.setExtent(newValue)
+    }
+    updatingDrawnExtent = false
+  },
+  { immediate: true },
+)
 extentFeature.on('change', () => {
+  if (updatingDrawnExtent) {
+    return
+  }
   const bbox = extentFeature?.getGeometry()?.getExtent() || null
+  updatingDrawnExtent = true
   drawnExtent.value = bbox // Update the drawn extent in the composable
+  nextTick(() => {
+    updatingDrawnExtent = false
+  })
 })
 
 const drawVectorLayer: VectorLayer<VectorSource> = new VectorLayer({
@@ -70,14 +91,9 @@ const drawVectorLayer: VectorLayer<VectorSource> = new VectorLayer({
   zIndex: 1001,
 })
 
-function addExtentInteraction(
-  map: Map,
-  bboxExtent: Extent,
-  areaValues: { min_area_km2: number; max_area_km2: number },
-  searchResults: SearchResults,
-) {
+function addExtentInteraction(searchResults: SearchResults) {
   extentInteraction.value = new ExtentInteraction({
-    extent: bboxExtent,
+    extent: drawnExtent.value || undefined,
     createCondition: never,
     drag: true,
     boxStyle: new Style({
@@ -86,7 +102,7 @@ function addExtentInteraction(
       }),
     }),
   })
-  map.addInteraction(extentInteraction.value)
+  map.value!.addInteraction(extentInteraction.value)
 
   let warningShown = false
 
@@ -100,17 +116,21 @@ function addExtentInteraction(
       : false
     // Check if the polygon is within the grid extent and within size limits
 
-    if (area > areaValues?.max_area_km2 || area < areaValues?.min_area_km2 || !isWithinExtent) {
+    if (
+      area > areaValues.value!.max_area_km2 ||
+      area < areaValues.value!.min_area_km2 ||
+      !isWithinExtent
+    ) {
       if (!warningShown) {
         // Show notification for each validation error
-        if (area > areaValues?.max_area_km2) {
+        if (area > areaValues.value!.max_area_km2) {
           showWarning(
-            `Bounding box area exceeds ${areaValues?.max_area_km2} square kilometers. Using last valid state.`,
+            `Bounding box area exceeds ${areaValues.value?.max_area_km2} square kilometers. Using last valid state.`,
           )
         }
-        if (area < areaValues?.min_area_km2) {
+        if (area < areaValues.value!.min_area_km2) {
           showWarning(
-            `Bounding box area is less than ${areaValues?.min_area_km2} square kilometers. Using last valid state.`,
+            `Bounding box area is less than ${areaValues.value?.min_area_km2} square kilometers. Using last valid state.`,
           )
         }
         if (!isWithinExtent) {
@@ -301,10 +321,9 @@ const checkBboxContainment = (
 
 function addMapClickHandler(
   map: Map,
-  dataCabinetRef: Ref<InstanceType<typeof DataCabinet> | null>,
   areaValues: { min_area_km2: number; max_area_km2: number },
   searchResults: SearchResults,
-  handleSearchResults: (mgrsTileId: string, bbox?: number[], settings?: any) => void,
+  handleSearchResults: (mgrsTileId: string, bbox?: number[], settings?: any) => Promise<void>,
 ) {
   // Add click handler
   map?.on('click', (event) => {
@@ -315,9 +334,10 @@ function addMapClickHandler(
 
     removeExtentInteraction()
 
-    const feature = map.forEachFeatureAtPixel(event.pixel, (feature) => feature)
+    const features = map.getFeaturesAtPixel(event.pixel)
 
-    if (feature) {
+    let extentFound = false
+    for (const feature of features) {
       // Get the MGRS Tile ID from the feature properties
       const mgrsTileId = feature.get('Name')
       currentMgrsTileId.value = mgrsTileId
@@ -343,6 +363,9 @@ function addMapClickHandler(
           extent,
           calculateBoundingBox(extentAtClickedPosition, areaValues),
         )
+        if (isEmpty(bboxExtent)) {
+          continue
+        }
 
         // Set initial bounding box
         const bboxPolygon = fromExtent(bboxExtent)
@@ -401,10 +424,6 @@ function addMapClickHandler(
           }
 
           handleSearchResults(currentMgrsTileId.value, bbox, currentSettings)
-          // Open the Batch Processing accordion
-          if (dataCabinetRef.value?.handleProcessingToggle) {
-            dataCabinetRef.value.handleProcessingToggle(true)
-          }
         } else {
           console.error('S2 Grid Layer: Current MGRS Tile ID is null')
         }
@@ -415,9 +434,12 @@ function addMapClickHandler(
         }
 
         // Create and add Modify interaction with size restriction
-        addExtentInteraction(map, bboxExtent, areaValues, searchResults)
+        addExtentInteraction(searchResults)
+        extentFound = true
+        break
       }
-    } else {
+    }
+    if (!extentFound) {
       // If clicked outside a feature, clear the selection
       if (drawVectorLayer) {
         map.removeLayer(drawVectorLayer)
@@ -429,13 +451,13 @@ function addMapClickHandler(
 }
 
 // Function to programmatically trigger tile selection and search
-function triggerTileSelection(
+export async function triggerTileSelection(
   map: Map,
   mgrsTileId: string,
-  dataCabinetRef: Ref<InstanceType<typeof DataCabinet> | null>,
   areaValues: { min_area_km2: number; max_area_km2: number },
-  handleSearchResults: (mgrsTileId: string, bbox?: number[], settings?: any) => void,
+  handleSearchResults: (mgrsTileId: string, bbox?: number[], settings?: any) => Promise<void>,
   bbox?: number[],
+  fit: boolean = true,
 ) {
   // Set the current MGRS tile ID
   currentMgrsTileId.value = mgrsTileId
@@ -484,10 +506,12 @@ function triggerTileSelection(
       const paddedExtent = buffer(extent, padding)
 
       // Fit the view to the extent
-      map.getView().fit(paddedExtent, {
-        duration: 1000,
-        maxZoom: 13,
-      })
+      if (fit) {
+        map.getView().fit(paddedExtent, {
+          duration: 1000,
+          maxZoom: 13,
+        })
+      }
 
       // Use provided bbox or create a smaller bbox within the grid to avoid overlap with adjacent grids
       let finalBbox: number[]
@@ -534,19 +558,13 @@ function triggerTileSelection(
           }
         }
 
-        handleSearchResults(currentMgrsTileId.value, finalBbox, currentSettings)
-
-        // Open the Batch Processing accordion
-        if (dataCabinetRef.value?.handleProcessingToggle) {
-          dataCabinetRef.value.handleProcessingToggle(true)
-        }
+        await handleSearchResults(currentMgrsTileId.value, finalBbox, currentSettings)
       }
-      console.log(map.getLayers().getArray())
       // Add the layer and interactions
       if (!layers.includes(drawVectorLayer)) {
         map.addLayer(drawVectorLayer)
       }
-      addExtentInteraction(map, bboxExtent, areaValues, searchResults)
+      addExtentInteraction(searchResults)
     }
   }
 }
@@ -567,13 +585,5 @@ export function useAreaOfInterest() {
     clearResultsAndZoomToGrid,
     triggerTileSelection,
     calculateArea,
-    updatePermalink: (map: Map) => {
-      updateTileSelection(
-        map,
-        currentMgrsTileId.value,
-        activeTileId.value,
-        secondActiveTileId.value,
-      )
-    },
   }
 }

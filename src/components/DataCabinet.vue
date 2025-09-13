@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import type { Map } from 'ol'
 import { fromExtent } from 'ol/geom/Polygon'
 import { ref, watch } from 'vue'
 import ProcessingPanel from './ProcessingPanel.vue'
@@ -9,22 +8,19 @@ import { useSearch } from '../composables/useSearch'
 import { getArea } from 'ol/sphere'
 import { useAreaOfInterest } from '../composables/useAreaOfInterest'
 import { mdiCog, mdiInformation, mdiMagnify } from '@mdi/js'
-
-const props = defineProps<{
-  map: Map
-  areaValues: { min_area_km2: number; max_area_km2: number }
-  dataCabinetRef: any
-}>()
+import { useProcessingMode } from '../composables/useProcessingMode'
+import { useMap } from '../composables/useMap'
 
 const emit = defineEmits<{
   (e: 'updateGeoJSONResults', results: any[]): void
 }>()
 
+const { map, areaValues } = useMap()
 const { currentBbox, handleSearchResults } = useSearch()
 const { drawnExtent, currentMgrsTileId, triggerTileSelection, activeTileId, secondActiveTileId } =
   useAreaOfInterest()
 
-const processingMode = ref<'smallAreaProcessing' | 'batchProcessing' | null>('smallAreaProcessing')
+const { processingMode } = useProcessingMode()
 const ftwAboutDialogShown = localStorage.getItem('ftw-about-dialog-shown') !== 'true'
 const aboutDialog = ref(ftwAboutDialogShown)
 const dontShowAgain = ref(!ftwAboutDialogShown)
@@ -63,14 +59,13 @@ const loadSettingsFromStorage = () => {
 
 const settings = ref(loadSettingsFromStorage())
 
-const handleProcessingToggle = (isOpen: boolean) => {
+watch(drawnExtent, (newValue) => {
   if (!currentBbox.value) return
-  processingMode.value = isOpen
-    ? drawnExtent.value && getArea(fromExtent(drawnExtent.value)) < 200000000 // 200 km² threshold
+  processingMode.value =
+    newValue && getArea(fromExtent(newValue)) < 200000000 // 200 km² threshold
       ? 'smallAreaProcessing'
       : 'batchProcessing'
-    : null
-}
+})
 
 const handleSettingsClick = () => {
   isSettingsModalOpen.value = true
@@ -89,7 +84,7 @@ const handleSettingsSave = (newSettings: any) => {
 // Handle tile selection from search modal
 const handleTileSelected = (tileName: string) => {
   // Find the tile feature on the map and trigger the tile selection
-  const layers = props.map.getLayers().getArray()
+  const layers = map.value!.getLayers().getArray()
   const s2GridLayer = layers.find(
     (layer) =>
       layer.get('name') === 's2-grid' ||
@@ -102,13 +97,7 @@ const handleTileSelected = (tileName: string) => {
     const targetFeature = features.find((f: any) => f.get('Name') === tileName)
 
     if (targetFeature) {
-      triggerTileSelection(
-        props.map,
-        tileName,
-        targetFeature,
-        props.areaValues,
-        handleSearchResults,
-      )
+      triggerTileSelection(map.value!, tileName, areaValues.value!, handleSearchResults)
     }
   }
 }
@@ -167,7 +156,7 @@ const handleSetSecondActiveTileId = (tileId: string) => {
 // Handle combined tile and bbox selection from search modal
 const handleTileAndBboxSelected = (tileName: string, bbox?: number[]) => {
   // Find the tile feature on the map and trigger the tile selection with bbox
-  const layers = props.map.getLayers().getArray()
+  const layers = map.value!.getLayers().getArray()
   const s2GridLayer = layers.find(
     (layer) =>
       layer.get('name') === 's2-grid' ||
@@ -181,22 +170,10 @@ const handleTileAndBboxSelected = (tileName: string, bbox?: number[]) => {
 
     if (targetFeature) {
       // Use the updated triggerTileSelection with bbox parameter
-      triggerTileSelection(
-        props.map,
-        tileName,
-        props.dataCabinetRef,
-        props.areaValues,
-        handleSearchResults,
-        bbox,
-      )
+      triggerTileSelection(map.value!, tileName, areaValues.value!, handleSearchResults, bbox)
     }
   }
 }
-
-// Expose methods to parent components
-defineExpose({
-  handleProcessingToggle: (isOpen: boolean) => handleProcessingToggle(isOpen),
-})
 </script>
 
 <template>
@@ -226,10 +203,8 @@ defineExpose({
       ></v-btn>
     </div>
     <ProcessingPanel
-      v-if="props.map"
+      v-if="map"
       is-open
-      :map="props.map"
-      :processing-mode="processingMode"
       @updateGeoJSONResults="
         (results: any[]) => {
           emit('updateGeoJSONResults', results)
@@ -248,8 +223,6 @@ defineExpose({
     <!-- Search Modal -->
     <SearchModal
       :is-open="isSearchModalOpen"
-      :map="props.map"
-      :area-values="props.areaValues"
       @update:is-open="isSearchModalOpen = $event"
       @tile-selected="handleTileSelected"
       @bbox-selected="handleBboxSelected"

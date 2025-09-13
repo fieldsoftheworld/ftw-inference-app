@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { ref, onUnmounted, watch, shallowRef } from 'vue'
-import type Map from 'ol/Map'
 import type { Extent } from 'ol/extent'
 import { generateJWT } from '../functions/generate-jwt'
 import { transformExtent } from 'ol/proj'
@@ -16,12 +15,11 @@ import { useStacLayer } from '../composables/useStacLayer'
 import { useAreaOfInterest } from '../composables/useAreaOfInterest'
 import PropertyDisplay from './PropertyDisplay.vue'
 import { formatMeasurementDisplay } from '../functions/format-measurement-display'
-import { usePermalink } from '../composables/usePermalink'
+import { useProcessingMode } from '../composables/useProcessingMode'
+import { useMap } from '../composables/useMap'
 
 const props = defineProps<{
-  map: Map
   isOpen: boolean
-  processingMode: 'smallAreaProcessing' | 'batchProcessing' | null
 }>()
 
 const emit = defineEmits<{
@@ -29,10 +27,10 @@ const emit = defineEmits<{
   (e: 'updateGeoJSONResults', results: any[]): void
 }>()
 
+const { map } = useMap()
 const { addStacLayer, removeStacLayer } = useStacLayer()
 const { removeExtentInteraction, removeDrawVectorLayer, drawnExtent } = useAreaOfInterest()
 const { projectMessage, dismissMessage } = useProjectMessage()
-const { updateTileSelection } = usePermalink()
 
 const {
   currentBbox,
@@ -61,13 +59,7 @@ watch(activeTileId, (newValue) => {
 })
 
 const isOpen = ref(props.isOpen)
-const processingMode = ref(props.processingMode)
-watch(
-  () => props.processingMode,
-  (newValue) => {
-    processingMode.value = newValue
-  },
-)
+const { processingMode } = useProcessingMode()
 
 const isCreatingProject = ref(false)
 const isProcessing = ref(false)
@@ -127,7 +119,7 @@ const handleMapClick = (event: any) => {
   let clickedFeature: any = null
 
   // Check if we clicked on a feature from our results layer
-  props.map.forEachFeatureAtPixel(pixel, (feature) => {
+  map.value?.forEachFeatureAtPixel(pixel, (feature) => {
     // Only process features from our results layer
     if (
       vectorLayer.value
@@ -274,12 +266,12 @@ const handleViewOnMap = (
     }
 
     if (secondActiveTileId.value === tileId) {
-      removeStacLayer(props.map)
+      removeStacLayer(map.value!)
       secondActiveTileId.value = null
     } else {
-      removeStacLayer(props.map)
+      removeStacLayer(map.value!)
       if (gridExtent) {
-        addStacLayer(props.map, imageUrl, gridExtent)
+        addStacLayer(map.value!, imageUrl, gridExtent)
         secondActiveTileId.value = tileId
       } else {
         console.error('No bounds available for this image')
@@ -287,15 +279,15 @@ const handleViewOnMap = (
     }
   } else {
     if (activeTileId.value === tileId) {
-      removeStacLayer(props.map)
+      removeStacLayer(map.value!)
       activeTileId.value = null
       if (secondActiveTileId.value === tileId) {
         secondActiveTileId.value = null
       }
     } else {
-      removeStacLayer(props.map)
+      removeStacLayer(map.value!)
       if (gridExtent) {
-        addStacLayer(props.map, imageUrl, gridExtent)
+        addStacLayer(map.value!, imageUrl, gridExtent)
         activeTileId.value = tileId
         if (secondActiveTileId.value === tileId) {
           secondActiveTileId.value = null
@@ -305,14 +297,6 @@ const handleViewOnMap = (
       }
     }
   }
-
-  // Update permalink after tile selection changes
-  updateTileSelection(
-    props.map,
-    currentMgrsTileId.value,
-    activeTileId.value,
-    secondActiveTileId.value,
-  )
 }
 
 const getActiveTileThumbnail = (isSecond: boolean = false) => {
@@ -369,7 +353,7 @@ const fitMapToBbox = (bbox: number[]) => {
   }
 
   // TODO: FIX ISSUE WITH SCROLLING AND CHANGE LAYER COLOR
-  props.map.getView().fit(extent, {
+  map.value?.getView().fit(extent, {
     padding: [50, 50, 50, 50],
     duration: 500,
   })
@@ -378,7 +362,7 @@ const fitMapToBbox = (bbox: number[]) => {
 const displayGeoJSON = (geojson: FeatureCollection & { crs: { properties: { name: string } } }) => {
   // Remove existing vector layer if it exists
   if (vectorLayer.value) {
-    props.map.removeLayer(vectorLayer.value)
+    map.value?.removeLayer(vectorLayer.value)
   }
 
   // Create new vector source and layer
@@ -408,7 +392,7 @@ const displayGeoJSON = (geojson: FeatureCollection & { crs: { properties: { name
   })
 
   // Ensure the results layer is on top by setting a high z-index
-  props.map.addLayer(vectorLayer.value)
+  map.value?.addLayer(vectorLayer.value)
 
   // Emit the GeoJSON results to the parent component
   const results = source.getFeatures().map((feature) => ({
@@ -419,7 +403,7 @@ const displayGeoJSON = (geojson: FeatureCollection & { crs: { properties: { name
   emit('updateGeoJSONResults', results)
 
   // Add map click handler to detect feature clicks and show properties
-  props.map.on('click', handleMapClick)
+  map.value?.on('click', handleMapClick)
 
   // Get the extent and validate it
   const extent = source.getExtent()
@@ -502,7 +486,7 @@ const handleSmallAreaProcessingRequest = async () => {
         fitMapToBbox(extent)
         projectMessage.value = { type: 'success', text: 'Small area processed successfully' }
         // Remove the editable bbox since we have results
-        removeDrawVectorLayer(props.map)
+        removeDrawVectorLayer(map.value!)
       } else {
         // displayGeoJSON returned null, which means no valid features or invalid extent
         projectMessage.value = {
@@ -529,8 +513,8 @@ const handleSmallAreaProcessingRequest = async () => {
       }, 5000)
     }
 
-    removeStacLayer(props.map)
-    removeStacLayer(props.map, true)
+    removeStacLayer(map.value!)
+    removeStacLayer(map.value!, true)
     removeExtentInteraction()
   } catch (error) {
     console.error('Error processing small area:', error)
@@ -736,8 +720,8 @@ const handleCompareTiles = async () => {
               fitMapToBbox(extent)
             }
           }
-          removeStacLayer(props.map)
-          removeStacLayer(props.map, true)
+          removeStacLayer(map.value!)
+          removeStacLayer(map.value!, true)
           removeExtentInteraction()
 
           projectMessage.value = {
@@ -745,7 +729,7 @@ const handleCompareTiles = async () => {
             text: 'Batch processing completed',
           }
           // Remove the editable bbox since batch processing completed successfully
-          removeDrawVectorLayer(props.map)
+          removeDrawVectorLayer(map.value!)
           // Clear message after 3 seconds
           setTimeout(() => {
             projectMessage.value = null
@@ -793,8 +777,8 @@ const handleCompareTiles = async () => {
 
 // Clean up map click handler when component is unmounted
 onUnmounted(() => {
-  if (props.map) {
-    props.map.un('click', handleMapClick)
+  if (map.value) {
+    map.value.un('click', handleMapClick)
   }
 })
 
