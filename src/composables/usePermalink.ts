@@ -8,6 +8,7 @@ import {
 } from './useAreaOfInterest'
 import { map, areaValues } from './useMap'
 import { handleSearchResults } from './useSearch'
+import { fromLonLat, toLonLat } from 'ol/proj'
 
 export interface PermalinkState {
   zoom: number
@@ -47,7 +48,7 @@ const parsePermalink = (): PermalinkState => {
     if (parts.length >= 3) {
       const result: PermalinkState = {
         zoom: parseFloat(parts[0]) || defaultState.zoom,
-        center: [parseFloat(parts[1]), parseFloat(parts[2])] as [number, number],
+        center: [parseFloat(parts[2]), parseFloat(parts[1])] as [number, number],
         currentMgrsTileId: null,
         activeTileId: null,
         secondActiveTileId: null,
@@ -100,13 +101,14 @@ const updatePermalink = (
   }
 
   const view = map.getView()
-  const center = view.getCenter()
+  const viewCenter = view.getCenter()
   const zoom = view.getZoom()
+  if (!viewCenter || zoom === undefined) return
 
-  if (!center || zoom === undefined) return
+  const center = toLonLat(viewCenter)
 
   // Build hash parts, excluding null values
-  const hashParts = [zoom.toFixed(2), center[0].toFixed(2), center[1].toFixed(2)]
+  const hashParts = [zoom.toFixed(2), center[1].toFixed(5), center[0].toFixed(5)]
 
   // Only add non-null tile IDs to the hash
   if (currentMgrsTileId) {
@@ -137,7 +139,7 @@ const updatePermalink = (
 
   const state: PermalinkState = {
     zoom,
-    center: [center[0], center[1]],
+    center: [center[1], center[0]],
     currentMgrsTileId,
     activeTileId,
     secondActiveTileId,
@@ -150,7 +152,7 @@ const restoreMapState = (map: Map, state: PermalinkState) => {
   const view = map.getView()
 
   // Set center and zoom
-  view.setCenter(state.center)
+  view.setCenter(fromLonLat(state.center))
   view.setZoom(state.zoom)
 
   // Note: Tile IDs will be restored by the calling component
