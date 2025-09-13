@@ -129,7 +129,7 @@ const updatePermalink = (
     hashParts.push(String(secondActiveTileId))
 
     if (extent) {
-      hashParts.push(`bbox:${extent.join(',')}`)
+      hashParts.push(`bbox:${[extent[1], extent[0], extent[3], extent[2]].join(',')}`)
     }
 
     // If we have a currentMgrsTileId, include search settings
@@ -227,8 +227,13 @@ const setupPermalink = async () => {
       false,
     )
   }
-  if (initialState.bbox) {
-    drawnExtent.value = transformExtent(initialState.bbox, 'EPSG:4326', 'EPSG:3857')
+  const initialBbox = initialState.bbox
+  if (initialBbox) {
+    drawnExtent.value = transformExtent(
+      [initialBbox[1], initialBbox[0], initialBbox[3], initialBbox[2]],
+      'EPSG:4326',
+      'EPSG:3857',
+    )
   }
 
   // Update permalink when map moves
