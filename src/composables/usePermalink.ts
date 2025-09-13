@@ -3,12 +3,14 @@ import type Map from 'ol/Map'
 import {
   activeTileId,
   currentMgrsTileId,
+  drawnExtent,
   secondActiveTileId,
   triggerTileSelection,
 } from './useAreaOfInterest'
 import { map, areaValues } from './useMap'
 import { handleSearchResults } from './useSearch'
-import { fromLonLat, toLonLat } from 'ol/proj'
+import { fromLonLat, toLonLat, transformExtent } from 'ol/proj'
+import { Extent } from 'ol/extent'
 
 export interface PermalinkState {
   zoom: number
@@ -16,6 +18,7 @@ export interface PermalinkState {
   currentMgrsTileId: string | null
   activeTileId: string | null
   secondActiveTileId: string | null
+  bbox?: Extent
   // Search settings - only included when currentMgrsTileId is present
   startDate?: string
   endDate?: string
@@ -76,6 +79,8 @@ const parsePermalink = (): PermalinkState => {
           result.cloudCover = Number(part.substring(12))
         } else if (part.startsWith('area_coverage:')) {
           result.areaCoverage = Number(part.substring(14))
+        } else if (part.startsWith('bbox:')) {
+          result.bbox = part.substring(5).split(',').map(Number)
         }
       }
 
@@ -91,6 +96,7 @@ const parsePermalink = (): PermalinkState => {
 // Update permalink in URL
 const updatePermalink = (
   map: Map,
+  drawnExtent: Extent | null,
   currentMgrsTileId: string | null,
   activeTileId: string | null,
   secondActiveTileId: string | null,
@@ -107,18 +113,26 @@ const updatePermalink = (
 
   const center = toLonLat(viewCenter)
 
-  // Build hash parts, excluding null values
-  const hashParts = [zoom.toFixed(2), center[1].toFixed(5), center[0].toFixed(5)]
+  const extent = drawnExtent
+    ? transformExtent(drawnExtent, 'EPSG:3857', 'EPSG:4326').map((coord) =>
+        Number(coord.toFixed(4)),
+      )
+    : null
 
-  // Only add non-null tile IDs to the hash
+  // Build hash parts, excluding null values
+  const hashParts = [zoom.toFixed(2), center[1].toFixed(4), center[0].toFixed(4)]
+
   if (currentMgrsTileId) {
+    // Add tile IDs
     hashParts.push(currentMgrsTileId)
     hashParts.push(String(activeTileId))
     hashParts.push(String(secondActiveTileId))
-  }
 
-  // If we have a currentMgrsTileId, include search settings
-  if (currentMgrsTileId) {
+    if (extent) {
+      hashParts.push(`bbox:${extent.join(',')}`)
+    }
+
+    // If we have a currentMgrsTileId, include search settings
     const stored = localStorage.getItem('ftw-search-settings')
     if (stored) {
       try {
@@ -143,6 +157,7 @@ const updatePermalink = (
     currentMgrsTileId,
     activeTileId,
     secondActiveTileId,
+    bbox: extent || undefined,
   }
   window.history.pushState(state, 'map', hash)
 }
@@ -160,7 +175,7 @@ const restoreMapState = (map: Map, state: PermalinkState) => {
 }
 
 // Setup permalink functionality
-const setupPermalink = () => {
+const setupPermalink = async () => {
   if (!map.value) {
     throw new Error('Map is not initialized yet')
   }
@@ -170,7 +185,13 @@ const setupPermalink = () => {
   registered = true
 
   watch(
-    () => [map.value, currentMgrsTileId.value, activeTileId.value, secondActiveTileId.value],
+    () => [
+      map.value,
+      drawnExtent.value,
+      currentMgrsTileId.value,
+      activeTileId.value,
+      secondActiveTileId.value,
+    ],
     () => {
       if (!map.value) {
         return
@@ -178,6 +199,7 @@ const setupPermalink = () => {
       // Update permalink after tile selection changes
       updateTileSelection(
         map.value,
+        drawnExtent.value,
         currentMgrsTileId.value,
         activeTileId.value,
         secondActiveTileId.value,
@@ -196,21 +218,24 @@ const setupPermalink = () => {
 
   // If we have a restored MGRS tile ID, trigger the search
   if (initialState.currentMgrsTileId) {
-    // Use setTimeout to ensure the map is fully initialized
-    setTimeout(() => {
-      triggerTileSelection(
-        map.value!,
-        currentMgrsTileId.value!,
-        areaValues.value!,
-        handleSearchResults,
-      )
-    }, 100)
+    await triggerTileSelection(
+      map.value!,
+      currentMgrsTileId.value!,
+      areaValues.value!,
+      handleSearchResults,
+      undefined,
+      false,
+    )
+  }
+  if (initialState.bbox) {
+    drawnExtent.value = transformExtent(initialState.bbox, 'EPSG:4326', 'EPSG:3857')
   }
 
   // Update permalink when map moves
   map.value.on('moveend', () => {
     updatePermalink(
       map.value!,
+      drawnExtent.value,
       currentMgrsTileId.value,
       activeTileId.value,
       secondActiveTileId.value,
@@ -238,6 +263,8 @@ const setupPermalink = () => {
         currentMgrsTileId.value!,
         areaValues.value!,
         handleSearchResults,
+        undefined,
+        false,
       )
     }
 
@@ -248,11 +275,12 @@ const setupPermalink = () => {
 // Update permalink when tile selection changes
 const updateTileSelection = (
   map: Map,
+  drawnExtent: Extent | null,
   currentMgrsTileId: string | null,
   activeTileId: string | null,
   secondActiveTileId: string | null,
 ) => {
-  updatePermalink(map, currentMgrsTileId, activeTileId, secondActiveTileId)
+  updatePermalink(map, drawnExtent, currentMgrsTileId, activeTileId, secondActiveTileId)
 }
 
 export function usePermalink() {

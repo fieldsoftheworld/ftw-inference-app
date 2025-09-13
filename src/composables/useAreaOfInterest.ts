@@ -11,7 +11,7 @@ import {
 } from 'ol/extent'
 import ExtentInteraction from 'ol/interaction/Extent'
 import { Fill, Stroke, Style } from 'ol/style'
-import { ref, type Ref, shallowRef } from 'vue'
+import { nextTick, ref, type Ref, shallowRef, watch } from 'vue'
 import VectorLayer from 'ol/layer/Vector'
 import VectorSource from 'ol/source/Vector'
 import Polygon, { fromExtent } from 'ol/geom/Polygon'
@@ -21,6 +21,7 @@ import { showWarning } from '../functions/snackbar'
 import { booleanWithin as turfBooleanWithin } from '@turf/boolean-within'
 import { clearSearchResults, searchResults, type SearchResults } from './useSearch'
 import { Feature as GeoJSONFeature, Polygon as GeoJSONPolygon } from 'geojson'
+import { areaValues, map } from './useMap'
 
 const invalidStyle = new Style({
   stroke: new Stroke({
@@ -47,16 +48,40 @@ export const currentMgrsTileId = ref<string | null>(null)
 export const activeTileId = ref<string | null>(null)
 export const secondActiveTileId = ref<string | null>(null)
 /** Full grid extent */
-const currentGridExtent = ref<Extent | null>(null)
+const currentGridExtent = shallowRef<Extent | null>(null)
 /** User bbox */
-const drawnExtent = ref<Extent | null>(null)
+export const drawnExtent = shallowRef<Extent | null>(null)
 /** Flag to block map clicks when results are displayed */
 const blockMapClicks = ref(false)
 
 const extentFeature: Feature<Polygon> = new Feature()
+
+let updatingDrawnExtent = false
+watch(
+  drawnExtent,
+  (newValue) => {
+    if (updatingDrawnExtent) {
+      return
+    }
+    updatingDrawnExtent = true
+    extentFeature.setGeometry(newValue ? fromExtent(newValue) : undefined)
+    if (newValue) {
+      extentInteraction.value?.setExtent(newValue)
+    }
+    updatingDrawnExtent = false
+  },
+  { immediate: true },
+)
 extentFeature.on('change', () => {
+  if (updatingDrawnExtent) {
+    return
+  }
   const bbox = extentFeature?.getGeometry()?.getExtent() || null
+  updatingDrawnExtent = true
   drawnExtent.value = bbox // Update the drawn extent in the composable
+  nextTick(() => {
+    updatingDrawnExtent = false
+  })
 })
 
 const drawVectorLayer: VectorLayer<VectorSource> = new VectorLayer({
@@ -66,14 +91,9 @@ const drawVectorLayer: VectorLayer<VectorSource> = new VectorLayer({
   zIndex: 1001,
 })
 
-function addExtentInteraction(
-  map: Map,
-  bboxExtent: Extent,
-  areaValues: { min_area_km2: number; max_area_km2: number },
-  searchResults: SearchResults,
-) {
+function addExtentInteraction(searchResults: SearchResults) {
   extentInteraction.value = new ExtentInteraction({
-    extent: bboxExtent,
+    extent: drawnExtent.value || undefined,
     createCondition: never,
     drag: true,
     boxStyle: new Style({
@@ -82,7 +102,7 @@ function addExtentInteraction(
       }),
     }),
   })
-  map.addInteraction(extentInteraction.value)
+  map.value!.addInteraction(extentInteraction.value)
 
   let warningShown = false
 
@@ -96,17 +116,21 @@ function addExtentInteraction(
       : false
     // Check if the polygon is within the grid extent and within size limits
 
-    if (area > areaValues?.max_area_km2 || area < areaValues?.min_area_km2 || !isWithinExtent) {
+    if (
+      area > areaValues.value!.max_area_km2 ||
+      area < areaValues.value!.min_area_km2 ||
+      !isWithinExtent
+    ) {
       if (!warningShown) {
         // Show notification for each validation error
-        if (area > areaValues?.max_area_km2) {
+        if (area > areaValues.value!.max_area_km2) {
           showWarning(
-            `Bounding box area exceeds ${areaValues?.max_area_km2} square kilometers. Using last valid state.`,
+            `Bounding box area exceeds ${areaValues.value?.max_area_km2} square kilometers. Using last valid state.`,
           )
         }
-        if (area < areaValues?.min_area_km2) {
+        if (area < areaValues.value!.min_area_km2) {
           showWarning(
-            `Bounding box area is less than ${areaValues?.min_area_km2} square kilometers. Using last valid state.`,
+            `Bounding box area is less than ${areaValues.value?.min_area_km2} square kilometers. Using last valid state.`,
           )
         }
         if (!isWithinExtent) {
@@ -299,7 +323,7 @@ function addMapClickHandler(
   map: Map,
   areaValues: { min_area_km2: number; max_area_km2: number },
   searchResults: SearchResults,
-  handleSearchResults: (mgrsTileId: string, bbox?: number[], settings?: any) => void,
+  handleSearchResults: (mgrsTileId: string, bbox?: number[], settings?: any) => Promise<void>,
 ) {
   // Add click handler
   map?.on('click', (event) => {
@@ -410,7 +434,7 @@ function addMapClickHandler(
         }
 
         // Create and add Modify interaction with size restriction
-        addExtentInteraction(map, bboxExtent, areaValues, searchResults)
+        addExtentInteraction(searchResults)
         extentFound = true
         break
       }
@@ -427,12 +451,13 @@ function addMapClickHandler(
 }
 
 // Function to programmatically trigger tile selection and search
-export function triggerTileSelection(
+export async function triggerTileSelection(
   map: Map,
   mgrsTileId: string,
   areaValues: { min_area_km2: number; max_area_km2: number },
-  handleSearchResults: (mgrsTileId: string, bbox?: number[], settings?: any) => void,
+  handleSearchResults: (mgrsTileId: string, bbox?: number[], settings?: any) => Promise<void>,
   bbox?: number[],
+  fit: boolean = true,
 ) {
   // Set the current MGRS tile ID
   currentMgrsTileId.value = mgrsTileId
@@ -481,10 +506,12 @@ export function triggerTileSelection(
       const paddedExtent = buffer(extent, padding)
 
       // Fit the view to the extent
-      map.getView().fit(paddedExtent, {
-        duration: 1000,
-        maxZoom: 13,
-      })
+      if (fit) {
+        map.getView().fit(paddedExtent, {
+          duration: 1000,
+          maxZoom: 13,
+        })
+      }
 
       // Use provided bbox or create a smaller bbox within the grid to avoid overlap with adjacent grids
       let finalBbox: number[]
@@ -531,13 +558,13 @@ export function triggerTileSelection(
           }
         }
 
-        handleSearchResults(currentMgrsTileId.value, finalBbox, currentSettings)
+        await handleSearchResults(currentMgrsTileId.value, finalBbox, currentSettings)
       }
       // Add the layer and interactions
       if (!layers.includes(drawVectorLayer)) {
         map.addLayer(drawVectorLayer)
       }
-      addExtentInteraction(map, bboxExtent, areaValues, searchResults)
+      addExtentInteraction(searchResults)
     }
   }
 }
