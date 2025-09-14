@@ -11,10 +11,11 @@ import { map, areaValues } from './useMap'
 import { handleSearchResults } from './useSearch'
 import { fromLonLat, toLonLat, transformExtent } from 'ol/proj'
 import { Extent } from 'ol/extent'
+import { type Coordinate } from 'ol/coordinate'
 
 export interface PermalinkState {
   zoom: number
-  center: [number, number]
+  center: Coordinate
   currentMgrsTileId: string | null
   activeTileId: string | null
   secondActiveTileId: string | null
@@ -51,7 +52,7 @@ const parsePermalink = (): PermalinkState => {
     if (parts.length >= 3) {
       const result: PermalinkState = {
         zoom: parseFloat(parts[0]) || defaultState.zoom,
-        center: [parseFloat(parts[2]), parseFloat(parts[1])] as [number, number],
+        center: [parseFloat(parts[1]), parseFloat(parts[2])] as [number, number],
         currentMgrsTileId: null,
         activeTileId: null,
         secondActiveTileId: null,
@@ -120,7 +121,7 @@ const updatePermalink = (
     : null
 
   // Build hash parts, excluding null values
-  const hashParts = [zoom.toFixed(2), center[1].toFixed(4), center[0].toFixed(4)]
+  const hashParts = [zoom.toFixed(2), center[0].toFixed(4), center[1].toFixed(4)]
 
   if (currentMgrsTileId) {
     // Add tile IDs
@@ -129,7 +130,7 @@ const updatePermalink = (
     hashParts.push(String(secondActiveTileId))
 
     if (extent) {
-      hashParts.push(`bbox:${[extent[1], extent[0], extent[3], extent[2]].join(',')}`)
+      hashParts.push(`bbox:${extent.join(',')}`)
     }
 
     // If we have a currentMgrsTileId, include search settings
@@ -153,7 +154,7 @@ const updatePermalink = (
 
   const state: PermalinkState = {
     zoom,
-    center: [center[1], center[0]],
+    center,
     currentMgrsTileId,
     activeTileId,
     secondActiveTileId,
@@ -229,11 +230,7 @@ const setupPermalink = async () => {
   }
   const initialBbox = initialState.bbox
   if (initialBbox) {
-    drawnExtent.value = transformExtent(
-      [initialBbox[1], initialBbox[0], initialBbox[3], initialBbox[2]],
-      'EPSG:4326',
-      'EPSG:3857',
-    )
+    drawnExtent.value = transformExtent(initialBbox, 'EPSG:4326', 'EPSG:3857')
   }
 
   // Update permalink when map moves
