@@ -70,6 +70,10 @@ const hasLoadedMore = ref(false)
 const retryTimeout = ref<number | null>(null)
 const vectorLayer = shallowRef<VectorLayer<VectorSource> | null>(null)
 
+// Persist full selected tile data so processing isn't broken by pagination/new searches
+const activeTileData = ref<any | null>(null)
+const secondActiveTileData = ref<any | null>(null)
+
 // Properties display state
 const selectedFeature = ref<any>(null)
 const propertiesBoxPosition = ref<{ x: number; y: number } | null>(null)
@@ -268,11 +272,15 @@ const handleViewOnMap = (
     if (secondActiveTileId.value === tileId) {
       removeStacLayer(map.value!)
       secondActiveTileId.value = null
+      secondActiveTileData.value = null
     } else {
       removeStacLayer(map.value!)
       if (gridExtent) {
         addStacLayer(map.value!, imageUrl, gridExtent)
         secondActiveTileId.value = tileId
+        // Store full tile data for stability across searches
+        secondActiveTileData.value =
+          searchResults.value.find((result) => result.id === tileId) || null
       } else {
         console.error('No bounds available for this image')
       }
@@ -281,16 +289,22 @@ const handleViewOnMap = (
     if (activeTileId.value === tileId) {
       removeStacLayer(map.value!)
       activeTileId.value = null
+      activeTileData.value = null
       if (secondActiveTileId.value === tileId) {
         secondActiveTileId.value = null
+        secondActiveTileData.value = null
       }
     } else {
       removeStacLayer(map.value!)
       if (gridExtent) {
         addStacLayer(map.value!, imageUrl, gridExtent)
         activeTileId.value = tileId
+        // Store full tile data for stability across searches
+        activeTileData.value =
+          searchResults.value.find((result) => result.id === tileId) || null
         if (secondActiveTileId.value === tileId) {
           secondActiveTileId.value = null
+          secondActiveTileData.value = null
         }
       } else {
         console.error('No bounds available for this image')
@@ -300,33 +314,38 @@ const handleViewOnMap = (
 }
 
 const getActiveTileThumbnail = (isSecond: boolean = false) => {
+  const data = isSecond ? secondActiveTileData.value : activeTileData.value
+  if (data?.thumbnailUrl) return data.thumbnailUrl
   const tileId = isSecond ? secondActiveTileId.value : activeTileId.value
-  const activeTile = searchResults.value.find((result) => result?.id === tileId)
-  return activeTile?.thumbnailUrl
+  return searchResults.value.find((result) => result?.id === tileId)?.thumbnailUrl
 }
 
 const getActiveTileDate = (isSecond: boolean = false) => {
+  const data = isSecond ? secondActiveTileData.value : activeTileData.value
+  if (data?.date) return data.date
   const tileId = isSecond ? secondActiveTileId.value : activeTileId.value
-  const activeTile = searchResults.value.find((result) => result?.id === tileId)
-  return activeTile?.date
+  return searchResults.value.find((result) => result?.id === tileId)?.date
 }
 
 const getActiveTileCloudCover = (isSecond: boolean = false) => {
+  const data = isSecond ? secondActiveTileData.value : activeTileData.value
+  if (data?.cloudCover !== undefined) return data.cloudCover
   const tileId = isSecond ? secondActiveTileId.value : activeTileId.value
-  const activeTile = searchResults.value.find((result) => result?.id === tileId)
-  return activeTile?.cloudCover
+  return searchResults.value.find((result) => result?.id === tileId)?.cloudCover
 }
 
 const getActiveTileAreaCoverage = (isSecond: boolean = false) => {
+  const data = isSecond ? secondActiveTileData.value : activeTileData.value
+  if (data?.areaCoverage !== undefined) return data.areaCoverage
   const tileId = isSecond ? secondActiveTileId.value : activeTileId.value
-  const activeTile = searchResults.value.find((result) => result?.id === tileId)
-  return activeTile?.areaCoverage
+  return searchResults.value.find((result) => result?.id === tileId)?.areaCoverage
 }
 
 const getActiveTileGeometry = (isSecond: boolean = false) => {
+  const data = isSecond ? secondActiveTileData.value : activeTileData.value
+  if (data?.geometry) return data.geometry
   const tileId = isSecond ? secondActiveTileId.value : activeTileId.value
-  const activeTile = searchResults.value.find((result) => result?.id === tileId)
-  return activeTile?.geometry
+  return searchResults.value.find((result) => result?.id === tileId)?.geometry
 }
 
 const formatAreaCoverage = (coverage: number | string | undefined) => {
@@ -422,8 +441,11 @@ const handleSmallAreaProcessingRequest = async () => {
     showWarning('Please draw an extent on the map before processing.')
     return
   }
-  const firstTile = searchResults.value.find((result) => result.id === activeTileId.value)
-  const secondTile = searchResults.value.find((result) => result.id === secondActiveTileId.value)
+  const firstTile =
+    activeTileData.value || searchResults.value.find((result) => result.id === activeTileId.value)
+  const secondTile =
+    secondActiveTileData.value ||
+    searchResults.value.find((result) => result.id === secondActiveTileId.value)
 
   if (!firstTile || !secondTile) {
     throw new Error('Could not find selected tiles')
@@ -543,8 +565,12 @@ const handleCompareTiles = async () => {
   }
 
   try {
-    const firstTile = searchResults.value.find((result) => result.id === activeTileId.value)
-    const secondTile = searchResults.value.find((result) => result.id === secondActiveTileId.value)
+    const firstTile =
+      activeTileData.value ||
+      searchResults.value.find((result) => result.id === activeTileId.value)
+    const secondTile =
+      secondActiveTileData.value ||
+      searchResults.value.find((result) => result.id === secondActiveTileId.value)
 
     if (!firstTile || !secondTile) {
       throw new Error('Could not find selected tiles')
@@ -779,6 +805,19 @@ const handleCompareTiles = async () => {
 onUnmounted(() => {
   if (map.value) {
     map.value.un('click', handleMapClick)
+  }
+})
+
+// Repopulate tile data when IDs or results change (e.g., after permalink or new search)
+watch([activeTileId, () => searchResults.value], () => {
+  if (activeTileId.value && !activeTileData.value) {
+    activeTileData.value = searchResults.value.find((r) => r.id === activeTileId.value) || null
+  }
+})
+watch([secondActiveTileId, () => searchResults.value], () => {
+  if (secondActiveTileId.value && !secondActiveTileData.value) {
+    secondActiveTileData.value =
+      searchResults.value.find((r) => r.id === secondActiveTileId.value) || null
   }
 })
 
