@@ -3,18 +3,15 @@ import { SearchResult } from '../composables/useSearch'
 
 // Store the currently selected feature
 let nextPageToken: string | null = null
-
-interface ProcessedResult extends Omit<SearchResult, 'date'> {
-  date: Date
-  formattedDate: string
-  areaCoverage: number
-  geometry?: Polygon
-}
+let totalResultsReturned: number = 0
+let totalNumberMatched: number = 0
 
 interface SearchResponse {
   results: SearchResult[]
   hasMore: boolean
   totalFound: number
+  numberMatched: number
+  numberReturned: number
 }
 
 interface StacFeature {
@@ -97,6 +94,12 @@ export default async function searchStacApi(
   resetSearch = true,
   settings?: SearchSettings,
 ): Promise<SearchResponse | undefined> {
+  // Reset counters for new search
+  if (resetSearch) {
+    totalResultsReturned = 0
+    totalNumberMatched = 0
+  }
+
   // Use provided settings or fall back to DOM elements
   const startDate = settings?.startDate ? convertToRFC3339(settings.startDate) : ''
   const endDate = settings?.endDate ? convertToRFC3339(settings.endDate, true) : ''
@@ -163,6 +166,10 @@ export default async function searchStacApi(
 
     const data = (await response.json()) as StacResponse
 
+    // Update totals from the response
+    totalNumberMatched = data.numberMatched || 0
+    totalResultsReturned += data.numberReturned || data.features.length
+
     // Look for the "next" link which contains the pagination token
     let nextLink = null
     if (data.links) {
@@ -224,10 +231,15 @@ export default async function searchStacApi(
         return result
       })
 
+    // Calculate hasMore based on whether we've returned all available results
+    const hasMoreResults = totalResultsReturned < totalNumberMatched
+
     return {
       results,
-      hasMore: !!nextPageToken,
+      hasMore: hasMoreResults,
       totalFound: data.features.length,
+      numberMatched: totalNumberMatched,
+      numberReturned: totalResultsReturned,
     }
   } catch (error) {
     console.error('Error searching Earth Search API:', error)
