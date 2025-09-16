@@ -938,7 +938,10 @@ defineExpose({
                   </div>
                 </div>
               </template>
-
+              <div v-if="!hasMore">
+                No more images found. Try adjusting your filters (date range, cloud cover, area
+                coverage) to increase the likelihood of finding more results.
+              </div>
               <div class="button-group">
                 <button
                   v-if="hasMore"
