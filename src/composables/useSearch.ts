@@ -45,6 +45,7 @@ export const handleSearchResults = async (
     try {
       const response = await searchStacApi(bbox, true, settings)
       if (response) {
+        // Clear existing results for new search (resetSearch = true)
         searchResults.value = response.results
         hasMore.value = response.hasMore
 

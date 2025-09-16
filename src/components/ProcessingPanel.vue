@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onUnmounted, watch, shallowRef } from 'vue'
+import { ref, onUnmounted, watch, shallowRef, computed, nextTick } from 'vue'
 import type { Extent } from 'ol/extent'
 import { generateJWT } from '../functions/generate-jwt'
 import { transformExtent } from 'ol/proj'
@@ -78,27 +78,29 @@ const showPropertiesBox = ref(false)
 
 // For loadMore, we need to pass the same settings as the initial search
 // Get current settings from localStorage since that's where they're stored
-const stored = localStorage.getItem('ftw-search-settings')
-let currentSettings = {
-  startDate: '',
-  endDate: '',
-  cloudCover: 10,
-  areaCoverage: 60,
-}
+const getCurrentSettings = () => {
+  const stored = localStorage.getItem('ftw-search-settings')
+  let settings = {
+    startDate: '',
+    endDate: '',
+    cloudCover: 10,
+    areaCoverage: 60,
+  }
 
-if (stored) {
-  try {
+  if (stored) {
     const parsed = JSON.parse(stored)
-    currentSettings = {
+    settings = {
       startDate: parsed.startDate || '',
       endDate: parsed.endDate || '',
       cloudCover: parsed.cloudCover || 10,
       areaCoverage: parsed.areaCoverage || 60,
     }
-  } catch (error) {
-    console.error('Error parsing stored settings:', error)
   }
+  return settings
 }
+
+// Make currentSettings reactive by using a computed property
+const currentSettings = computed(() => getCurrentSettings())
 
 const toggleAccordion = () => {
   isOpen.value = !isOpen.value
@@ -206,15 +208,23 @@ const loadMore = async () => {
   if (!currentMgrsTileId.value) return
 
   isLoading.value = true
+  let firstNewItemId: string | null = null
+
   try {
-    const response = await searchStacApi(currentBbox.value, false, currentSettings)
+    const response = await searchStacApi(currentBbox.value, false, currentSettings.value)
     if (response) {
-      searchResults.value = response.results
+      // Store the first item ID before adding results
+      firstNewItemId = response.results.length > 0 ? response.results[0].id : null
+
+      // Accumulate results instead of overwriting them
+      searchResults.value = [...searchResults.value, ...response.results]
       hasMore.value = response.hasMore
       hasLoadedMore.value = true // Mark that loadMore has been called
 
       if (response.results.length === 0) {
         searchStatus.value = `No more images found. Try adjusting your filters (date range, cloud cover, area coverage) to increase the likelihood of finding more results.`
+      } else {
+        searchStatus.value = `Loaded ${response.results.length} more images (${searchResults.value.length} total)`
       }
     }
   } catch (error: unknown) {
@@ -222,6 +232,29 @@ const loadMore = async () => {
     searchStatus.value = `Error loading more results: ${error instanceof Error ? error.message : 'Unknown error'}`
   } finally {
     isLoading.value = false
+
+    // Scroll to the first new item after loading is complete
+    if (firstNewItemId) {
+      // Use nextTick to ensure DOM is fully updated after loading state ends
+      await nextTick()
+
+      // Retry mechanism in case the element isn't immediately available
+      const scrollToElement = async (retries = 3) => {
+        const element = document.getElementById(firstNewItemId!)
+        if (element) {
+          element.scrollIntoView({
+            behavior: 'smooth',
+            block: 'start',
+            inline: 'nearest',
+          })
+        } else if (retries > 0) {
+          // If element not found, wait a bit and retry
+          setTimeout(() => scrollToElement(retries - 1), 100)
+        }
+      }
+
+      await scrollToElement()
+    }
   }
 }
 
@@ -230,7 +263,7 @@ const resetToOriginalSearch = async () => {
   if (!currentMgrsTileId.value || !currentBbox.value) return
 
   // Use the existing handleSearchResults function to reset to original search
-  await handleSearchResults(currentMgrsTileId.value, currentBbox.value, currentSettings)
+  await handleSearchResults(currentMgrsTileId.value, currentBbox.value, currentSettings.value)
   hasLoadedMore.value = false // Reset the flag
 }
 
@@ -877,6 +910,7 @@ defineExpose({
             <div v-show="isFirstResultsOpen" class="results">
               <template v-for="result in searchResults" :key="result?.id">
                 <div
+                  :id="result?.id"
                   class="result-item"
                   :class="{ active: activeTileId === result?.id }"
                   v-if="result?.id !== secondActiveTileId"
@@ -961,6 +995,7 @@ defineExpose({
                 <!-- Show other results -->
                 <template v-for="result in searchResults" :key="result?.id">
                   <div
+                    :id="result?.id"
                     class="result-item"
                     :class="{ active: secondActiveTileId === result?.id }"
                     v-if="result?.id !== activeTileId"

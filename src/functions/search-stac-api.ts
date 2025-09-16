@@ -51,6 +51,8 @@ interface StacFeature {
 }
 
 interface StacResponse {
+  numberReturned: any
+  numberMatched: any
   features: StacFeature[]
   links?: Array<{
     body: any
