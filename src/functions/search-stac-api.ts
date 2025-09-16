@@ -3,18 +3,15 @@ import { SearchResult } from '../composables/useSearch'
 
 // Store the currently selected feature
 let nextPageToken: string | null = null
-
-interface ProcessedResult extends Omit<SearchResult, 'date'> {
-  date: Date
-  formattedDate: string
-  areaCoverage: number
-  geometry?: Polygon
-}
+let totalResultsReturned: number = 0
+let totalNumberMatched: number = 0
 
 interface SearchResponse {
   results: SearchResult[]
   hasMore: boolean
   totalFound: number
+  numberMatched: number
+  numberReturned: number
 }
 
 interface StacFeature {
@@ -51,6 +48,8 @@ interface StacFeature {
 }
 
 interface StacResponse {
+  numberReturned: any
+  numberMatched: any
   features: StacFeature[]
   links?: Array<{
     body: any
@@ -95,6 +94,12 @@ export default async function searchStacApi(
   resetSearch = true,
   settings?: SearchSettings,
 ): Promise<SearchResponse | undefined> {
+  // Reset counters for new search
+  if (resetSearch) {
+    totalResultsReturned = 0
+    totalNumberMatched = 0
+  }
+
   // Use provided settings or fall back to DOM elements
   const startDate = settings?.startDate ? convertToRFC3339(settings.startDate) : ''
   const endDate = settings?.endDate ? convertToRFC3339(settings.endDate, true) : ''
@@ -161,6 +166,10 @@ export default async function searchStacApi(
 
     const data = (await response.json()) as StacResponse
 
+    // Update totals from the response
+    totalNumberMatched = data.numberMatched || 0
+    totalResultsReturned += data.numberReturned || data.features.length
+
     // Look for the "next" link which contains the pagination token
     let nextLink = null
     if (data.links) {
@@ -181,14 +190,31 @@ export default async function searchStacApi(
 
     // Process and sort the results
     const results = data.features
-      .map((item: StacFeature): ProcessedResult => {
+      .sort((a: StacFeature, b: StacFeature) => {
+        // First sort by date (newest first)
+        const dateComparison =
+          new Date(b.properties.datetime).getTime() - new Date(a.properties.datetime).getTime()
+        if (dateComparison !== 0) return dateComparison
+
+        // If dates are equal, sort by cloud cover (lowest first)
+        const aCloudCover =
+          typeof a.properties['eo:cloud_cover'] === 'number'
+            ? a.properties['eo:cloud_cover']
+            : Infinity
+        const bCloudCover =
+          typeof b.properties['eo:cloud_cover'] === 'number'
+            ? b.properties['eo:cloud_cover']
+            : Infinity
+        return aCloudCover - bCloudCover
+      })
+      .map((item: StacFeature): SearchResult => {
         // Calculate area coverage as 100 - nodata_pixel_percentage
         const nodataPercentage = item.properties['s2:nodata_pixel_percentage'] || 0
         const areaCoverage = 100 - nodataPercentage
 
         const result = {
           id: item.id,
-          date: new Date(item.properties.datetime),
+          date: new Date(item.properties.datetime).toLocaleDateString(),
           formattedDate: new Date(item.properties.datetime).toLocaleDateString(),
           cloudCover: item.properties['eo:cloud_cover'] || 'N/A',
           areaCoverage: areaCoverage,
@@ -204,29 +230,16 @@ export default async function searchStacApi(
         }
         return result
       })
-      .sort((a: ProcessedResult, b: ProcessedResult) => {
-        // First sort by date (newest first)
-        const dateComparison = b.date.getTime() - a.date.getTime()
-        if (dateComparison !== 0) return dateComparison
 
-        // If dates are equal, sort by cloud cover (lowest first)
-        const aCloudCover = typeof a.cloudCover === 'number' ? a.cloudCover : Infinity
-        const bCloudCover = typeof b.cloudCover === 'number' ? b.cloudCover : Infinity
-        return aCloudCover - bCloudCover
-      })
-      .map(
-        (item: ProcessedResult): SearchResult => ({
-          ...item,
-          date: item.formattedDate, // Convert back to string for display
-          areaCoverage: item.areaCoverage,
-          geometry: item.geometry,
-        }),
-      )
+    // Calculate hasMore based on whether we've returned all available results
+    const hasMoreResults = totalResultsReturned < totalNumberMatched
 
     return {
       results,
-      hasMore: !!nextPageToken,
+      hasMore: hasMoreResults,
       totalFound: data.features.length,
+      numberMatched: totalNumberMatched,
+      numberReturned: totalResultsReturned,
     }
   } catch (error) {
     console.error('Error searching Earth Search API:', error)
