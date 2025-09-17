@@ -542,6 +542,7 @@ export async function triggerTileSelection(
           endDate: '',
           cloudCover: 10,
           areaCoverage: 60,
+          selectedCollection: [['sentinel-2-c1-l2a']],
         }
 
         if (stored) {
@@ -552,6 +553,7 @@ export async function triggerTileSelection(
               endDate: parsed.endDate || '',
               cloudCover: parsed.cloudCover || 10,
               areaCoverage: parsed.areaCoverage || 60,
+              selectedCollection: parsed.selectedCollection || [['sentinel-2-c1-l2a']],
             }
           } catch (error) {
             console.error('Error parsing stored settings:', error)
