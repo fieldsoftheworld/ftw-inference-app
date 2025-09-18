@@ -19,7 +19,6 @@ const closeModal = () => {
 }
 
 const saveSettings = () => {
-  settings.value = { ...settings.value }
   closeModal()
 }
 
