@@ -42,6 +42,7 @@ const {
   availableCollections,
   selectedCollection,
   handleSearchResults,
+  collections,
 } = useSearch()
 const { currentGridExtent, currentMgrsTileId, activeTileId, secondActiveTileId } =
   useAreaOfInterest()
@@ -831,7 +832,7 @@ defineExpose({
 
     <transition name="accordion">
       <div v-show="isOpen">
-        <v-radio-group v-model="processingMode" density="compact">
+        <v-radio-group class="processing-mode hide-details" v-model="processingMode" density="compact">
           <v-radio value="smallAreaProcessing" :disabled="isProcessing || isCreatingProject"
             ><template v-slot:label
               >Small Area Processing
@@ -873,64 +874,66 @@ defineExpose({
             ></v-radio
           >
         </v-radio-group>
-        <p v-if="searchStatus === ''">Select a grid cell to search for Sentinel-2 images</p>
-        <div class="search-status">{{ searchStatus }}</div>
 
-        <div v-if="isLoading" class="loading">Loading...</div>
-
-        <div v-else-if="searchResults.length > 0" class="results-container">
-          <div class="selected-tile-header">{{ currentMgrsTileId }} Results</div>
-
-          <!-- Action buttons section -->
-          <div class="action-buttons">
-            <div v-if="processingMode === 'batchProcessing'" class="title-input">
-              <label for="project-title" class="input-label">Project Title</label>
-              <input
-                id="project-title"
-                type="text"
-                v-model="projectTitle"
-                placeholder="Enter project title"
-                class="project-title-input"
-              />
-            </div>
-            <div v-if="projectMessage" :class="['message', projectMessage.type]">
-              {{ projectMessage.text }}
-              <button
-                v-if="projectMessage.type === 'error'"
-                class="close-button"
-                @click="dismissMessage"
-              >
-                ×
-              </button>
-            </div>
+        <!-- Action buttons section -->
+        <div v-if="currentMgrsTileId" class="action-buttons">
+          <div v-if="processingMode === 'batchProcessing'" class="title-input">
+            <label for="project-title" class="input-label">Project Title</label>
+            <input
+              id="project-title"
+              type="text"
+              v-model="projectTitle"
+              placeholder="Enter project title"
+              class="project-title-input"
+            />
+          </div>
+          <div v-if="projectMessage" :class="['message', projectMessage.type]">
+            {{ projectMessage.text }}
             <button
-              v-if="processingMode === 'batchProcessing'"
-              class="action-button"
-              :disabled="!activeTileId || !secondActiveTileId || isCreatingProject"
-              @click="handleCompareTiles"
+              v-if="projectMessage.type === 'error'"
+              class="close-button"
+              @click="dismissMessage"
             >
-              <span v-if="isCreatingProject">Creating Project...</span>
-              <span v-else>Run Batch Processing</span>
-            </button>
-            <button
-              v-if="processingMode === 'smallAreaProcessing'"
-              class="action-button"
-              :disabled="!activeTileId || !secondActiveTileId || isProcessing"
-              @click="handleSmallAreaProcessingRequest"
-            >
-              <span v-if="isProcessing">Processing...</span>
-              <span v-else>Run Small Area Processing</span>
+              ×
             </button>
           </div>
+          <button
+            v-if="processingMode === 'batchProcessing'"
+            class="action-button"
+            :disabled="!activeTileId || !secondActiveTileId || isCreatingProject"
+            @click="handleCompareTiles"
+          >
+            <span v-if="isCreatingProject">Creating Project...</span>
+            <span v-else>Run Batch Processing</span>
+          </button>
+          <button
+            v-if="processingMode === 'smallAreaProcessing'"
+            class="action-button"
+            :disabled="!activeTileId || !secondActiveTileId || isProcessing"
+            @click="handleSmallAreaProcessingRequest"
+          >
+            <span v-if="isProcessing">Processing...</span>
+            <span v-else>Run Small Area Processing</span>
+          </button>
+        </div>
 
-          <v-radio-group density="compact" v-model="selectedCollection">
-            <v-radio
-              v-for="collection in availableCollections"
-              :key="collection[0]"
-              :label="collection[0]"
-              :value="collection"
-            />
-          </v-radio-group>
+        <h4 v-if="currentMgrsTileId" class="selected-tile-header">
+          <template v-if="currentMgrsTileId">Selected Tile: {{ currentMgrsTileId }}</template>
+          <template v-else>Select a grid cell to search for Sentinel-2 images</template>
+        </h4>
+
+        <v-radio-group class="collections hide-details" density="compact" v-model="selectedCollection">
+          <v-radio
+            v-for="collection in availableCollections"
+            :key="collection[0]"
+            :label="collections[collection[0]]"
+            :value="collection"
+          />
+        </v-radio-group>
+
+        <div class="search-status">{{ searchStatus }}</div>
+
+        <div v-if="searchResults.length > 0" class="results-container">
 
           <div class="accordion-header" @click="toggleFirstResults">
             <h3 class="active-tile-id">{{ activeTileId ? activeTileId : 'Select a tile' }}</h3>
@@ -980,7 +983,8 @@ defineExpose({
                   class="load-more-button"
                   :disabled="isLoading"
                 >
-                  Load More
+                  <template v-if="isLoading">Loading...</template>
+                  <template v-else>Load More</template>
                 </button>
                 <button
                   v-if="hasLoadedMore"
@@ -1159,20 +1163,19 @@ defineExpose({
   flex: 1;
   overflow-y: auto;
   transition: opacity 0.3s ease;
-  min-height: 0;
-  max-height: calc(100vh - 490px);
+  min-height: 300px;
+  max-height: 50vh;
 }
 
 .selected-tile-header {
-  padding: 0.25rem;
+  padding: 0.75rem 0;
   color: white;
-  font-weight: 500;
+  font-weight: 600;
 }
 
 .action-buttons {
-  margin-bottom: 0.25rem;
+  margin: 0.75rem 0;
   padding-bottom: 0.25rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   width: 100%;
   flex-shrink: 0;
 }
@@ -1296,6 +1299,7 @@ defineExpose({
 .result-item {
   background-color: rgba(255, 255, 255, 0.1);
   padding: 1rem;
+  margin-top: 0.5rem;
   border-radius: 4px;
   display: flex;
   flex-direction: column;
@@ -1316,7 +1320,7 @@ defineExpose({
 
 .result-thumbnail {
   width: 100%;
-  height: 150px;
+  height: 200px;
   overflow: hidden;
   border-radius: 4px;
   background-color: rgba(0, 0, 0, 0.2);
@@ -1336,7 +1340,7 @@ defineExpose({
 .result-thumbnail img {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
 }
 
 .result-header {
@@ -1436,7 +1440,7 @@ defineExpose({
 }
 
 .active-tile-id {
-  max-width: 200px;
+  max-width: 100%;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1497,5 +1501,21 @@ defineExpose({
   padding: 1rem;
   max-height: 300px;
   overflow-y: auto;
+}
+
+.processing-mode {
+  margin-top: 0.75rem;
+}
+.collections {
+  margin: 0.25rem 0 0.5rem;
+}
+</style>
+<style>
+.hide-details.v-radio-group .v-input__details {
+  padding-inline: 0;
+  min-height: 0px;
+}
+.hide-details.v-radio-group .v-input__details .v-messages:empty {
+  display: none;
 }
 </style>

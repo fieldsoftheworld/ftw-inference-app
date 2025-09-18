@@ -255,8 +255,9 @@ const handleTileAndBboxSelected = (tileName: string, bbox?: number[]) => {
   position: absolute;
   top: 1rem;
   right: 1rem;
-  width: 300px;
-  height: 90vh;
+  min-width: 300px;
+  width: 30vw;
+  height: calc(100vh - 4rem);
   background-color: rgba(0, 0, 0, 0.8);
   color: white;
   padding: 1rem;
@@ -264,6 +265,7 @@ const handleTileAndBboxSelected = (tileName: string, bbox?: number[]) => {
   z-index: 1000;
   display: flex;
   flex-direction: column;
+  overflow-y: auto;
 }
 
 .header-container {

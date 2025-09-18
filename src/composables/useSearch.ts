@@ -18,7 +18,11 @@ export type SearchResults = Ref<SearchResult[]>
 
 export const searchResults = ref<SearchResult[]>([])
 
-const availableCollections = [['sentinel-2-c1-l2a'], ['sentinel-2-l2a']]
+const collections = {
+  'sentinel-2-c1-l2a': 'Sentinel-2 Level 2A, Collection 1',
+  'sentinel-2-l2a': 'Sentinel-2 Level 2A, Legacy'
+}
+const availableCollections = Object.keys(collections).map(c => [c]);
 
 const hasMore = ref(false)
 const isLoading = ref(false)
@@ -89,5 +93,6 @@ export function useSearch() {
     clearSearchResults,
     availableCollections,
     selectedCollection,
+    collections,
   }
 }
