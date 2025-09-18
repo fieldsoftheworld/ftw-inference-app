@@ -6,7 +6,10 @@ interface Settings {
   endDate: string
   cloudCover: number
   areaCoverage: number
+  selectedCollection: string[]
 }
+
+const availableCollections = [['sentinel-2-c1-l2a'], ['sentinel-2-l2a']]
 
 const props = defineProps<{
   isOpen: boolean
@@ -81,6 +84,7 @@ const resetToDefaults = () => {
   settings.value.endDate = ''
   settings.value.cloudCover = 10
   settings.value.areaCoverage = 60
+  settings.value.selectedCollection = availableCollections[0]
   checkCloudCoverWarning()
 }
 
@@ -115,6 +119,24 @@ watch(() => props.isOpen, initializeSettings)
         <button class="close-button" @click="closeModal">×</button>
       </div>
       <div class="modal-body">
+        <div class="form-group">
+          <label>Data Collection</label>
+          <div class="radio-group">
+            <label
+              v-for="collection in availableCollections"
+              :key="collection[0]"
+              class="radio-option"
+            >
+              <input
+                type="radio"
+                :value="collection"
+                v-model="settings.selectedCollection"
+                class="radio-input"
+              />
+              <span class="radio-label">{{ collection[0] }}</span>
+            </label>
+          </div>
+        </div>
         <div class="form-group">
           <label>Date Range</label>
           <div class="date-range-container">
@@ -273,7 +295,7 @@ watch(() => props.isOpen, initializeSettings)
 }
 
 .form-group label {
-  display: block;
+  display: flex;
   margin-bottom: 0.5rem;
   color: rgba(255, 255, 255, 0.9);
   font-size: 0.875rem;
@@ -479,5 +501,39 @@ watch(() => props.isOpen, initializeSettings)
 .btn-small {
   padding: 0.5rem 1rem;
   font-size: 0.75rem;
+}
+
+/* Radio Group Styles */
+.radio-group {
+  display: flex;
+  gap: 1.25rem;
+}
+
+.radio-option {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: background-color 0.2s ease;
+}
+
+.radio-option:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+.radio-input {
+  margin: 0;
+  margin-right: 0.5rem;
+  width: 16px;
+  height: 16px;
+  accent-color: rgba(0, 136, 136, 0.8);
+  cursor: pointer;
+}
+
+.radio-label {
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 0.875rem;
+  cursor: pointer;
+  user-select: none;
 }
 </style>

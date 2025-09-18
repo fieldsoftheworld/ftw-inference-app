@@ -33,16 +33,8 @@ const { addStacLayer, removeStacLayer } = useStacLayer()
 const { removeExtentInteraction, removeDrawVectorLayer, drawnExtent } = useAreaOfInterest()
 const { projectMessage, dismissMessage } = useProjectMessage()
 
-const {
-  currentBbox,
-  hasMore,
-  isLoading,
-  searchResults,
-  searchStatus,
-  availableCollections,
-  selectedCollection,
-  handleSearchResults,
-} = useSearch()
+const { currentBbox, hasMore, isLoading, searchResults, searchStatus, handleSearchResults } =
+  useSearch()
 const { currentGridExtent, currentMgrsTileId, activeTileId, secondActiveTileId } =
   useAreaOfInterest()
 
@@ -922,15 +914,6 @@ defineExpose({
               <span v-else>Run Small Area Processing</span>
             </button>
           </div>
-
-          <v-radio-group density="compact" v-model="selectedCollection">
-            <v-radio
-              v-for="collection in availableCollections"
-              :key="collection[0]"
-              :label="collection[0]"
-              :value="collection"
-            />
-          </v-radio-group>
 
           <div class="accordion-header" @click="toggleFirstResults">
             <h3 class="active-tile-id">{{ activeTileId ? activeTileId : 'Select a tile' }}</h3>
