@@ -1,19 +1,11 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
+import { useSettings, type Settings } from '../composables/useSettings'
 
-interface Settings {
-  startDate: string
-  endDate: string
-  cloudCover: number
-  areaCoverage: number
-  selectedCollection: string[]
-}
-
-const availableCollections = [['sentinel-2-c1-l2a'], ['sentinel-2-l2a']]
+const { availableCollections, settings, resetSettings, updateSettings } = useSettings()
 
 const props = defineProps<{
   isOpen: boolean
-  initialSettings: Settings
 }>()
 
 const emit = defineEmits<{
@@ -21,17 +13,14 @@ const emit = defineEmits<{
   (e: 'save', settings: Settings): void
 }>()
 
-const settings = ref({ ...props.initialSettings })
-const originalSettings = ref({ ...props.initialSettings })
+const originalSettings = ref({ ...settings.value })
 
 const closeModal = () => {
   emit('update:isOpen', false)
 }
 
 const saveSettings = () => {
-  // Save settings to localStorage
-  localStorage.setItem('ftw-search-settings', JSON.stringify(settings.value))
-
+  updateSettings(settings.value)
   emit('save', settings.value)
   closeModal()
 }
@@ -80,16 +69,13 @@ const clearDateFilters = () => {
 }
 
 const resetToDefaults = () => {
-  settings.value.startDate = ''
-  settings.value.endDate = ''
-  settings.value.cloudCover = 10
-  settings.value.areaCoverage = 60
-  settings.value.selectedCollection = availableCollections[0]
+  resetSettings()
   checkCloudCoverWarning()
 }
 
 const cancelChanges = () => {
   // Restore original settings
+  updateSettings(originalSettings.value)
   settings.value = { ...originalSettings.value }
   closeModal()
 }
@@ -97,8 +83,7 @@ const cancelChanges = () => {
 // Initialize settings when modal opens
 const initializeSettings = () => {
   if (props.isOpen) {
-    settings.value = { ...props.initialSettings }
-    originalSettings.value = { ...props.initialSettings }
+    originalSettings.value = { ...settings.value }
     // Check for warnings after modal opens
     setTimeout(() => {
       checkCloudCoverWarning()
@@ -106,8 +91,6 @@ const initializeSettings = () => {
   }
 }
 
-// Watch for modal open state
-import { watch } from 'vue'
 watch(() => props.isOpen, initializeSettings)
 </script>
 
