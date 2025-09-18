@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
-import { useSettings, type Settings } from '../composables/useSettings'
+import { useSettings } from '../composables/useSettings'
 
 const { availableCollections, settings, resetSettings, updateSettings } = useSettings()
 
@@ -10,7 +10,6 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: 'update:isOpen', value: boolean): void
-  (e: 'save', settings: Settings): void
 }>()
 
 const originalSettings = ref({ ...settings.value })
@@ -21,7 +20,6 @@ const closeModal = () => {
 
 const saveSettings = () => {
   updateSettings(settings.value)
-  emit('save', settings.value)
   closeModal()
 }
 

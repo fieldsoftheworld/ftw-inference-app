@@ -35,7 +35,16 @@ const isSettingsModalOpen = ref(false)
 const isSearchModalOpen = ref(false)
 
 // Use settings composable
-const { settings, updateSettings } = useSettings()
+const { settings, setOnSettingsChange } = useSettings()
+
+// Set up callback for when settings change
+setOnSettingsChange((newSettings) => {
+  // If there's an active search area, refresh the search with new settings
+  if (currentBbox.value && currentMgrsTileId.value) {
+    // Trigger a new search with the updated settings
+    handleSearchResults(currentMgrsTileId.value, currentBbox.value, newSettings)
+  }
+})
 
 watch(drawnExtent, (newValue) => {
   if (!currentBbox.value) return
@@ -47,16 +56,6 @@ watch(drawnExtent, (newValue) => {
 
 const handleSettingsClick = () => {
   isSettingsModalOpen.value = true
-}
-
-const handleSettingsSave = (newSettings: any) => {
-  updateSettings(newSettings)
-
-  // If there's an active search area, refresh the search with new settings
-  if (currentBbox.value && currentMgrsTileId.value) {
-    // Trigger a new search with the updated settings
-    handleSearchResults(currentMgrsTileId.value, currentBbox.value, newSettings)
-  }
 }
 
 // Handle tile selection from search modal
@@ -168,12 +167,7 @@ const handleTileAndBboxSelected = (tileName: string, bbox?: number[]) => {
     />
 
     <!-- Settings Modal -->
-    <SettingsModal
-      :is-open="isSettingsModalOpen"
-      :initial-settings="settings"
-      @update:is-open="isSettingsModalOpen = $event"
-      @save="handleSettingsSave"
-    />
+    <SettingsModal :is-open="isSettingsModalOpen" @update:is-open="isSettingsModalOpen = $event" />
 
     <!-- Search Modal -->
     <SearchModal
