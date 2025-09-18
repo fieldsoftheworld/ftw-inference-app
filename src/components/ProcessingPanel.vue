@@ -17,6 +17,7 @@ import PropertyDisplay from './PropertyDisplay.vue'
 import { formatMeasurementDisplay } from '../functions/format-measurement-display'
 import { useProcessingMode } from '../composables/useProcessingMode'
 import { useMap } from '../composables/useMap'
+import { mdiHelpCircleOutline } from '@mdi/js'
 
 const props = defineProps<{
   isOpen: boolean
@@ -831,16 +832,46 @@ defineExpose({
     <transition name="accordion">
       <div v-show="isOpen">
         <v-radio-group v-model="processingMode" density="compact">
-          <v-radio
-            value="smallAreaProcessing"
-            :disabled="isProcessing || isCreatingProject"
-            label="Small Area Processing"
-          />
-          <v-radio
-            value="batchProcessing"
-            :disabled="isProcessing || isCreatingProject"
-            label="Batch Processing"
-          />
+          <v-radio value="smallAreaProcessing" :disabled="isProcessing || isCreatingProject"
+            ><template v-slot:label
+              >Small Area Processing
+              <v-tooltip max-width="400" open-on-click>
+                <template #activator="{ props }">
+                  <v-icon
+                    class="ml-1"
+                    :icon="mdiHelpCircleOutline"
+                    size="x-small"
+                    v-bind="props"
+                  ></v-icon>
+                </template>
+                <div>
+                  Limited to areas smaller than 200 km². Processing usually takes less than 15
+                  seconds, result polygons will be shown upon finish.
+                </div>
+              </v-tooltip></template
+            ></v-radio
+          >
+          <v-radio value="batchProcessing" :disabled="isProcessing || isCreatingProject"
+            ><template v-slot:label
+              >Batch Processing
+              <v-tooltip max-width="400" open-on-click>
+                <template #activator="{ props }">
+                  <v-icon
+                    class="ml-1"
+                    :icon="mdiHelpCircleOutline"
+                    size="x-small"
+                    v-bind="props"
+                  ></v-icon>
+                </template>
+                <div>
+                  Allows for larger areas to be processed, but may take 30 seconds or more to
+                  complete. Result polygons will be shown upon finish, a raster image showing the
+                  inference is also available. A project will be created, results will be saved for
+                  later access.
+                </div>
+              </v-tooltip></template
+            ></v-radio
+          >
         </v-radio-group>
         <p v-if="searchStatus === ''">Select a grid cell to search for Sentinel-2 images</p>
         <div class="search-status">{{ searchStatus }}</div>
