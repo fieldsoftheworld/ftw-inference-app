@@ -22,19 +22,16 @@ const defaultSettings: Settings = {
 export const loadSettingsFromStorage = (): Settings => {
   const stored = localStorage.getItem('ftw-search-settings')
   if (stored) {
-    try {
-      const parsed = JSON.parse(stored)
-      return {
-        startDate: parsed.startDate || defaultSettings.startDate,
-        endDate: parsed.endDate || defaultSettings.endDate,
-        cloudCover: parsed.cloudCover || defaultSettings.cloudCover,
-        areaCoverage: parsed.areaCoverage || defaultSettings.areaCoverage,
-        selectedCollection: parsed.selectedCollection || defaultSettings.selectedCollection,
-      }
-    } catch (error) {
-      console.error('Error parsing stored settings:', error)
+    const parsed = JSON.parse(stored)
+    return {
+      startDate: parsed.startDate || defaultSettings.startDate,
+      endDate: parsed.endDate || defaultSettings.endDate,
+      cloudCover: parsed.cloudCover || defaultSettings.cloudCover,
+      areaCoverage: parsed.areaCoverage || defaultSettings.areaCoverage,
+      selectedCollection: parsed.selectedCollection || defaultSettings.selectedCollection,
     }
   }
+
   return { ...defaultSettings }
 }
 
