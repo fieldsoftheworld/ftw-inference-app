@@ -2,7 +2,7 @@
 import { ref, watch } from 'vue'
 import { useSettings } from '../composables/useSettings'
 
-const { availableCollections, settings, resetSettings, updateSettings } = useSettings()
+const { availableCollections, settings, defaultSettings } = useSettings()
 
 const props = defineProps<{
   isOpen: boolean
@@ -19,7 +19,7 @@ const closeModal = () => {
 }
 
 const saveSettings = () => {
-  updateSettings(settings.value)
+  settings.value = { ...settings.value }
   closeModal()
 }
 
@@ -67,13 +67,12 @@ const clearDateFilters = () => {
 }
 
 const resetToDefaults = () => {
-  resetSettings()
+  settings.value = { ...defaultSettings }
   checkCloudCoverWarning()
 }
 
 const cancelChanges = () => {
   // Restore original settings
-  updateSettings(originalSettings.value)
   settings.value = { ...originalSettings.value }
   closeModal()
 }

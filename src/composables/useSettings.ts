@@ -1,4 +1,6 @@
 import { ref, watch } from 'vue'
+import { useSearch } from './useSearch'
+import { useAreaOfInterest } from './useAreaOfInterest'
 
 export interface Settings {
   startDate: string
@@ -9,6 +11,9 @@ export interface Settings {
 }
 
 const availableCollections = [['sentinel-2-c1-l2a'], ['sentinel-2-l2a']]
+
+const { currentBbox, handleSearchResults } = useSearch()
+const { currentMgrsTileId } = useAreaOfInterest()
 
 // Default settings
 const defaultSettings: Settings = {
@@ -35,61 +40,25 @@ export const loadSettingsFromStorage = (): Settings => {
   return { ...defaultSettings }
 }
 
-const saveSettingsToStorage = (settings: Settings) => {
-  localStorage.setItem('ftw-search-settings', JSON.stringify(settings))
-}
-
 const settings = ref<Settings>(loadSettingsFromStorage())
 
-// Callback for when settings change
-let onSettingsChange: ((newSettings: Settings) => void) | null = null
-
-const updateSettings = (newSettings: Settings) => {
-  settings.value = { ...newSettings }
-  saveSettingsToStorage(newSettings)
-}
-
-// Watch for settings changes and trigger callback
+// Watch for settings changes and trigger search refresh
 watch(
   settings,
   (newSettings) => {
-    if (onSettingsChange) {
-      onSettingsChange(newSettings)
+    localStorage.setItem('ftw-search-settings', JSON.stringify(newSettings))
+    if (currentBbox.value && currentMgrsTileId.value) {
+      handleSearchResults(currentMgrsTileId.value, currentBbox.value, newSettings)
     }
   },
   { deep: true },
 )
-
-const resetSettings = () => {
-  updateSettings({ ...defaultSettings })
-}
-
-// Function to set the callback for settings changes
-const setOnSettingsChange = (callback: (newSettings: Settings) => void) => {
-  onSettingsChange = callback
-}
-
-// Function to get settings for search API
-const getSearchSettings = () => {
-  return {
-    startDate: settings.value.startDate,
-    endDate: settings.value.endDate,
-    cloudCover: settings.value.cloudCover,
-    areaCoverage: settings.value.areaCoverage,
-    selectedCollection: settings.value.selectedCollection,
-  }
-}
 
 export function useSettings() {
   return {
     settings,
     availableCollections,
     defaultSettings,
-    updateSettings,
-    resetSettings,
-    setOnSettingsChange,
-    getSearchSettings,
     loadSettingsFromStorage,
-    saveSettingsToStorage,
   }
 }

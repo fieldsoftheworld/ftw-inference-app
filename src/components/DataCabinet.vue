@@ -35,16 +35,7 @@ const isSettingsModalOpen = ref(false)
 const isSearchModalOpen = ref(false)
 
 // Use settings composable
-const { settings, setOnSettingsChange } = useSettings()
-
-// Set up callback for when settings change
-setOnSettingsChange((newSettings) => {
-  // If there's an active search area, refresh the search with new settings
-  if (currentBbox.value && currentMgrsTileId.value) {
-    // Trigger a new search with the updated settings
-    handleSearchResults(currentMgrsTileId.value, currentBbox.value, newSettings)
-  }
-})
+const { settings } = useSettings()
 
 watch(drawnExtent, (newValue) => {
   if (!currentBbox.value) return
