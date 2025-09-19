@@ -20,7 +20,6 @@ import { getArea } from 'ol/sphere'
 import { showWarning } from '../functions/snackbar'
 import { booleanWithin as turfBooleanWithin } from '@turf/boolean-within'
 import { clearSearchResults, searchResults, type SearchResults } from './useSearch'
-import { loadSettingsFromStorage } from './useSettings'
 import { Feature as GeoJSONFeature, Polygon as GeoJSONPolygon } from 'geojson'
 import { areaValues, map } from './useMap'
 
@@ -402,7 +401,27 @@ function addMapClickHandler(
         // Call the search function through the ref and open the Batch Processing accordion
         if (currentMgrsTileId.value) {
           // Get current settings from localStorage to apply to the search
-          const currentSettings = loadSettingsFromStorage()
+          const stored = localStorage.getItem('ftw-search-settings')
+          let currentSettings = {
+            startDate: '',
+            endDate: '',
+            cloudCover: 10,
+            areaCoverage: 60,
+          }
+
+          if (stored) {
+            try {
+              const parsed = JSON.parse(stored)
+              currentSettings = {
+                startDate: parsed.startDate || '',
+                endDate: parsed.endDate || '',
+                cloudCover: parsed.cloudCover || 10,
+                areaCoverage: parsed.areaCoverage || 60,
+              }
+            } catch (error) {
+              console.error('Error parsing stored settings:', error)
+            }
+          }
 
           handleSearchResults(currentMgrsTileId.value, bbox, currentSettings)
         } else {
@@ -517,7 +536,27 @@ export async function triggerTileSelection(
       // Call the search function
       if (currentMgrsTileId.value) {
         // Get current settings from localStorage to apply to the search
-        const currentSettings = loadSettingsFromStorage()
+        const stored = localStorage.getItem('ftw-search-settings')
+        let currentSettings = {
+          startDate: '',
+          endDate: '',
+          cloudCover: 10,
+          areaCoverage: 60,
+        }
+
+        if (stored) {
+          try {
+            const parsed = JSON.parse(stored)
+            currentSettings = {
+              startDate: parsed.startDate || '',
+              endDate: parsed.endDate || '',
+              cloudCover: parsed.cloudCover || 10,
+              areaCoverage: parsed.areaCoverage || 60,
+            }
+          } catch (error) {
+            console.error('Error parsing stored settings:', error)
+          }
+        }
 
         await handleSearchResults(currentMgrsTileId.value, finalBbox, currentSettings)
       }

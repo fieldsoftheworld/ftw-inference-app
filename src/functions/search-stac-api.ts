@@ -63,7 +63,7 @@ export interface SearchSettings {
   endDate: string
   cloudCover: number
   areaCoverage: number
-  selectedCollection?: string[]
+  collections?: string[]
 }
 
 // Function to convert date string to RFC3339 format
@@ -109,7 +109,7 @@ export default async function searchStacApi(
   try {
     // Build request body for POST
     const requestBody: any = {
-      collections: settings?.selectedCollection || ['sentinel-2-c1-l2a'],
+      collections: settings?.collections || ['sentinel-2-c1-l2a'],
       limit: 20,
       query: {
         ['eo:cloud_cover']: {
