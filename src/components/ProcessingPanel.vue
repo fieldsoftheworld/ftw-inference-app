@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onUnmounted, watch, shallowRef, computed, nextTick } from 'vue'
+import { ref, onUnmounted, watch, shallowRef, nextTick } from 'vue'
 import type { Extent } from 'ol/extent'
 import { generateJWT } from '../functions/generate-jwt'
 import { transformExtent } from 'ol/proj'
@@ -18,6 +18,7 @@ import { formatMeasurementDisplay } from '../functions/format-measurement-displa
 import { useProcessingMode } from '../composables/useProcessingMode'
 import { useMap } from '../composables/useMap'
 import { mdiHelpCircleOutline } from '@mdi/js'
+import { useSettings } from '../composables/useSettings'
 
 const props = defineProps<{
   isOpen: boolean
@@ -33,17 +34,9 @@ const { addStacLayer, removeStacLayer } = useStacLayer()
 const { removeExtentInteraction, removeDrawVectorLayer, drawnExtent } = useAreaOfInterest()
 const { projectMessage, dismissMessage } = useProjectMessage()
 
-const {
-  currentBbox,
-  hasMore,
-  isLoading,
-  searchResults,
-  searchStatus,
-  availableCollections,
-  selectedCollection,
-  handleSearchResults,
-  collections,
-} = useSearch()
+const { currentBbox, hasMore, isLoading, searchResults, searchStatus, handleSearchResults } =
+  useSearch()
+
 const { currentGridExtent, currentMgrsTileId, activeTileId, secondActiveTileId } =
   useAreaOfInterest()
 
@@ -78,31 +71,7 @@ const propertiesBoxPosition = ref<{ x: number; y: number } | null>(null)
 const originalClickPosition = ref<{ x: number; y: number } | null>(null)
 const showPropertiesBox = ref(false)
 
-// For loadMore, we need to pass the same settings as the initial search
-// Get current settings from localStorage since that's where they're stored
-const getCurrentSettings = () => {
-  const stored = localStorage.getItem('ftw-search-settings')
-  let settings = {
-    startDate: '',
-    endDate: '',
-    cloudCover: 10,
-    areaCoverage: 60,
-  }
-
-  if (stored) {
-    const parsed = JSON.parse(stored)
-    settings = {
-      startDate: parsed.startDate || '',
-      endDate: parsed.endDate || '',
-      cloudCover: parsed.cloudCover || 10,
-      areaCoverage: parsed.areaCoverage || 60,
-    }
-  }
-  return settings
-}
-
-// Make currentSettings reactive by using a computed property
-const currentSettings = computed(() => getCurrentSettings())
+const { settings } = useSettings()
 
 const toggleAccordion = () => {
   isOpen.value = !isOpen.value
@@ -213,7 +182,7 @@ const loadMore = async () => {
   let firstNewItemId: string | null = null
 
   try {
-    const response = await searchStacApi(currentBbox.value, false, currentSettings.value)
+    const response = await searchStacApi(currentBbox.value, false, settings.value)
     if (response) {
       // Store the first item ID before adding results
       firstNewItemId = response.results.length > 0 ? response.results[0].id : null
@@ -265,7 +234,7 @@ const resetToOriginalSearch = async () => {
   if (!currentMgrsTileId.value || !currentBbox.value) return
 
   // Use the existing handleSearchResults function to reset to original search
-  await handleSearchResults(currentMgrsTileId.value, currentBbox.value, currentSettings.value)
+  await handleSearchResults(currentMgrsTileId.value, currentBbox.value, settings.value)
   hasLoadedMore.value = false // Reset the flag
 }
 
@@ -832,7 +801,11 @@ defineExpose({
 
     <transition name="accordion">
       <div v-show="isOpen">
-        <v-radio-group class="processing-mode hide-details" v-model="processingMode" density="compact">
+        <v-radio-group
+          class="processing-mode hide-details"
+          v-model="processingMode"
+          density="compact"
+        >
           <v-radio value="smallAreaProcessing" :disabled="isProcessing || isCreatingProject"
             ><template v-slot:label
               >Small Area Processing
@@ -922,19 +895,9 @@ defineExpose({
           <template v-else>Select a grid cell to search for Sentinel-2 images</template>
         </h4>
 
-        <v-radio-group class="collections hide-details" density="compact" v-model="selectedCollection">
-          <v-radio
-            v-for="collection in availableCollections"
-            :key="collection[0]"
-            :label="collections[collection[0]]"
-            :value="collection"
-          />
-        </v-radio-group>
-
         <div class="search-status">{{ searchStatus }}</div>
 
         <div v-if="searchResults.length > 0" class="results-container">
-
           <div class="accordion-header" @click="toggleFirstResults">
             <h3 class="active-tile-id">{{ activeTileId ? activeTileId : 'Select a tile' }}</h3>
             <span class="accordion-icon" :class="{ open: isFirstResultsOpen }">▼</span>

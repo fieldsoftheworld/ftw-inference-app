@@ -1,5 +1,5 @@
 import { Polygon } from 'geojson'
-import { type Ref, ref, watch } from 'vue'
+import { type Ref, ref } from 'vue'
 import searchStacApi, { SearchSettings } from '../functions/search-stac-api'
 
 export interface SearchResult {
@@ -17,21 +17,12 @@ export interface SearchResult {
 export type SearchResults = Ref<SearchResult[]>
 
 export const searchResults = ref<SearchResult[]>([])
-
-const collections = {
-  'sentinel-2-c1-l2a': 'Sentinel-2 Level 2A, Collection 1',
-  'sentinel-2-l2a': 'Sentinel-2 Level 2A, Legacy'
-}
-const availableCollections = Object.keys(collections).map(c => [c]);
+/** Grid extent, reduced by shrink factor (70% of grid extent) */
+export const currentBbox = ref<number[] | undefined>(undefined)
 
 const hasMore = ref(false)
 const isLoading = ref(false)
 const searchStatus = ref('')
-/** Grid extent, reduced by shrink factor (70% of grid extent) */
-const currentBbox = ref<number[] | undefined>(undefined)
-const selectedCollection = ref<string[]>(availableCollections[0])
-
-let unwatch: () => void
 
 // Function to handle search results
 export const handleSearchResults = async (
@@ -45,7 +36,6 @@ export const handleSearchResults = async (
   currentBbox.value = bbox
 
   const performSearch = async () => {
-    settings.collections = selectedCollection.value
     try {
       const response = await searchStacApi(bbox, true, settings)
       if (response) {
@@ -67,11 +57,6 @@ export const handleSearchResults = async (
     }
   }
   await performSearch()
-
-  if (unwatch) {
-    unwatch()
-  }
-  unwatch = watch(selectedCollection, performSearch)
 }
 
 export const clearSearchResults = () => {
@@ -91,8 +76,5 @@ export function useSearch() {
     hasMore,
     handleSearchResults,
     clearSearchResults,
-    availableCollections,
-    selectedCollection,
-    collections,
   }
 }

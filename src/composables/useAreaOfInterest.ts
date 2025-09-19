@@ -22,6 +22,7 @@ import { booleanWithin as turfBooleanWithin } from '@turf/boolean-within'
 import { clearSearchResults, searchResults, type SearchResults } from './useSearch'
 import { Feature as GeoJSONFeature, Polygon as GeoJSONPolygon } from 'geojson'
 import { areaValues, map } from './useMap'
+import { useSettings } from './useSettings'
 
 const invalidStyle = new Style({
   stroke: new Stroke({
@@ -53,6 +54,7 @@ const currentGridExtent = shallowRef<Extent | null>(null)
 export const drawnExtent = shallowRef<Extent | null>(null)
 /** Flag to block map clicks when results are displayed */
 const blockMapClicks = ref(false)
+const { settings } = useSettings()
 
 const extentFeature: Feature<Polygon> = new Feature()
 
@@ -400,30 +402,7 @@ function addMapClickHandler(
 
         // Call the search function through the ref and open the Batch Processing accordion
         if (currentMgrsTileId.value) {
-          // Get current settings from localStorage to apply to the search
-          const stored = localStorage.getItem('ftw-search-settings')
-          let currentSettings = {
-            startDate: '',
-            endDate: '',
-            cloudCover: 10,
-            areaCoverage: 60,
-          }
-
-          if (stored) {
-            try {
-              const parsed = JSON.parse(stored)
-              currentSettings = {
-                startDate: parsed.startDate || '',
-                endDate: parsed.endDate || '',
-                cloudCover: parsed.cloudCover || 10,
-                areaCoverage: parsed.areaCoverage || 60,
-              }
-            } catch (error) {
-              console.error('Error parsing stored settings:', error)
-            }
-          }
-
-          handleSearchResults(currentMgrsTileId.value, bbox, currentSettings)
+          handleSearchResults(currentMgrsTileId.value, bbox, settings.value)
         } else {
           console.error('S2 Grid Layer: Current MGRS Tile ID is null')
         }
@@ -535,30 +514,7 @@ export async function triggerTileSelection(
 
       // Call the search function
       if (currentMgrsTileId.value) {
-        // Get current settings from localStorage to apply to the search
-        const stored = localStorage.getItem('ftw-search-settings')
-        let currentSettings = {
-          startDate: '',
-          endDate: '',
-          cloudCover: 10,
-          areaCoverage: 60,
-        }
-
-        if (stored) {
-          try {
-            const parsed = JSON.parse(stored)
-            currentSettings = {
-              startDate: parsed.startDate || '',
-              endDate: parsed.endDate || '',
-              cloudCover: parsed.cloudCover || 10,
-              areaCoverage: parsed.areaCoverage || 60,
-            }
-          } catch (error) {
-            console.error('Error parsing stored settings:', error)
-          }
-        }
-
-        await handleSearchResults(currentMgrsTileId.value, finalBbox, currentSettings)
+        await handleSearchResults(currentMgrsTileId.value, finalBbox, settings.value)
       }
       // Add the layer and interactions
       if (!layers.includes(drawVectorLayer)) {

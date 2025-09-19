@@ -10,6 +10,7 @@ import { useAreaOfInterest } from '../composables/useAreaOfInterest'
 import { mdiCog, mdiInformation, mdiMagnify } from '@mdi/js'
 import { useProcessingMode } from '../composables/useProcessingMode'
 import { useMap } from '../composables/useMap'
+import { useSettings } from '../composables/useSettings'
 
 const emit = defineEmits<{
   (e: 'updateGeoJSONResults', results: any[]): void
@@ -33,31 +34,7 @@ watch(dontShowAgain, (newValue) => {
 const isSettingsModalOpen = ref(false)
 const isSearchModalOpen = ref(false)
 
-// Load settings from localStorage or use defaults
-const loadSettingsFromStorage = () => {
-  const stored = localStorage.getItem('ftw-search-settings')
-  if (stored) {
-    try {
-      const parsed = JSON.parse(stored)
-      return {
-        startDate: parsed.startDate || '',
-        endDate: parsed.endDate || '',
-        cloudCover: parsed.cloudCover || 10,
-        areaCoverage: parsed.areaCoverage || 60,
-      }
-    } catch (error) {
-      console.error('Error parsing stored settings:', error)
-    }
-  }
-  return {
-    startDate: '',
-    endDate: '',
-    cloudCover: 10,
-    areaCoverage: 60,
-  }
-}
-
-const settings = ref(loadSettingsFromStorage())
+const { settings } = useSettings()
 
 watch(drawnExtent, (newValue) => {
   if (!currentBbox.value) return
@@ -104,29 +81,6 @@ const handleTileSelected = (tileName: string) => {
 
 // Handle bbox selection from search modal
 const handleBboxSelected = (bbox: number[]) => {
-  // Get current settings from localStorage
-  const stored = localStorage.getItem('ftw-search-settings')
-  let currentSettings = {
-    startDate: '',
-    endDate: '',
-    cloudCover: 10,
-    areaCoverage: 60,
-  }
-
-  if (stored) {
-    try {
-      const parsed = JSON.parse(stored)
-      currentSettings = {
-        startDate: parsed.startDate || '',
-        endDate: parsed.endDate || '',
-        cloudCover: parsed.cloudCover || 10,
-        areaCoverage: parsed.areaCoverage || 60,
-      }
-    } catch (error) {
-      console.error('Error parsing stored settings:', error)
-    }
-  }
-
   // Set the drawn extent for the area of interest
   drawnExtent.value = bbox
 
@@ -135,7 +89,7 @@ const handleBboxSelected = (bbox: number[]) => {
   const placeholderTileId = `bbox_${Date.now()}`
 
   // Trigger the search with the custom bbox
-  handleSearchResults(placeholderTileId, bbox, currentSettings)
+  handleSearchResults(placeholderTileId, bbox, settings.value)
 }
 
 // Handle setting currentMgrsTileId from search modal
