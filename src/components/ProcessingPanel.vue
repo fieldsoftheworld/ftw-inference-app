@@ -200,7 +200,9 @@ const loadMore = async () => {
     }
   } catch (error: unknown) {
     console.error('Error loading more results:', error)
-    searchStatus.value = `Error loading more results: ${error instanceof Error ? error.message : 'Unknown error'}`
+    searchStatus.value = `Error loading more results: ${
+      error instanceof Error ? error.message : 'Unknown error'
+    }`
   } finally {
     isLoading.value = false
 
@@ -242,7 +244,7 @@ const handleViewOnMap = (
   imageUrl: string,
   bounds: number[] | null,
   tileId: string,
-  isSecondAccordion: boolean = false,
+  isSecondAccordion: boolean = false
 ) => {
   // Use the stored currentGridExtent for positioning the STAC layer
   const gridExtent = currentGridExtent.value || bounds
@@ -259,7 +261,9 @@ const handleViewOnMap = (
 
     if (!isNaN(areaCoverage) && areaCoverage <= 99.9) {
       showWarning(
-        `Selected tile has only ${areaCoverage.toFixed(1)}% area coverage. Be sure to select an area where there is imagery coverage.`,
+        `Selected tile has only ${areaCoverage.toFixed(
+          1
+        )}% area coverage. Be sure to select an area where there is imagery coverage.`
       )
     }
   }
@@ -380,7 +384,7 @@ const displayGeoJSON = (geojson: FeatureCollection & { crs: { properties: { name
   // Check if we have valid features
   if (source.getFeatures().length === 0) {
     showWarning(
-      'No valid features found in the processing results. Please try again with a different area or settings.',
+      'No valid features found in the processing results. Please try again with a different area or settings.'
     )
     return null
   }
@@ -413,7 +417,7 @@ const displayGeoJSON = (geojson: FeatureCollection & { crs: { properties: { name
   const extent = source.getExtent()
   if (!extent || extent.every((coord) => coord === 0) || extent.some((coord) => isNaN(coord))) {
     showWarning(
-      'Invalid extent generated from processing results. Please try again with a different area or settings.',
+      'Invalid extent generated from processing results. Please try again with a different area or settings.'
     )
     return null
   }
@@ -710,7 +714,7 @@ const handleCompareTiles = async () => {
           })
           if (!resultsResponse.ok) {
             throw new Error(
-              `Failed to fetch batch processing results: ${resultsResponse.statusText}`,
+              `Failed to fetch batch processing results: ${resultsResponse.statusText}`
             )
           }
 
@@ -890,7 +894,7 @@ defineExpose({
           </button>
         </div>
 
-        <h4 v-if="currentMgrsTileId" class="selected-tile-header">
+        <h4 class="selected-tile-header">
           <template v-if="currentMgrsTileId">Selected Tile: {{ currentMgrsTileId }}</template>
           <template v-else>Select a grid cell to search for Sentinel-2 images</template>
         </h4>
