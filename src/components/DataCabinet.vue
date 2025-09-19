@@ -66,7 +66,7 @@ const handleTileSelected = (tileName: string) => {
     (layer) =>
       layer.get('name') === 's2-grid' ||
       (layer.get('properties') && layer.get('properties').name === 's2-grid') ||
-      ((layer as any).getSource && (layer as any).getSource().getFeatures),
+      ((layer as any).getSource && (layer as any).getSource().getFeatures)
   )
 
   if (s2GridLayer && (s2GridLayer as any).getSource) {
@@ -115,7 +115,7 @@ const handleTileAndBboxSelected = (tileName: string, bbox?: number[]) => {
     (layer) =>
       layer.get('name') === 's2-grid' ||
       (layer.get('properties') && layer.get('properties').name === 's2-grid') ||
-      ((layer as any).getSource && (layer as any).getSource().getFeatures),
+      ((layer as any).getSource && (layer as any).getSource().getFeatures)
   )
 
   if (s2GridLayer && (s2GridLayer as any).getSource) {
@@ -211,6 +211,7 @@ const handleTileAndBboxSelected = (tileName: string, bbox?: number[]) => {
   right: 1rem;
   min-width: 300px;
   width: 30vw;
+  max-width: 600px;
   height: calc(100vh - 4rem);
   background-color: rgba(0, 0, 0, 0.8);
   color: white;
