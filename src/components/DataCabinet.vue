@@ -5,6 +5,7 @@ import ProcessingPanel from './ProcessingPanel.vue'
 import SettingsModal from './SettingsModal.vue'
 import SearchModal from './SearchModal.vue'
 import { useSearch } from '../composables/useSearch'
+import { useSettings } from '../composables/useSettings'
 import { getArea } from 'ol/sphere'
 import { useAreaOfInterest } from '../composables/useAreaOfInterest'
 import { mdiCog, mdiInformation, mdiMagnify } from '@mdi/js'
@@ -33,31 +34,8 @@ watch(dontShowAgain, (newValue) => {
 const isSettingsModalOpen = ref(false)
 const isSearchModalOpen = ref(false)
 
-// Load settings from localStorage or use defaults
-const loadSettingsFromStorage = () => {
-  const stored = localStorage.getItem('ftw-search-settings')
-  if (stored) {
-    try {
-      const parsed = JSON.parse(stored)
-      return {
-        startDate: parsed.startDate || '',
-        endDate: parsed.endDate || '',
-        cloudCover: parsed.cloudCover || 10,
-        areaCoverage: parsed.areaCoverage || 60,
-      }
-    } catch (error) {
-      console.error('Error parsing stored settings:', error)
-    }
-  }
-  return {
-    startDate: '',
-    endDate: '',
-    cloudCover: 10,
-    areaCoverage: 60,
-  }
-}
-
-const settings = ref(loadSettingsFromStorage())
+// Use settings composable
+const { settings } = useSettings()
 
 watch(drawnExtent, (newValue) => {
   if (!currentBbox.value) return
@@ -69,16 +47,6 @@ watch(drawnExtent, (newValue) => {
 
 const handleSettingsClick = () => {
   isSettingsModalOpen.value = true
-}
-
-const handleSettingsSave = (newSettings: any) => {
-  settings.value = newSettings
-
-  // If there's an active search area, refresh the search with new settings
-  if (currentBbox.value && currentMgrsTileId.value) {
-    // Trigger a new search with the updated settings
-    handleSearchResults(currentMgrsTileId.value, currentBbox.value, newSettings)
-  }
 }
 
 // Handle tile selection from search modal
@@ -104,29 +72,6 @@ const handleTileSelected = (tileName: string) => {
 
 // Handle bbox selection from search modal
 const handleBboxSelected = (bbox: number[]) => {
-  // Get current settings from localStorage
-  const stored = localStorage.getItem('ftw-search-settings')
-  let currentSettings = {
-    startDate: '',
-    endDate: '',
-    cloudCover: 10,
-    areaCoverage: 60,
-  }
-
-  if (stored) {
-    try {
-      const parsed = JSON.parse(stored)
-      currentSettings = {
-        startDate: parsed.startDate || '',
-        endDate: parsed.endDate || '',
-        cloudCover: parsed.cloudCover || 10,
-        areaCoverage: parsed.areaCoverage || 60,
-      }
-    } catch (error) {
-      console.error('Error parsing stored settings:', error)
-    }
-  }
-
   // Set the drawn extent for the area of interest
   drawnExtent.value = bbox
 
@@ -134,8 +79,8 @@ const handleBboxSelected = (bbox: number[]) => {
   // and trigger the search with the custom bbox
   const placeholderTileId = `bbox_${Date.now()}`
 
-  // Trigger the search with the custom bbox
-  handleSearchResults(placeholderTileId, bbox, currentSettings)
+  // Trigger the search with the custom bbox using current settings
+  handleSearchResults(placeholderTileId, bbox, settings.value)
 }
 
 // Handle setting currentMgrsTileId from search modal
@@ -213,12 +158,7 @@ const handleTileAndBboxSelected = (tileName: string, bbox?: number[]) => {
     />
 
     <!-- Settings Modal -->
-    <SettingsModal
-      :is-open="isSettingsModalOpen"
-      :initial-settings="settings"
-      @update:is-open="isSettingsModalOpen = $event"
-      @save="handleSettingsSave"
-    />
+    <SettingsModal :is-open="isSettingsModalOpen" @update:is-open="isSettingsModalOpen = $event" />
 
     <!-- Search Modal -->
     <SearchModal

@@ -6,6 +6,7 @@ import { transformExtent } from 'ol/proj'
 import { showWarning } from '../functions/snackbar'
 import searchStacApi from '../functions/search-stac-api'
 import { useSearch } from '../composables/useSearch'
+import { useSettings } from '../composables/useSettings'
 import { useProjectMessage } from '../composables/useProjectMessage'
 import VectorSource from 'ol/source/Vector'
 import VectorLayer from 'ol/layer/Vector'
@@ -33,16 +34,8 @@ const { addStacLayer, removeStacLayer } = useStacLayer()
 const { removeExtentInteraction, removeDrawVectorLayer, drawnExtent } = useAreaOfInterest()
 const { projectMessage, dismissMessage } = useProjectMessage()
 
-const {
-  currentBbox,
-  hasMore,
-  isLoading,
-  searchResults,
-  searchStatus,
-  availableCollections,
-  selectedCollection,
-  handleSearchResults,
-} = useSearch()
+const { currentBbox, hasMore, isLoading, searchResults, searchStatus, handleSearchResults } =
+  useSearch()
 const { currentGridExtent, currentMgrsTileId, activeTileId, secondActiveTileId } =
   useAreaOfInterest()
 
@@ -77,31 +70,8 @@ const propertiesBoxPosition = ref<{ x: number; y: number } | null>(null)
 const originalClickPosition = ref<{ x: number; y: number } | null>(null)
 const showPropertiesBox = ref(false)
 
-// For loadMore, we need to pass the same settings as the initial search
-// Get current settings from localStorage since that's where they're stored
-const getCurrentSettings = () => {
-  const stored = localStorage.getItem('ftw-search-settings')
-  let settings = {
-    startDate: '',
-    endDate: '',
-    cloudCover: 10,
-    areaCoverage: 60,
-  }
-
-  if (stored) {
-    const parsed = JSON.parse(stored)
-    settings = {
-      startDate: parsed.startDate || '',
-      endDate: parsed.endDate || '',
-      cloudCover: parsed.cloudCover || 10,
-      areaCoverage: parsed.areaCoverage || 60,
-    }
-  }
-  return settings
-}
-
-// Make currentSettings reactive by using a computed property
-const currentSettings = computed(() => getCurrentSettings())
+// Use settings composable
+const { settings } = useSettings()
 
 const toggleAccordion = () => {
   isOpen.value = !isOpen.value
@@ -212,7 +182,7 @@ const loadMore = async () => {
   let firstNewItemId: string | null = null
 
   try {
-    const response = await searchStacApi(currentBbox.value, false, currentSettings.value)
+    const response = await searchStacApi(currentBbox.value, false, settings.value)
     if (response) {
       // Store the first item ID before adding results
       firstNewItemId = response.results.length > 0 ? response.results[0].id : null
@@ -264,7 +234,7 @@ const resetToOriginalSearch = async () => {
   if (!currentMgrsTileId.value || !currentBbox.value) return
 
   // Use the existing handleSearchResults function to reset to original search
-  await handleSearchResults(currentMgrsTileId.value, currentBbox.value, currentSettings.value)
+  await handleSearchResults(currentMgrsTileId.value, currentBbox.value, settings.value)
   hasLoadedMore.value = false // Reset the flag
 }
 
@@ -922,15 +892,6 @@ defineExpose({
               <span v-else>Run Small Area Processing</span>
             </button>
           </div>
-
-          <v-radio-group density="compact" v-model="selectedCollection">
-            <v-radio
-              v-for="collection in availableCollections"
-              :key="collection[0]"
-              :label="collection[0]"
-              :value="collection"
-            />
-          </v-radio-group>
 
           <div class="accordion-header" @click="toggleFirstResults">
             <h3 class="active-tile-id">{{ activeTileId ? activeTileId : 'Select a tile' }}</h3>
