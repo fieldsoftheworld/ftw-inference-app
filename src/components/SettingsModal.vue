@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue'
 import { useSettings } from '../composables/useSettings'
+import { mdiClose } from '@mdi/js'
 
-const { availableCollections, settings, defaultSettings } = useSettings()
+const { collections, availableCollections, settings, defaultSettings } = useSettings()
 
 const props = defineProps<{
   isOpen: boolean
@@ -78,11 +79,11 @@ watch(() => props.isOpen, initializeSettings)
 </script>
 
 <template>
-  <v-dialog v-model="isOpen" max-width="500" persistent>
+  <v-dialog v-model="isOpen" max-width="500" persistent scrollable>
     <v-card class="settings-dialog" dark>
       <v-card-title class="d-flex justify-space-between align-center">
         <span>Search Settings</span>
-        <v-btn icon="mdi-close" variant="text" @click="closeModal" />
+        <v-btn :icon="mdiClose" variant="text" @click="closeModal" />
       </v-card-title>
 
       <v-card-text>
@@ -95,7 +96,7 @@ watch(() => props.isOpen, initializeSettings)
                 <v-radio
                   v-for="collection in availableCollections"
                   :key="collection[0]"
-                  :label="collection[0]"
+                  :label="collections[collection[0]]"
                   :value="collection"
                   color="teal"
                 />

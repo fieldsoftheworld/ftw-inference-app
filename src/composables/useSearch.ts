@@ -17,14 +17,12 @@ export interface SearchResult {
 export type SearchResults = Ref<SearchResult[]>
 
 export const searchResults = ref<SearchResult[]>([])
-
-const availableCollections = [['sentinel-2-c1-l2a'], ['sentinel-2-l2a']]
+/** Grid extent, reduced by shrink factor (70% of grid extent) */
+export const currentBbox = ref<number[] | undefined>(undefined)
 
 const hasMore = ref(false)
 const isLoading = ref(false)
 const searchStatus = ref('')
-/** Grid extent, reduced by shrink factor (70% of grid extent) */
-const currentBbox = ref<number[] | undefined>(undefined)
 
 // Function to handle search results
 export const handleSearchResults = async (
@@ -37,25 +35,28 @@ export const handleSearchResults = async (
 
   currentBbox.value = bbox
 
-  try {
-    const response = await searchStacApi(bbox, true, settings)
-    if (response) {
-      // Clear existing results for new search (resetSearch = true)
-      searchResults.value = response.results
-      hasMore.value = response.hasMore
+  const performSearch = async () => {
+    try {
+      const response = await searchStacApi(bbox, true, settings)
+      if (response) {
+        // Clear existing results for new search (resetSearch = true)
+        searchResults.value = response.results
+        hasMore.value = response.hasMore
 
-      if (response.results.length === 0) {
-        searchStatus.value = `No images found. Try adjusting your filters (date range, cloud cover, area coverage) to increase the likelihood of finding results.`
-      } else {
-        searchStatus.value = `Found ${response.results.length} images`
+        if (response.results.length === 0) {
+          searchStatus.value = `No images found. Try adjusting your filters (date range, cloud cover, area coverage) to increase the likelihood of finding results.`
+        } else {
+          searchStatus.value = `Found ${response.results.length} images`
+        }
       }
+    } catch (error: unknown) {
+      console.error('DataCabinet: Error searching:', error)
+      searchStatus.value = `Error searching: ${error instanceof Error ? error.message : 'Unknown error'}`
+    } finally {
+      isLoading.value = false
     }
-  } catch (error: unknown) {
-    console.error('DataCabinet: Error searching:', error)
-    searchStatus.value = `Error searching: ${error instanceof Error ? error.message : 'Unknown error'}`
-  } finally {
-    isLoading.value = false
   }
+  await performSearch()
 }
 
 export const clearSearchResults = () => {
@@ -75,6 +76,5 @@ export function useSearch() {
     hasMore,
     handleSearchResults,
     clearSearchResults,
-    availableCollections,
   }
 }

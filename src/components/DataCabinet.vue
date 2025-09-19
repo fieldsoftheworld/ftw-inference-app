@@ -5,12 +5,12 @@ import ProcessingPanel from './ProcessingPanel.vue'
 import SettingsModal from './SettingsModal.vue'
 import SearchModal from './SearchModal.vue'
 import { useSearch } from '../composables/useSearch'
-import { useSettings } from '../composables/useSettings'
 import { getArea } from 'ol/sphere'
 import { useAreaOfInterest } from '../composables/useAreaOfInterest'
 import { mdiCog, mdiInformation, mdiMagnify } from '@mdi/js'
 import { useProcessingMode } from '../composables/useProcessingMode'
 import { useMap } from '../composables/useMap'
+import { useSettings } from '../composables/useSettings'
 
 const emit = defineEmits<{
   (e: 'updateGeoJSONResults', results: any[]): void
@@ -34,7 +34,6 @@ watch(dontShowAgain, (newValue) => {
 const isSettingsModalOpen = ref(false)
 const isSearchModalOpen = ref(false)
 
-// Use settings composable
 const { settings } = useSettings()
 
 watch(drawnExtent, (newValue) => {
@@ -49,6 +48,16 @@ const handleSettingsClick = () => {
   isSettingsModalOpen.value = true
 }
 
+const handleSettingsSave = (newSettings: any) => {
+  settings.value = newSettings
+
+  // If there's an active search area, refresh the search with new settings
+  if (currentBbox.value && currentMgrsTileId.value) {
+    // Trigger a new search with the updated settings
+    handleSearchResults(currentMgrsTileId.value, currentBbox.value, newSettings)
+  }
+}
+
 // Handle tile selection from search modal
 const handleTileSelected = (tileName: string) => {
   // Find the tile feature on the map and trigger the tile selection
@@ -57,7 +66,7 @@ const handleTileSelected = (tileName: string) => {
     (layer) =>
       layer.get('name') === 's2-grid' ||
       (layer.get('properties') && layer.get('properties').name === 's2-grid') ||
-      ((layer as any).getSource && (layer as any).getSource().getFeatures),
+      ((layer as any).getSource && (layer as any).getSource().getFeatures)
   )
 
   if (s2GridLayer && (s2GridLayer as any).getSource) {
@@ -79,7 +88,7 @@ const handleBboxSelected = (bbox: number[]) => {
   // and trigger the search with the custom bbox
   const placeholderTileId = `bbox_${Date.now()}`
 
-  // Trigger the search with the custom bbox using current settings
+  // Trigger the search with the custom bbox
   handleSearchResults(placeholderTileId, bbox, settings.value)
 }
 
@@ -106,7 +115,7 @@ const handleTileAndBboxSelected = (tileName: string, bbox?: number[]) => {
     (layer) =>
       layer.get('name') === 's2-grid' ||
       (layer.get('properties') && layer.get('properties').name === 's2-grid') ||
-      ((layer as any).getSource && (layer as any).getSource().getFeatures),
+      ((layer as any).getSource && (layer as any).getSource().getFeatures)
   )
 
   if (s2GridLayer && (s2GridLayer as any).getSource) {
@@ -158,7 +167,12 @@ const handleTileAndBboxSelected = (tileName: string, bbox?: number[]) => {
     />
 
     <!-- Settings Modal -->
-    <SettingsModal :is-open="isSettingsModalOpen" @update:is-open="isSettingsModalOpen = $event" />
+    <SettingsModal
+      :is-open="isSettingsModalOpen"
+      :initial-settings="settings"
+      @update:is-open="isSettingsModalOpen = $event"
+      @save="handleSettingsSave"
+    />
 
     <!-- Search Modal -->
     <SearchModal
@@ -195,8 +209,10 @@ const handleTileAndBboxSelected = (tileName: string, bbox?: number[]) => {
   position: absolute;
   top: 1rem;
   right: 1rem;
-  width: 300px;
-  height: 90vh;
+  min-width: 300px;
+  width: 30vw;
+  max-width: 600px;
+  height: calc(100vh - 4rem);
   background-color: rgba(0, 0, 0, 0.8);
   color: white;
   padding: 1rem;
@@ -204,6 +220,7 @@ const handleTileAndBboxSelected = (tileName: string, bbox?: number[]) => {
   z-index: 1000;
   display: flex;
   flex-direction: column;
+  overflow-y: auto;
 }
 
 .header-container {

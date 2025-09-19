@@ -1,6 +1,6 @@
 import { ref, watch } from 'vue'
-import { useSearch } from './useSearch'
-import { useAreaOfInterest } from './useAreaOfInterest'
+import { currentBbox, handleSearchResults } from './useSearch'
+import { currentMgrsTileId } from './useAreaOfInterest'
 
 export interface Settings {
   startDate: string
@@ -10,13 +10,16 @@ export interface Settings {
   selectedCollection: string[]
 }
 
-const availableCollections = [['sentinel-2-c1-l2a'], ['sentinel-2-l2a']]
-
-const { currentBbox, handleSearchResults } = useSearch()
-const { currentMgrsTileId } = useAreaOfInterest()
+const collections = {
+  'sentinel-2-c1-l2a': 'Sentinel-2 Level 2A, Collection 1',
+  'sentinel-2-l2a': 'Sentinel-2 Level 2A, Legacy',
+}
+const availableCollections: [keyof typeof collections][] = Object.keys(collections).map((c) => [
+  c,
+]) as [keyof typeof collections][]
 
 // Default settings
-const defaultSettings: Settings = {
+export const defaultSettings: Settings = {
   startDate: '',
   endDate: '',
   cloudCover: 10,
@@ -28,16 +31,10 @@ export const loadSettingsFromStorage = (): Settings => {
   const stored = localStorage.getItem('ftw-search-settings')
   if (stored) {
     const parsed = JSON.parse(stored)
-    return {
-      startDate: parsed.startDate || defaultSettings.startDate,
-      endDate: parsed.endDate || defaultSettings.endDate,
-      cloudCover: parsed.cloudCover || defaultSettings.cloudCover,
-      areaCoverage: parsed.areaCoverage || defaultSettings.areaCoverage,
-      selectedCollection: parsed.selectedCollection || defaultSettings.selectedCollection,
-    }
+    return Object.assign(structuredClone(defaultSettings), parsed) as Settings
   }
 
-  return { ...defaultSettings }
+  return structuredClone(defaultSettings)
 }
 
 const settings = ref<Settings>(loadSettingsFromStorage())
@@ -57,6 +54,7 @@ watch(
 export function useSettings() {
   return {
     settings,
+    collections,
     availableCollections,
     defaultSettings,
     loadSettingsFromStorage,
