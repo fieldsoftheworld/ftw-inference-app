@@ -806,6 +806,7 @@ defineExpose({
     <transition name="accordion">
       <div v-show="isOpen">
         <v-radio-group
+          v-show="currentMgrsTileId"
           class="processing-mode hide-details"
           v-model="processingMode"
           density="compact"
@@ -899,9 +900,9 @@ defineExpose({
           <template v-else>Select a grid cell to search for Sentinel-2 images</template>
         </h4>
 
-        <div class="search-status">{{ searchStatus }}</div>
+        <div v-if="currentMgrsTileId && searchStatus" class="search-status">{{ searchStatus }}</div>
 
-        <div v-if="searchResults.length > 0" class="results-container">
+        <div v-if="currentMgrsTileId && searchResults.length > 0" class="results-container">
           <div class="accordion-header" @click="toggleFirstResults">
             <h3 class="active-tile-id">{{ activeTileId ? activeTileId : 'Select a tile' }}</h3>
             <span class="accordion-icon" :class="{ open: isFirstResultsOpen }">▼</span>
