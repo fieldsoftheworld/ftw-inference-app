@@ -4,8 +4,8 @@ import type { Extent } from 'ol/extent'
 import { generateJWT } from '../functions/generate-jwt'
 import { transformExtent } from 'ol/proj'
 import { showWarning } from '../functions/snackbar'
-import searchStacApi from '../functions/search-stac-api'
-import { useSearch } from '../composables/useSearch'
+import searchStacApi, { tileDataFromStacFeature } from '../functions/search-stac-api'
+import { SearchResult, useSearch } from '../composables/useSearch'
 import { useProjectMessage } from '../composables/useProjectMessage'
 import VectorSource from 'ol/source/Vector'
 import VectorLayer from 'ol/layer/Vector'
@@ -425,13 +425,25 @@ const displayGeoJSON = (geojson: FeatureCollection & { crs: { properties: { name
   return transformExtent(extent, 'EPSG:3857', 'EPSG:4326')
 }
 
+const getTile = async (id: string): Promise<SearchResult> => {
+  const base = 'https://earth-search.aws.element84.com/v1/collections/sentinel-2-c1-l2a/items/'
+  const url = base + id
+  const response = await fetch(url)
+  const json = await response.json()
+  return tileDataFromStacFeature(json)
+}
+
 const handleSmallAreaProcessingRequest = async () => {
   if (!drawnExtent.value) {
     showWarning('Please draw an extent on the map before processing.')
     return
   }
-  const firstTile = searchResults.value.find((result) => result.id === activeTileId.value)
-  const secondTile = searchResults.value.find((result) => result.id === secondActiveTileId.value)
+  const firstTile =
+    searchResults.value.find((result) => result.id === activeTileId.value) ||
+    (await getTile(activeTileId.value!))
+  const secondTile =
+    searchResults.value.find((result) => result.id === secondActiveTileId.value) ||
+    (await getTile(secondActiveTileId.value!))
 
   if (!firstTile || !secondTile) {
     throw new Error('Could not find selected tiles')
@@ -551,8 +563,12 @@ const handleCompareTiles = async () => {
   }
 
   try {
-    const firstTile = searchResults.value.find((result) => result.id === activeTileId.value)
-    const secondTile = searchResults.value.find((result) => result.id === secondActiveTileId.value)
+    const firstTile =
+      searchResults.value.find((result) => result.id === activeTileId.value) ||
+      (await getTile(activeTileId.value!))
+    const secondTile =
+      searchResults.value.find((result) => result.id === secondActiveTileId.value) ||
+      (await getTile(secondActiveTileId.value!))
 
     if (!firstTile || !secondTile) {
       throw new Error('Could not find selected tiles')
