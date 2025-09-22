@@ -17,7 +17,7 @@ const dataCabinetRef = ref<InstanceType<typeof DataCabinet> | null>(null)
 const geoJSONResults = ref<any[]>([])
 
 const { addMapClickHandler } = useAreaOfInterest()
-const { searchResults, handleSearchResults } = useSearch()
+const { handleSearchResults } = useSearch()
 const { setupPermalink } = usePermalink()
 
 const updateGeoJSONResults = (results: any[]) => {
@@ -67,7 +67,7 @@ onMounted(async () => {
   // Add S2 Grid layer after map is initialized
   if (map.value) {
     const s2GridLayer = createS2GridLayer()
-    addMapClickHandler(map.value as Map, areaValues.value, searchResults, handleSearchResults)
+    addMapClickHandler(map.value as Map, areaValues.value, handleSearchResults)
     map.value.addLayer(s2GridLayer)
 
     // Setup permalink functionality
