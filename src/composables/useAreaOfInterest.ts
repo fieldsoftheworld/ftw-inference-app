@@ -19,10 +19,11 @@ import { transformExtent } from 'ol/proj'
 import { getArea } from 'ol/sphere'
 import { showWarning } from '../functions/snackbar'
 import { booleanWithin as turfBooleanWithin } from '@turf/boolean-within'
-import { clearSearchResults, searchResults, type SearchResults } from './useSearch'
+import { clearSearchResults, SearchResult, searchResults } from './useSearch'
 import { Feature as GeoJSONFeature, Polygon as GeoJSONPolygon } from 'geojson'
 import { areaValues, map } from './useMap'
 import { useSettings } from './useSettings'
+import { tileDataFromStacFeature } from '../functions/search-stac-api'
 
 const invalidStyle = new Style({
   stroke: new Stroke({
@@ -93,7 +94,7 @@ const drawVectorLayer: VectorLayer<VectorSource> = new VectorLayer({
   zIndex: 1001,
 })
 
-function addExtentInteraction(searchResults: SearchResults) {
+function addExtentInteraction() {
   extentInteraction.value = new ExtentInteraction({
     extent: drawnExtent.value || undefined,
     createCondition: never,
@@ -149,7 +150,7 @@ function addExtentInteraction(searchResults: SearchResults) {
       drawVectorLayer.setStyle(validStyle)
 
       // Check geometry containment if both tiles are selected
-      checkBboxContainment(newExtent, drawnExtent, searchResults)
+      checkBboxContainment(newExtent, drawnExtent)
     }
   })
 
@@ -278,18 +279,14 @@ function calculateBoundingBox(
   return transformExtent(newExtent, 'EPSG:4326', 'EPSG:3857')
 }
 
-const checkBboxContainment = (
-  extent: Extent,
-  drawnExtent: Ref<Extent | null>,
-  searchResults: SearchResults,
-) => {
+const checkBboxContainment = async (extent: Extent, drawnExtent: Ref<Extent | null>) => {
   const currentExtent = extent || drawnExtent.value
   if (!activeTileId.value || !secondActiveTileId.value || !currentExtent) {
     return
   }
 
-  const firstTile = searchResults.value.find((result) => result.id === activeTileId.value)
-  const secondTile = searchResults.value.find((result) => result.id === secondActiveTileId.value)
+  const firstTile = await getTileById(activeTileId.value)
+  const secondTile = await getTileById(secondActiveTileId.value)
 
   if (!firstTile?.geometry || !secondTile?.geometry) {
     return
@@ -324,7 +321,6 @@ const checkBboxContainment = (
 function addMapClickHandler(
   map: Map,
   areaValues: { min_area_km2: number; max_area_km2: number },
-  searchResults: SearchResults,
   handleSearchResults: (mgrsTileId: string, bbox?: number[], settings?: any) => Promise<void>,
 ) {
   // Add click handler
@@ -413,7 +409,7 @@ function addMapClickHandler(
         }
 
         // Create and add Modify interaction with size restriction
-        addExtentInteraction(searchResults)
+        addExtentInteraction()
         extentFound = true
         break
       }
@@ -520,9 +516,27 @@ export async function triggerTileSelection(
       if (!layers.includes(drawVectorLayer)) {
         map.addLayer(drawVectorLayer)
       }
-      addExtentInteraction(searchResults)
+      addExtentInteraction()
     }
   }
+}
+
+export const getTileById = async (tileId: string): Promise<SearchResult | null> => {
+  let tile = searchResults.value.find((result) => result.id === tileId)
+  if (!tile) {
+    const base = 'https://earth-search.aws.element84.com/v1/collections/sentinel-2-c1-l2a/items/'
+    const url = base + tileId
+    try {
+      const response = await fetch(url)
+      const json = await response.json()
+      tile = tileDataFromStacFeature(json)
+    } catch (error) {
+      if (error instanceof Error) {
+        console.error(`Error fetching tile with id ${tileId}: ${error.message}`)
+      }
+    }
+  }
+  return tile ?? null
 }
 
 export function useAreaOfInterest() {
@@ -541,5 +555,6 @@ export function useAreaOfInterest() {
     clearResultsAndZoomToGrid,
     triggerTileSelection,
     calculateArea,
+    getTileById,
   }
 }

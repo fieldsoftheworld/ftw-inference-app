@@ -19,6 +19,7 @@ import { useProcessingMode } from '../composables/useProcessingMode'
 import { useMap } from '../composables/useMap'
 import { mdiHelpCircleOutline } from '@mdi/js'
 import { useSettings } from '../composables/useSettings'
+import TilePreview from './TilePreview.vue'
 
 const props = defineProps<{
   isOpen: boolean
@@ -30,15 +31,15 @@ const emit = defineEmits<{
 }>()
 
 const { map } = useMap()
-const { addStacLayer, removeStacLayer } = useStacLayer()
-const { removeExtentInteraction, removeDrawVectorLayer, drawnExtent } = useAreaOfInterest()
+const { removeStacLayer } = useStacLayer()
+const { removeExtentInteraction, removeDrawVectorLayer, drawnExtent, getTileById } =
+  useAreaOfInterest()
 const { projectMessage, dismissMessage } = useProjectMessage()
 
 const { currentBbox, hasMore, isLoading, searchResults, searchStatus, handleSearchResults } =
   useSearch()
 
-const { currentGridExtent, currentMgrsTileId, activeTileId, secondActiveTileId } =
-  useAreaOfInterest()
+const { currentMgrsTileId, activeTileId, secondActiveTileId } = useAreaOfInterest()
 
 watch(drawnExtent, (newValue) => {
   if (newValue) {
@@ -240,111 +241,6 @@ const resetToOriginalSearch = async () => {
   hasLoadedMore.value = false // Reset the flag
 }
 
-const handleViewOnMap = (
-  imageUrl: string,
-  bounds: number[] | null,
-  tileId: string,
-  isSecondAccordion: boolean = false
-) => {
-  // Use the stored currentGridExtent for positioning the STAC layer
-  const gridExtent = currentGridExtent.value || bounds
-
-  // Find the selected tile to check its area coverage
-  const selectedTile = searchResults.value.find((result) => result.id === tileId)
-
-  // Check area coverage and show warning if less than 100%
-  if (selectedTile && selectedTile.areaCoverage !== undefined) {
-    const areaCoverage =
-      typeof selectedTile.areaCoverage === 'number'
-        ? selectedTile.areaCoverage
-        : parseFloat(selectedTile.areaCoverage as string)
-
-    if (!isNaN(areaCoverage) && areaCoverage <= 99.9) {
-      showWarning(
-        `Selected tile has only ${areaCoverage.toFixed(
-          1
-        )}% area coverage. Be sure to select an area where there is imagery coverage.`
-      )
-    }
-  }
-
-  if (isSecondAccordion) {
-    if (tileId === activeTileId.value) {
-      return
-    }
-
-    if (secondActiveTileId.value === tileId) {
-      removeStacLayer(map.value!)
-      secondActiveTileId.value = null
-    } else {
-      removeStacLayer(map.value!)
-      if (gridExtent) {
-        addStacLayer(map.value!, imageUrl, gridExtent)
-        secondActiveTileId.value = tileId
-      } else {
-        console.error('No bounds available for this image')
-      }
-    }
-  } else {
-    if (activeTileId.value === tileId) {
-      removeStacLayer(map.value!)
-      activeTileId.value = null
-      if (secondActiveTileId.value === tileId) {
-        secondActiveTileId.value = null
-      }
-    } else {
-      removeStacLayer(map.value!)
-      if (gridExtent) {
-        addStacLayer(map.value!, imageUrl, gridExtent)
-        activeTileId.value = tileId
-        if (secondActiveTileId.value === tileId) {
-          secondActiveTileId.value = null
-        }
-      } else {
-        console.error('No bounds available for this image')
-      }
-    }
-  }
-}
-
-const getActiveTileThumbnail = (isSecond: boolean = false) => {
-  const tileId = isSecond ? secondActiveTileId.value : activeTileId.value
-  const activeTile = searchResults.value.find((result) => result?.id === tileId)
-  return activeTile?.thumbnailUrl
-}
-
-const getActiveTileDate = (isSecond: boolean = false) => {
-  const tileId = isSecond ? secondActiveTileId.value : activeTileId.value
-  const activeTile = searchResults.value.find((result) => result?.id === tileId)
-  return activeTile?.date
-}
-
-const getActiveTileCloudCover = (isSecond: boolean = false) => {
-  const tileId = isSecond ? secondActiveTileId.value : activeTileId.value
-  const activeTile = searchResults.value.find((result) => result?.id === tileId)
-  return activeTile?.cloudCover
-}
-
-const getActiveTileAreaCoverage = (isSecond: boolean = false) => {
-  const tileId = isSecond ? secondActiveTileId.value : activeTileId.value
-  const activeTile = searchResults.value.find((result) => result?.id === tileId)
-  return activeTile?.areaCoverage
-}
-
-const getActiveTileGeometry = (isSecond: boolean = false) => {
-  const tileId = isSecond ? secondActiveTileId.value : activeTileId.value
-  const activeTile = searchResults.value.find((result) => result?.id === tileId)
-  return activeTile?.geometry
-}
-
-const formatAreaCoverage = (coverage: number | string | undefined) => {
-  if (coverage === undefined) return undefined
-  if (typeof coverage === 'number') {
-    return coverage.toFixed(1)
-  }
-  return coverage
-}
-
 const fitMapToBbox = (bbox: number[]) => {
   // Validate bbox before processing
   if (!bbox || bbox.length !== 4 || bbox.some((coord) => isNaN(coord) || coord === 0)) {
@@ -384,7 +280,7 @@ const displayGeoJSON = (geojson: FeatureCollection & { crs: { properties: { name
   // Check if we have valid features
   if (source.getFeatures().length === 0) {
     showWarning(
-      'No valid features found in the processing results. Please try again with a different area or settings.'
+      'No valid features found in the processing results. Please try again with a different area or settings.',
     )
     return null
   }
@@ -417,7 +313,7 @@ const displayGeoJSON = (geojson: FeatureCollection & { crs: { properties: { name
   const extent = source.getExtent()
   if (!extent || extent.every((coord) => coord === 0) || extent.some((coord) => isNaN(coord))) {
     showWarning(
-      'Invalid extent generated from processing results. Please try again with a different area or settings.'
+      'Invalid extent generated from processing results. Please try again with a different area or settings.',
     )
     return null
   }
@@ -430,8 +326,8 @@ const handleSmallAreaProcessingRequest = async () => {
     showWarning('Please draw an extent on the map before processing.')
     return
   }
-  const firstTile = searchResults.value.find((result) => result.id === activeTileId.value)
-  const secondTile = searchResults.value.find((result) => result.id === secondActiveTileId.value)
+  const firstTile = await getTileById(activeTileId.value!)
+  const secondTile = await getTileById(secondActiveTileId.value!)
 
   if (!firstTile || !secondTile) {
     throw new Error('Could not find selected tiles')
@@ -551,8 +447,8 @@ const handleCompareTiles = async () => {
   }
 
   try {
-    const firstTile = searchResults.value.find((result) => result.id === activeTileId.value)
-    const secondTile = searchResults.value.find((result) => result.id === secondActiveTileId.value)
+    const firstTile = await getTileById(activeTileId.value!)
+    const secondTile = await getTileById(secondActiveTileId.value!)
 
     if (!firstTile || !secondTile) {
       throw new Error('Could not find selected tiles')
@@ -714,7 +610,7 @@ const handleCompareTiles = async () => {
           })
           if (!resultsResponse.ok) {
             throw new Error(
-              `Failed to fetch batch processing results: ${resultsResponse.statusText}`
+              `Failed to fetch batch processing results: ${resultsResponse.statusText}`,
             )
           }
 
@@ -788,11 +684,6 @@ onUnmounted(() => {
   if (map.value) {
     map.value.un('click', handleMapClick)
   }
-})
-
-// Expose methods to parent components
-defineExpose({
-  getActiveTileGeometry,
 })
 </script>
 
@@ -909,37 +800,18 @@ defineExpose({
           </div>
 
           <transition name="accordion">
-            <div v-show="isFirstResultsOpen" class="results">
-              <template v-for="result in searchResults" :key="result?.id">
-                <div
-                  :id="result?.id"
-                  class="result-item"
-                  :class="{ active: activeTileId === result?.id }"
-                  v-if="result?.id !== secondActiveTileId"
-                >
-                  <div
-                    class="result-thumbnail"
-                    @click="handleViewOnMap(result.tiffUrl, result.bounds, result?.id, false)"
-                  >
-                    <img :src="result.thumbnailUrl" alt="Preview" />
-                  </div>
-                  <div class="result-header">
-                    <h3>{{ result?.id }}</h3>
-                  </div>
-                  <div class="result-details">
-                    <div>Date: {{ result.date }}</div>
-                    <div>Cloud Cover: {{ result.cloudCover }}%</div>
-                    <div v-if="result.areaCoverage !== undefined">
-                      Area Coverage:
-                      {{
-                        typeof result.areaCoverage === 'number'
-                          ? result.areaCoverage.toFixed(1)
-                          : result.areaCoverage
-                      }}%
-                    </div>
-                  </div>
-                </div>
-              </template>
+            <div v-show="isFirstResultsOpen">
+              <!-- Show second accordion's active tile first -->
+              <TilePreview v-if="activeTileId" :tileId="activeTileId" win="a" />
+              <!-- Show other results -->
+              <TilePreview
+                v-for="result in searchResults.filter(
+                  (r) => r.id !== activeTileId && r.id !== secondActiveTileId,
+                )"
+                :key="result?.id"
+                win="a"
+                :tileId="result?.id"
+              />
               <div v-if="!hasMore">
                 No more images found. Try adjusting your filters (date range, cloud cover, area
                 coverage) to increase the likelihood of finding more results.
@@ -981,46 +853,17 @@ defineExpose({
 
             <transition name="accordion">
               <div v-show="isSecondResultsOpen && activeTileId" class="results">
-                <!-- Show first accordion's active tile first -->
-                <div v-if="activeTileId" class="result-item active disabled">
-                  <div class="result-thumbnail">
-                    <img :src="getActiveTileThumbnail(false)" alt="Preview" />
-                  </div>
-                  <div class="result-header">
-                    <h3>{{ activeTileId }}</h3>
-                  </div>
-                  <div class="result-details">
-                    <div>Date: {{ getActiveTileDate(false) }}</div>
-                    <div>Cloud Cover: {{ getActiveTileCloudCover(false) }}%</div>
-                    <div v-if="getActiveTileAreaCoverage(false) !== undefined">
-                      Area Coverage: {{ formatAreaCoverage(getActiveTileAreaCoverage(false)) }}%
-                    </div>
-                  </div>
-                </div>
-
+                <!-- Show second accordion's active tile first -->
+                <TilePreview v-if="secondActiveTileId" :tileId="secondActiveTileId" win="b" />
                 <!-- Show other results -->
-                <template v-for="result in searchResults" :key="result?.id">
-                  <div
-                    :id="result?.id"
-                    class="result-item"
-                    :class="{ active: secondActiveTileId === result?.id }"
-                    v-if="result?.id !== activeTileId"
-                  >
-                    <div
-                      class="result-thumbnail"
-                      @click="handleViewOnMap(result.tiffUrl, result.bounds, result?.id, true)"
-                    >
-                      <img :src="result.thumbnailUrl" alt="Preview" />
-                    </div>
-                    <div class="result-header">
-                      <h3>{{ result?.id }}</h3>
-                    </div>
-                    <div class="result-details">
-                      <div>Date: {{ result.date }}</div>
-                      <div>Cloud Cover: {{ result.cloudCover }}%</div>
-                    </div>
-                  </div>
-                </template>
+                <TilePreview
+                  v-for="result in searchResults.filter(
+                    (r) => r.id !== activeTileId && r.id !== secondActiveTileId,
+                  )"
+                  :key="result?.id"
+                  win="b"
+                  :tileId="result?.id"
+                />
 
                 <div class="button-group">
                   <button
@@ -1264,76 +1107,6 @@ defineExpose({
   cursor: not-allowed;
 }
 
-.result-item {
-  background-color: rgba(255, 255, 255, 0.1);
-  padding: 1rem;
-  margin-top: 0.5rem;
-  border-radius: 4px;
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-  transition: all 0.2s ease;
-  border: 2px solid transparent;
-}
-
-.result-item:hover {
-  background-color: rgba(255, 255, 255, 0.2);
-}
-
-.result-item.active {
-  background-color: rgba(0, 136, 136, 0.2);
-  border-color: rgba(0, 136, 136, 0.8);
-  box-shadow: 0 0 10px rgba(0, 136, 136, 0.4);
-}
-
-.result-thumbnail {
-  width: 100%;
-  height: 200px;
-  overflow: hidden;
-  border-radius: 4px;
-  background-color: rgba(0, 0, 0, 0.2);
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.result-thumbnail:hover {
-  transform: scale(1.02);
-}
-
-.result-thumbnail.active {
-  border-color: rgba(0, 136, 136, 0.8);
-  box-shadow: 0 0 10px rgba(0, 136, 136, 0.4);
-}
-
-.result-thumbnail img {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-}
-
-.result-header {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-
-.result-header h3 {
-  margin: 0;
-  font-size: 1rem;
-  color: white;
-  word-break: break-word;
-}
-
-.result-details {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-  font-size: 0.875rem;
-  color: rgba(255, 255, 255, 0.8);
-  padding-top: 0.5rem;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
-}
-
 .load-more-button {
   background-color: rgba(0, 136, 136, 0.8);
   color: white;
@@ -1396,15 +1169,6 @@ defineExpose({
 .accordion-header.disabled {
   cursor: not-allowed;
   opacity: 0.7;
-}
-
-.result-item.disabled {
-  cursor: not-allowed;
-  opacity: 0.7;
-}
-
-.result-item.disabled .result-thumbnail {
-  cursor: not-allowed;
 }
 
 .active-tile-id {

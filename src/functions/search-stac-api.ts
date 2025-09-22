@@ -88,6 +88,30 @@ const convertToRFC3339 = (dateString: string, isEndDate: boolean = false): strin
   return new Date(fullDateString).toISOString()
 }
 
+export const tileDataFromStacFeature = (item: StacFeature): SearchResult => {
+  // Calculate area coverage as 100 - nodata_pixel_percentage
+  const nodataPercentage = item.properties['s2:nodata_pixel_percentage'] || 0
+  const areaCoverage = 100 - nodataPercentage
+
+  const result = {
+    id: item.id,
+    date: new Date(item.properties.datetime).toLocaleDateString(),
+    formattedDate: new Date(item.properties.datetime).toLocaleDateString(),
+    cloudCover: item.properties['eo:cloud_cover'] || 'N/A',
+    areaCoverage: areaCoverage,
+    thumbnailUrl: item.assets?.thumbnail?.href || item.assets?.visual?.href || '#',
+    tiffUrl: item.assets?.visual?.href || '#',
+    bounds: item.bbox
+      ? item.bbox.length === 6
+        ? [item.bbox[0], item.bbox[1], item.bbox[3], item.bbox[4]]
+        : item.bbox
+      : null,
+    geometry: item.geometry,
+    itemUrl: item.links.find((link) => link.rel === 'self')?.href,
+  }
+  return result
+}
+
 // Function to search the STAC API
 export default async function searchStacApi(
   bbox?: number[],
@@ -207,29 +231,7 @@ export default async function searchStacApi(
             : Infinity
         return aCloudCover - bCloudCover
       })
-      .map((item: StacFeature): SearchResult => {
-        // Calculate area coverage as 100 - nodata_pixel_percentage
-        const nodataPercentage = item.properties['s2:nodata_pixel_percentage'] || 0
-        const areaCoverage = 100 - nodataPercentage
-
-        const result = {
-          id: item.id,
-          date: new Date(item.properties.datetime).toLocaleDateString(),
-          formattedDate: new Date(item.properties.datetime).toLocaleDateString(),
-          cloudCover: item.properties['eo:cloud_cover'] || 'N/A',
-          areaCoverage: areaCoverage,
-          thumbnailUrl: item.assets?.thumbnail?.href || item.assets?.visual?.href || '#',
-          tiffUrl: item.assets?.visual?.href || '#',
-          bounds: item.bbox
-            ? item.bbox.length === 6
-              ? [item.bbox[0], item.bbox[1], item.bbox[3], item.bbox[4]]
-              : item.bbox
-            : null,
-          geometry: item.geometry,
-          itemUrl: item.links.find((link) => link.rel === 'self')?.href,
-        }
-        return result
-      })
+      .map(tileDataFromStacFeature)
 
     // Calculate hasMore based on whether we've returned all available results
     const hasMoreResults = totalResultsReturned < totalNumberMatched
