@@ -1,16 +1,13 @@
 <script setup lang="ts">
-import { fromExtent } from 'ol/geom/Polygon'
-import { ref, watch } from 'vue'
-import ProcessingPanel from './ProcessingPanel.vue'
-import SettingsModal from './SettingsModal.vue'
-import SearchModal from './SearchModal.vue'
-import { useSearch } from '../composables/useSearch'
-import { getArea } from 'ol/sphere'
-import { useAreaOfInterest } from '../composables/useAreaOfInterest'
 import { mdiCog, mdiInformation, mdiMagnify } from '@mdi/js'
-import { useProcessingMode } from '../composables/useProcessingMode'
+import { ref, watch } from 'vue'
+import { useAreaOfInterest } from '../composables/useAreaOfInterest'
 import { useMap } from '../composables/useMap'
+import { useSearch } from '../composables/useSearch'
 import { useSettings } from '../composables/useSettings'
+import ProcessingPanel from './ProcessingPanel.vue'
+import SearchModal from './SearchModal.vue'
+import SettingsModal from './SettingsModal.vue'
 
 const emit = defineEmits<{
   (e: 'updateGeoJSONResults', results: any[]): void
@@ -21,7 +18,6 @@ const { currentBbox, handleSearchResults } = useSearch()
 const { drawnExtent, currentMgrsTileId, triggerTileSelection, activeTileId, secondActiveTileId } =
   useAreaOfInterest()
 
-const { processingMode } = useProcessingMode()
 const ftwAboutDialogShown = localStorage.getItem('ftw-about-dialog-shown') !== 'true'
 const aboutDialog = ref(ftwAboutDialogShown)
 const dontShowAgain = ref(!ftwAboutDialogShown)
@@ -35,14 +31,6 @@ const isSettingsModalOpen = ref(false)
 const isSearchModalOpen = ref(false)
 
 const { settings } = useSettings()
-
-watch(drawnExtent, (newValue) => {
-  if (!currentBbox.value) return
-  processingMode.value =
-    newValue && getArea(fromExtent(newValue)) < 200000000 // 200 km² threshold
-      ? 'smallAreaProcessing'
-      : 'batchProcessing'
-})
 
 const handleSettingsClick = () => {
   isSettingsModalOpen.value = true
@@ -66,7 +54,7 @@ const handleTileSelected = (tileName: string) => {
     (layer) =>
       layer.get('name') === 's2-grid' ||
       (layer.get('properties') && layer.get('properties').name === 's2-grid') ||
-      ((layer as any).getSource && (layer as any).getSource().getFeatures)
+      ((layer as any).getSource && (layer as any).getSource().getFeatures),
   )
 
   if (s2GridLayer && (s2GridLayer as any).getSource) {
@@ -115,7 +103,7 @@ const handleTileAndBboxSelected = (tileName: string, bbox?: number[]) => {
     (layer) =>
       layer.get('name') === 's2-grid' ||
       (layer.get('properties') && layer.get('properties').name === 's2-grid') ||
-      ((layer as any).getSource && (layer as any).getSource().getFeatures)
+      ((layer as any).getSource && (layer as any).getSource().getFeatures),
   )
 
   if (s2GridLayer && (s2GridLayer as any).getSource) {
