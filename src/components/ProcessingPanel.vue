@@ -795,7 +795,7 @@ onUnmounted(() => {
 
         <div v-if="currentMgrsTileId && searchResults.length > 0" class="results-container">
           <div class="accordion-header" @click="toggleFirstResults">
-            <h3 class="active-tile-id">{{ activeTileId ? activeTileId : 'Select a tile' }}</h3>
+            <h3 class="active-tile-id">{{ activeTileId ? activeTileId : 'Select Win A' }}</h3>
             <span class="accordion-icon" :class="{ open: isFirstResultsOpen }">▼</span>
           </div>
 
@@ -846,7 +846,7 @@ onUnmounted(() => {
               :class="{ disabled: !activeTileId }"
             >
               <h3 class="active-tile-id">
-                {{ secondActiveTileId ? secondActiveTileId : 'Select a Second Tile' }}
+                {{ secondActiveTileId ? secondActiveTileId : 'Select Win B' }}
               </h3>
               <span class="accordion-icon" :class="{ open: isSecondResultsOpen }">▼</span>
             </div>
