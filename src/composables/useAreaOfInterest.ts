@@ -24,6 +24,7 @@ import { Feature as GeoJSONFeature, Polygon as GeoJSONPolygon } from 'geojson'
 import { areaValues, map } from './useMap'
 import { useSettings } from './useSettings'
 import { tileDataFromStacFeature } from '../functions/search-stac-api'
+import { processingMode } from './useProcessingMode'
 
 const invalidStyle = new Style({
   stroke: new Stroke({
@@ -53,6 +54,7 @@ export const secondActiveTileId = ref<string | null>(null)
 const currentGridExtent = shallowRef<Extent | null>(null)
 /** User bbox */
 export const drawnExtent = shallowRef<Extent | null>(null)
+const currentDrawnExtent = shallowRef<Polygon | undefined>(undefined)
 /** Flag to block map clicks when results are displayed */
 const blockMapClicks = ref(false)
 const { settings } = useSettings()
@@ -75,6 +77,14 @@ watch(
   },
   { immediate: true },
 )
+
+// Watch for processing mode changes to re-validate current drawn extent
+watch(processingMode, (newMode, oldMode) => {
+  // Only re-validate if we have a drawn extent and we're switching modes
+  if (drawnExtent.value && newMode !== oldMode) {
+    validateCurrentExtent()
+  }
+})
 extentFeature.on('change', () => {
   if (updatingDrawnExtent) {
     return
@@ -112,26 +122,36 @@ function addExtentInteraction() {
   extentInteraction.value.on('extentchanged', (event) => {
     const newExtent = event.extent
     const geometry = fromExtent(newExtent)
+    currentDrawnExtent.value = geometry
 
     const area = calculateArea(geometry)
     const isWithinExtent = currentGridExtent.value
       ? isPolygonWithinExtent(geometry, currentGridExtent.value)
       : false
-    // Check if the polygon is within the grid extent and within size limits
 
-    if (
-      area > areaValues.value!.max_area_km2 ||
-      area < areaValues.value!.min_area_km2 ||
-      !isWithinExtent
-    ) {
+    // Define area limits based on processing mode
+    const maxArea =
+      processingMode.value === 'batchProcessing' ? 3000 : areaValues.value!.max_area_km2
+    const minArea = processingMode.value === 'batchProcessing' ? 0 : areaValues.value!.min_area_km2
+
+    // Check if the polygon is within the grid extent and within size limits
+    if (area > maxArea || area < minArea || !isWithinExtent) {
       if (!warningShown) {
         // Show notification for each validation error
-        if (area > areaValues.value!.max_area_km2) {
+        if (area > maxArea) {
+          const maxAreaText =
+            processingMode.value === 'batchProcessing'
+              ? '3000 square kilometers'
+              : `${areaValues.value?.max_area_km2} square kilometers`
+          const switchToBatchProcessing =
+            processingMode.value === 'smallAreaProcessing'
+              ? 'To run a larger area, switch to Batch Processing.'
+              : ''
           showWarning(
-            `Bounding box area exceeds ${areaValues.value?.max_area_km2} square kilometers. Using last valid state.`,
+            `Bounding box area exceeds ${maxAreaText}. Using last valid state. ${switchToBatchProcessing}`,
           )
         }
-        if (area < areaValues.value!.min_area_km2) {
+        if (area < minArea) {
           showWarning(
             `Bounding box area is less than ${areaValues.value?.min_area_km2} square kilometers. Using last valid state.`,
           )
@@ -246,6 +266,31 @@ function calculateArea(geometry: Polygon, convertProjection: boolean = true): nu
   // Transform to EPSG:4326 for accurate area calculation
   const area = getArea(geometry, { projection: convertProjection ? 'EPSG:3857' : 'EPSG:4326' })
   return area / 1000000 // Convert to square kilometers
+}
+
+// Function to validate the current drawn extent and update styling
+function validateCurrentExtent() {
+  if (!drawnExtent.value || !areaValues.value) {
+    return
+  }
+
+  const geometry = fromExtent(drawnExtent.value)
+  const area = calculateArea(geometry)
+  const isWithinExtent = currentGridExtent.value
+    ? isPolygonWithinExtent(geometry, currentGridExtent.value)
+    : false
+
+  // Define area limits based on processing mode
+  const maxArea = processingMode.value === 'batchProcessing' ? 3000 : areaValues.value.max_area_km2
+  const minArea = processingMode.value === 'batchProcessing' ? 0 : areaValues.value.min_area_km2
+
+  // Check if the polygon is within the grid extent and within size limits
+  if (area > maxArea || area < minArea || !isWithinExtent) {
+    drawVectorLayer?.setStyle(invalidStyle)
+  } else {
+    drawVectorLayer.setStyle(validStyle)
+    extentFeature.setGeometry(currentDrawnExtent.value)
+  }
 }
 
 // Function to calculate a bounding box within the selected grid based on area values

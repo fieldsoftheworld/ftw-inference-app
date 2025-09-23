@@ -4,6 +4,7 @@ import { mdiMagnify, mdiClose } from '@mdi/js'
 import { useAreaOfInterest } from '../composables/useAreaOfInterest'
 import { fromExtent } from 'ol/geom/Polygon'
 import { useMap } from '../composables/useMap'
+import { useProcessingMode } from '../composables/useProcessingMode'
 
 interface Props {
   isOpen: boolean
@@ -25,6 +26,7 @@ const emit = defineEmits<Emits>()
 const { map, areaValues } = useMap()
 // Use the area calculation function and drawnExtent from the composable
 const { calculateArea } = useAreaOfInterest()
+const { processingMode } = useProcessingMode()
 
 const searchQuery = ref('')
 const searchResults = ref<any[]>([])
@@ -98,17 +100,21 @@ const validateBboxArea = (bbox: number[]): { isValid: boolean; message: string }
   }
   const area = calculateBboxArea(bbox)
 
-  if (area < areaValues.value.min_area_km2) {
+  // Define area limits based on processing mode
+  const maxArea = processingMode.value === 'batchProcessing' ? 3000 : areaValues.value.max_area_km2
+  const minArea = areaValues.value.min_area_km2
+
+  if (area < minArea) {
     return {
       isValid: false,
-      message: `Bounding box area (${area.toFixed(2)} km²) is too small. Minimum area required: ${areaValues.value.min_area_km2} km²`,
+      message: `Bounding box area (${area.toFixed(2)} km²) is too small. Minimum area required: ${minArea} km²`,
     }
   }
 
-  if (area > areaValues.value.max_area_km2) {
+  if (area > maxArea) {
     return {
       isValid: false,
-      message: `Bounding box area (${area.toFixed(2)} km²) is too large. Maximum area allowed: ${areaValues.value.max_area_km2} km²`,
+      message: `Bounding box area (${area.toFixed(2)} km²) is too large. Maximum area allowed: ${maxArea} km²`,
     }
   }
 
