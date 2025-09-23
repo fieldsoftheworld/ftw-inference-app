@@ -7,7 +7,7 @@
     rounded="lg"
   >
     <v-card-title
-      class="d-flex align-center justify-space-between pa-4"
+      class="d-flex align-center justify-space-between pa-2"
       style="background-color: rgba(0, 136, 136, 0.2); border: 1px solid rgba(0, 136, 136, 0.8)"
     >
       <div class="d-flex align-center" @click="toggleResultsList" style="cursor: pointer; flex: 1">
@@ -17,21 +17,33 @@
         <v-icon
           :class="{ 'rotate-180': isResultsListOpen }"
           class="ml-2 text-white transition-transform"
-          size="small"
+          size="large"
           icon="mdi-chevron-down"
         >
         </v-icon>
       </div>
-      <v-btn
-        @click="clearResults"
-        size="small"
-        variant="outlined"
-        color="error"
-        class="ml-2"
-        title="Clear Results"
-      >
-        <v-icon icon="mdi-delete"></v-icon>
-      </v-btn>
+      <div class="d-flex align-center">
+        <v-btn
+          @click="downloadResults"
+          size="small"
+          variant="plain"
+          color="teal"
+          class="mr-0 pa-0 ml-4 action-btn"
+          title="Download Results"
+        >
+          <v-icon icon="mdi-download-box-outline" size="x-large"></v-icon>
+        </v-btn>
+        <v-btn
+          @click="clearResults"
+          size="small"
+          variant="plain"
+          color="error"
+          class="ml-0 mr-2 pa-0 action-btn"
+          title="Clear Results"
+        >
+          <v-icon icon="mdi-delete" size="x-large"></v-icon>
+        </v-btn>
+      </div>
     </v-card-title>
 
     <v-expand-transition>
@@ -56,7 +68,7 @@
               <v-btn
                 @click.stop="fitMapToResult(result)"
                 size="small"
-                variant="outlined"
+                variant="plain"
                 color="teal"
                 class="mr-2"
               >
@@ -135,6 +147,10 @@ const isResultsListOpen = ref(false)
 
 const toggleResultsList = () => {
   isResultsListOpen.value = !isResultsListOpen.value
+}
+
+const downloadResults = () => {
+  console.log('downloadResults')
 }
 
 const fitMapToResult = (result: any) => {
@@ -226,5 +242,12 @@ const clearResults = () => {
 
 .transition-transform {
   transition: transform 0.3s ease;
+}
+
+.action-btn {
+  width: 30px !important;
+  min-width: 30px !important;
+  max-width: 30px !important;
+  height: 30px !important;
 }
 </style>
