@@ -18,7 +18,7 @@
           :class="{ 'rotate-180': isResultsListOpen }"
           class="ml-2 text-white transition-transform"
           size="large"
-          icon="mdi-chevron-down"
+          :icon="mdiChevronDown"
         >
         </v-icon>
       </div>
@@ -31,7 +31,7 @@
           class="mr-0 pa-0 ml-4 action-btn"
           title="Download Results"
         >
-          <v-icon icon="mdi-download-box-outline" size="x-large"></v-icon>
+          <v-icon :icon="mdiDownloadBoxOutline" size="x-large"></v-icon>
         </v-btn>
         <v-btn
           @click="clearResults"
@@ -41,7 +41,7 @@
           class="ml-0 mr-2 pa-0 action-btn"
           title="Clear Results"
         >
-          <v-icon icon="mdi-delete" size="x-large"></v-icon>
+          <v-icon :icon="mdiDelete" size="x-large"></v-icon>
         </v-btn>
       </div>
     </v-card-title>
@@ -72,7 +72,7 @@
                 color="teal"
                 class="mr-0 ml-0"
               >
-                <v-icon icon="mdi-map-marker"></v-icon>
+                <v-icon :icon="mdiMapMarker"></v-icon>
               </v-btn>
             </template>
             <v-list-item-subtitle class="mt-2">
@@ -97,6 +97,7 @@ import { ref, watch } from 'vue'
 import { showWarning } from '../functions/snackbar'
 import { useAreaOfInterest } from '../composables/useAreaOfInterest'
 import PropertyDisplay from './PropertyDisplay.vue'
+import { mdiDownloadBoxOutline, mdiDelete, mdiChevronDown, mdiMapMarker } from '@mdi/js'
 
 const props = defineProps<{
   map: Map
