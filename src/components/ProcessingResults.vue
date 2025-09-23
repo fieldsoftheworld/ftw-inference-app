@@ -70,16 +70,11 @@
                 size="small"
                 variant="plain"
                 color="teal"
-                class="mr-2"
+                class="mr-0 ml-0"
               >
                 <v-icon icon="mdi-map-marker"></v-icon>
               </v-btn>
             </template>
-
-            <v-list-item-title class="text-white font-weight-bold text-body-2">
-              {{ result.id }}
-            </v-list-item-title>
-
             <v-list-item-subtitle class="mt-2">
               <div class="result-properties">
                 <PropertyDisplay
@@ -150,7 +145,41 @@ const toggleResultsList = () => {
 }
 
 const downloadResults = () => {
-  console.log('downloadResults')
+  if (!props.geoJSONResults || props.geoJSONResults.length === 0) {
+    showWarning('No results to download.')
+    return
+  }
+
+  try {
+    // Create a GeoJSON FeatureCollection from the results
+    const geojson = {
+      type: 'FeatureCollection',
+      features: props.geoJSONResults,
+    }
+
+    // Convert to JSON string
+    const jsonString = JSON.stringify(geojson)
+
+    // Create blob and download
+    const blob = new Blob([jsonString], { type: 'application/geo+json' })
+    const url = URL.createObjectURL(blob)
+
+    // Create download link
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `processing-results-${new Date().toISOString().split('T')[0]}.geojson`
+
+    // Trigger download
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+
+    // Clean up
+    URL.revokeObjectURL(url)
+  } catch (error) {
+    console.error('Error downloading results:', error)
+    showWarning('Failed to download results.')
+  }
 }
 
 const fitMapToResult = (result: any) => {
