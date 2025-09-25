@@ -1,38 +1,94 @@
 <template>
-  <div v-if="geoJSONResults.length > 0" class="processing-results">
-    <div class="accordion-header">
-      <div class="header-content" @click="toggleResultsList">
-        <h3>Results ({{ geoJSONResults.length }})</h3>
-        <span class="accordion-icon" :class="{ open: isResultsListOpen }">▼</span>
-      </div>
-      <button class="clear-results-button" @click="clearResults" title="Clear Results">🗑️</button>
-    </div>
-
-    <transition name="accordion">
-      <div v-show="isResultsListOpen" class="results-list">
-        <div
-          v-for="result in processedResults"
-          :key="result.id"
-          class="result-item"
-          @click="fitMapToResult(result)"
+  <v-card
+    v-if="geoJSONResults.length > 0"
+    class="processing-results"
+    elevation="8"
+    color="rgba(0, 0, 0, 0.9)"
+    rounded="lg"
+  >
+    <v-card-title
+      class="d-flex align-center justify-space-between pa-2"
+      style="background-color: rgba(0, 136, 136, 0.2); border: 1px solid rgba(0, 136, 136, 0.8)"
+    >
+      <div class="d-flex align-center" @click="toggleResultsList" style="cursor: pointer; flex: 1">
+        <span class="text-h6 text-white font-weight-bold"
+          >Results ({{ geoJSONResults.length }})</span
         >
-          <div class="result-header">
-            <h4>{{ result.id }}</h4>
-            <button class="fit-map-button" @click.stop="fitMapToResult(result)">
-              <span>📍</span>
-            </button>
-          </div>
-          <div class="result-properties">
-            <PropertyDisplay
-              v-for="property in result.filteredProperties"
-              :key="property.key"
-              :property="property"
-            />
-          </div>
-        </div>
+        <v-icon
+          :class="{ 'rotate-180': isResultsListOpen }"
+          class="ml-2 text-white transition-transform"
+          size="large"
+          :icon="mdiChevronDown"
+        >
+        </v-icon>
       </div>
-    </transition>
-  </div>
+      <div class="d-flex align-center">
+        <v-btn
+          @click="downloadResults"
+          size="small"
+          variant="plain"
+          color="teal"
+          class="mr-0 pa-0 ml-4 action-btn"
+          title="Download Results"
+        >
+          <v-icon :icon="mdiDownloadBoxOutline" size="x-large"></v-icon>
+        </v-btn>
+        <v-btn
+          @click="clearResults"
+          size="small"
+          variant="plain"
+          color="error"
+          class="ml-0 mr-2 pa-0 action-btn"
+          title="Clear Results"
+        >
+          <v-icon :icon="mdiDelete" size="x-large"></v-icon>
+        </v-btn>
+      </div>
+    </v-card-title>
+
+    <v-expand-transition>
+      <div
+        v-show="isResultsListOpen"
+        class="results-list"
+        style="max-height: 400px; overflow-y: auto"
+      >
+        <v-list
+          density="compact"
+          color="transparent"
+          class="pa-0"
+          style="background-color: rgba(0, 0, 0, 0.95)"
+        >
+          <v-list-item
+            v-for="result in processedResults"
+            :key="result.id"
+            class="result-item"
+            style="cursor: pointer; border-bottom: 1px solid rgba(0, 136, 136, 0.2)"
+          >
+            <template v-slot:prepend>
+              <v-btn
+                @click.stop="fitMapToResult(result)"
+                size="small"
+                variant="plain"
+                color="teal"
+                class="mr-0 ml-0"
+              >
+                <v-icon :icon="mdiMapMarker"></v-icon>
+              </v-btn>
+            </template>
+            <v-list-item-subtitle class="mt-2">
+              <div class="result-properties">
+                <PropertyDisplay
+                  v-for="property in result.filteredProperties"
+                  :key="property.key"
+                  :property="property"
+                />
+              </div>
+            </v-list-item-subtitle>
+          </v-list-item>
+        </v-list>
+      </div>
+    </v-expand-transition>
+  </v-card>
 </template>
 
 <script setup lang="ts">
@@ -41,6 +97,7 @@ import { ref, watch } from 'vue'
 import { showWarning } from '../functions/snackbar'
 import { useAreaOfInterest } from '../composables/useAreaOfInterest'
 import PropertyDisplay from './PropertyDisplay.vue'
+import { mdiDownloadBoxOutline, mdiDelete, mdiChevronDown, mdiMapMarker } from '@mdi/js'
 
 const props = defineProps<{
   map: Map
@@ -86,6 +143,44 @@ const isResultsListOpen = ref(false)
 
 const toggleResultsList = () => {
   isResultsListOpen.value = !isResultsListOpen.value
+}
+
+const downloadResults = () => {
+  if (!props.geoJSONResults || props.geoJSONResults.length === 0) {
+    showWarning('No results to download.')
+    return
+  }
+
+  try {
+    // Create a GeoJSON FeatureCollection from the results
+    const geojson = {
+      type: 'FeatureCollection',
+      features: props.geoJSONResults,
+    }
+
+    // Convert to JSON string
+    const jsonString = JSON.stringify(geojson)
+
+    // Create blob and download
+    const blob = new Blob([jsonString], { type: 'application/geo+json' })
+    const url = URL.createObjectURL(blob)
+
+    // Create download link
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `processing-results-${new Date().toISOString().split('T')[0]}.geojson`
+
+    // Trigger download
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+
+    // Clean up
+    URL.revokeObjectURL(url)
+  } catch (error) {
+    console.error('Error downloading results:', error)
+    showWarning('Failed to download results.')
+  }
 }
 
 const fitMapToResult = (result: any) => {
@@ -153,124 +248,16 @@ const clearResults = () => {
   position: fixed;
   top: 20px;
   left: 20px;
-  width: 175px;
+  width: 275px;
   z-index: 1000;
-  background-color: rgba(0, 0, 0, 0.9);
-  border-radius: 8px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
 }
 
-.accordion-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0.75rem 1rem;
-  background-color: rgba(0, 136, 136, 0.2);
-  border: 1px solid rgba(0, 136, 136, 0.8);
-  border-radius: 8px 8px 0 0;
-  transition: background-color 0.2s ease;
+.result-item:hover {
+  background-color: rgba(0, 136, 136, 0.1) !important;
 }
 
-.header-content {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex: 1;
-  cursor: pointer;
-}
-
-.clear-results-button {
-  background: none;
-  border: 1px solid rgba(255, 0, 0, 0.6);
-  border-radius: 4px;
-  color: rgba(255, 0, 0, 0.8);
-  padding: 0.25rem 0.5rem;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  font-size: 0.75rem;
-  margin-left: 0.5rem;
-}
-
-.clear-results-button:hover {
-  background-color: rgba(255, 0, 0, 0.2);
-  border-color: rgba(255, 0, 0, 1);
-  color: rgba(255, 0, 0, 1);
-}
-
-.header-content:hover {
-  background-color: rgba(0, 136, 136, 0.3);
-}
-
-.accordion-header h3 {
-  margin: 0;
-  font-size: 1rem;
-  color: white;
-  font-weight: 600;
-}
-
-.accordion-icon {
-  color: white;
-  transition: transform 0.3s ease;
-  font-size: 0.75rem;
-}
-
-.accordion-icon.open {
-  transform: rotate(180deg);
-}
-
-.results-list {
-  max-height: 400px;
-  overflow-y: auto;
-  border: 1px solid rgba(0, 136, 136, 0.3);
-  border-top: none;
-  border-radius: 0 0 8px 8px;
-  background-color: rgba(0, 0, 0, 0.95);
-}
-
-.results-list .result-item {
-  padding: 0.75rem 1rem;
-  border-bottom: 1px solid rgba(0, 136, 136, 0.2);
-  cursor: pointer;
-  transition: background-color 0.2s ease;
-}
-
-.results-list .result-item:hover {
-  background-color: rgba(0, 136, 136, 0.1);
-}
-
-.results-list .result-item:last-child {
-  border-bottom: none;
-}
-
-.results-list .result-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 0.5rem;
-}
-
-.results-list .result-header h4 {
-  margin: 0;
-  font-size: 0.875rem;
-  color: white;
-  font-weight: 600;
-}
-
-.fit-map-button {
-  background: none;
-  border: 1px solid rgba(0, 136, 136, 0.6);
-  border-radius: 4px;
-  color: rgba(0, 136, 136, 0.8);
-  padding: 0.25rem 0.5rem;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  font-size: 0.75rem;
-}
-
-.fit-map-button:hover {
-  background-color: rgba(0, 136, 136, 0.2);
-  border-color: rgba(0, 136, 136, 1);
-  color: rgba(0, 136, 136, 1);
+.result-item:last-child {
+  border-bottom: none !important;
 }
 
 .result-properties {
@@ -279,16 +266,18 @@ const clearResults = () => {
   gap: 0.25rem;
 }
 
-/* Accordion transition */
-.accordion-enter-active,
-.accordion-leave-active {
-  transition: all 0.3s ease;
+.rotate-180 {
+  transform: rotate(180deg);
 }
 
-.accordion-enter-from,
-.accordion-leave-to {
-  opacity: 0;
-  max-height: 0;
-  overflow: hidden;
+.transition-transform {
+  transition: transform 0.3s ease;
+}
+
+.action-btn {
+  width: 30px !important;
+  min-width: 30px !important;
+  max-width: 30px !important;
+  height: 30px !important;
 }
 </style>
