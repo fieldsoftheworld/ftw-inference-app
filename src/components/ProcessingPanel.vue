@@ -72,7 +72,47 @@ const propertiesBoxPosition = ref<{ x: number; y: number } | null>(null)
 const originalClickPosition = ref<{ x: number; y: number } | null>(null)
 const showPropertiesBox = ref(false)
 
-const { settings } = useSettings()
+const sceneYears = Array.from({ length: 10 }, (_, i) => new Date().getFullYear() - i)
+
+const { settings, autoSceneSelection, sceneYear } = useSettings()
+
+watch([drawnExtent, sceneYear, settings], async ([newExtent, newYear]) => {
+  if (!autoSceneSelection.value || !newExtent || !newYear) {
+    return
+  }
+  // Auto scene selection is enabled, perform search
+  try {
+    const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}scene-selection`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${generateJWT()}`,
+      },
+      body: JSON.stringify({
+        bbox: transformExtent(newExtent, 'EPSG:3857', 'EPSG:4326'),
+        year: newYear,
+        cloud_cover_max: settings.value.cloudCover,
+      }),
+    })
+    const data = await response.json()
+    if (response.status !== 200) {
+      throw new Error(data.message || 'Scene selection failed')
+    }
+    // Expecting data to have window_a and window_b properties with STAC item URLs:
+    // const data = {
+    //   window_a:
+    //     'https://earth-search.aws.element84.com/v1/collections/sentinel-2-c1-l2a/items/S2B_T34UEA_20250319T094246_L2A',
+    //   window_b:
+    //     'https://earth-search.aws.element84.com/v1/collections/sentinel-2-c1-l2a/items/S2C_T34UEA_20250920T094522_L2A',
+    // }
+    const { window_a: windowA, window_b: windowB } = data
+    activeTileId.value = new URL(windowA).pathname.split('/').pop() || null
+    secondActiveTileId.value = new URL(windowB).pathname.split('/').pop() || null
+  } catch (error) {
+    console.error('Error during auto scene selection:', error)
+    showWarning('Failed to perform auto scene selection. Please try again.')
+  }
+})
 
 const toggleAccordion = () => {
   isOpen.value = !isOpen.value
@@ -794,77 +834,61 @@ onUnmounted(() => {
         <div v-if="currentMgrsTileId && searchStatus" class="search-status">{{ searchStatus }}</div>
 
         <div v-if="currentMgrsTileId && searchResults.length > 0" class="results-container">
-          <div class="accordion-header" @click="toggleFirstResults">
-            <h3 class="active-tile-id">{{ activeTileId ? activeTileId : 'Select Win A' }}</h3>
-            <span class="accordion-icon" :class="{ open: isFirstResultsOpen }">▼</span>
-          </div>
-
-          <transition name="accordion">
-            <div v-show="isFirstResultsOpen">
-              <!-- Show second accordion's active tile first -->
-              <TilePreview v-if="activeTileId" :tileId="activeTileId" win="a" />
-              <!-- Show other results -->
-              <TilePreview
-                v-for="result in searchResults.filter(
-                  (r) => r.id !== activeTileId && r.id !== secondActiveTileId,
-                )"
-                :key="result?.id"
-                win="a"
-                :tileId="result?.id"
-              />
-              <div v-if="!hasMore">
-                No more images found. Try adjusting your filters (date range, cloud cover, area
-                coverage) to increase the likelihood of finding more results.
-              </div>
-              <div class="button-group">
-                <button
-                  v-if="hasMore"
-                  @click="loadMore"
-                  class="load-more-button"
-                  :disabled="isLoading"
-                >
-                  <template v-if="isLoading">Loading...</template>
-                  <template v-else>Load More</template>
-                </button>
-                <button
-                  v-if="hasLoadedMore"
-                  @click="resetToOriginalSearch"
-                  class="reset-button"
-                  :disabled="isLoading"
-                >
-                  Reset
-                </button>
-              </div>
-            </div>
-          </transition>
-
-          <!-- Second Accordion for Selected Results -->
-          <div class="selected-results-section" :class="{ disabled: !activeTileId }">
-            <div
-              class="accordion-header"
-              @click="toggleSecondResults"
-              :class="{ disabled: !activeTileId }"
-            >
-              <h3 class="active-tile-id">
-                {{ secondActiveTileId ? secondActiveTileId : 'Select Win B' }}
-              </h3>
-              <span class="accordion-icon" :class="{ open: isSecondResultsOpen }">▼</span>
+          <v-checkbox v-model="autoSceneSelection" density="compact" hide-details
+            ><template v-slot:label
+              >Automatic Scene Selection
+              <v-tooltip max-width="400" open-on-click>
+                <template #activator="{ props }">
+                  <v-icon
+                    class="ml-1"
+                    :icon="mdiHelpCircleOutline"
+                    size="x-small"
+                    v-bind="props"
+                  ></v-icon>
+                </template>
+                <div>
+                  When checked, a suitable scene will be automatically chosen based on the selected
+                  year and the crop calendar for the selected area. When not checked, two scenes
+                  have to be selected manually - one for the time around planting and one for the
+                  time around harvest.
+                </div>
+              </v-tooltip>
+            </template>
+          </v-checkbox>
+          <v-select
+            v-if="autoSceneSelection"
+            class="pt-2 pb-2"
+            type="number"
+            v-model.number="sceneYear"
+            :items="sceneYears"
+            label="Select scene year"
+            density="compact"
+            hide-details
+            variant="outlined"
+          />
+          <template v-else>
+            <div class="accordion-header" @click="toggleFirstResults">
+              <h3 class="active-tile-id">{{ activeTileId ? activeTileId : 'Select Win A' }}</h3>
+              <span class="accordion-icon" :class="{ open: isFirstResultsOpen }">▼</span>
             </div>
 
             <transition name="accordion">
-              <div v-show="isSecondResultsOpen && activeTileId" class="results">
+              <div v-show="isFirstResultsOpen">
                 <!-- Show second accordion's active tile first -->
-                <TilePreview v-if="secondActiveTileId" :tileId="secondActiveTileId" win="b" />
+                <TilePreview v-if="activeTileId" :tileId="activeTileId" win="a" />
                 <!-- Show other results -->
                 <TilePreview
                   v-for="result in searchResults.filter(
                     (r) => r.id !== activeTileId && r.id !== secondActiveTileId,
                   )"
                   :key="result?.id"
-                  win="b"
+                  win="a"
                   :tileId="result?.id"
                 />
-
+                <div v-if="!hasMore">
+                  No more images found. Try adjusting your filters (date range, cloud cover, area
+                  coverage) to increase the likelihood of finding more results.
+                </div>
                 <div class="button-group">
                   <button
                     v-if="hasMore"
@@ -872,7 +896,8 @@ onUnmounted(() => {
                     class="load-more-button"
                     :disabled="isLoading"
                   >
-                    Load More
+                    <template v-if="isLoading">Loading...</template>
+                    <template v-else>Load More</template>
                   </button>
                   <button
                     v-if="hasLoadedMore"
@@ -885,7 +910,56 @@ onUnmounted(() => {
                 </div>
               </div>
             </transition>
-          </div>
+
+            <!-- Second Accordion for Selected Results -->
+            <div class="selected-results-section" :class="{ disabled: !activeTileId }">
+              <div
+                class="accordion-header"
+                @click="toggleSecondResults"
+                :class="{ disabled: !activeTileId }"
+              >
+                <h3 class="active-tile-id">
+                  {{ secondActiveTileId ? secondActiveTileId : 'Select Win B' }}
+                </h3>
+                <span class="accordion-icon" :class="{ open: isSecondResultsOpen }">▼</span>
+              </div>
+
+              <transition name="accordion">
+                <div v-show="isSecondResultsOpen && activeTileId" class="results">
+                  <!-- Show second accordion's active tile first -->
+                  <TilePreview v-if="secondActiveTileId" :tileId="secondActiveTileId" win="b" />
+                  <!-- Show other results -->
+                  <TilePreview
+                    v-for="result in searchResults.filter(
+                      (r) => r.id !== activeTileId && r.id !== secondActiveTileId,
+                    )"
+                    :key="result?.id"
+                    win="b"
+                    :tileId="result?.id"
+                  />
+
+                  <div class="button-group">
+                    <button
+                      v-if="hasMore"
+                      @click="loadMore"
+                      class="load-more-button"
+                      :disabled="isLoading"
+                    >
+                      Load More
+                    </button>
+                    <button
+                      v-if="hasLoadedMore"
+                      @click="resetToOriginalSearch"
+                      class="reset-button"
+                      :disabled="isLoading"
+                    >
+                      Reset
+                    </button>
+                  </div>
+                </div>
+              </transition>
+            </div>
+          </template>
         </div>
       </div>
     </transition>
@@ -1240,14 +1314,5 @@ onUnmounted(() => {
 }
 .collections {
   margin: 0.25rem 0 0.5rem;
-}
-</style>
-<style>
-.hide-details.v-radio-group .v-input__details {
-  padding-inline: 0;
-  min-height: 0px;
-}
-.hide-details.v-radio-group .v-input__details .v-messages:empty {
-  display: none;
 }
 </style>
