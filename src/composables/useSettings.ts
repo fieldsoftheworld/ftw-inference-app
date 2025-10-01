@@ -49,8 +49,8 @@ export const setAvailableModels = (modelsData: { id: string; title?: string }[])
 
   modelsData.forEach((model) => {
     const modelId = model.id
-    const modelName = model.title || modelId
-    modelsMap.push({ id: modelId, title: modelName })
+    const modelTitle = model.title || modelId
+    modelsMap.push({ id: modelId, title: modelTitle })
   })
 
   availableModels.value = modelsMap
