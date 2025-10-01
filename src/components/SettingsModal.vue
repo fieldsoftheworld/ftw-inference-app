@@ -3,7 +3,8 @@ import { ref, watch, computed } from 'vue'
 import { useSettings } from '../composables/useSettings'
 import { mdiClose } from '@mdi/js'
 
-const { collections, availableCollections, settings, defaultSettings } = useSettings()
+const { collections, availableCollections, availableModels, settings, defaultSettings } =
+  useSettings()
 
 const props = defineProps<{
   isOpen: boolean
@@ -98,6 +99,22 @@ watch(() => props.isOpen, initializeSettings)
                   :key="collection[0]"
                   :label="collections[collection[0]]"
                   :value="collection"
+                  color="teal"
+                />
+              </v-radio-group>
+            </v-card-text>
+          </v-card>
+
+          <!-- Model Selection -->
+          <v-card variant="outlined" class="mb-2">
+            <v-card-text>
+              <v-label class="text-subtitle-2 mb-2">Model</v-label>
+              <v-radio-group v-model="settings.selectedModel" inline>
+                <v-radio
+                  v-for="{ id, title } in availableModels"
+                  :key="id"
+                  :label="title"
+                  :value="id"
                   color="teal"
                 />
               </v-radio-group>

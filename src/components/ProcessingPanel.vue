@@ -346,7 +346,7 @@ const handleSmallAreaProcessingRequest = async () => {
       },
       body: JSON.stringify({
         inference: {
-          model: '2_Class_FULL_FTW_Pretrained',
+          model: settings.value.selectedModel,
           images: [firstTile.itemUrl, secondTile.itemUrl],
           bbox: transformExtent(drawnExtent.value, 'EPSG:3857', 'EPSG:4326'),
         },
@@ -511,14 +511,6 @@ const handleCompareTiles = async () => {
       type: 'loading',
       text: 'Running batch processing...',
     }
-    const {
-      models: [{ id: modelId }],
-    } = await fetch(`${apiBaseUrl}`, {
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-      },
-    }).then((res) => res.json())
 
     if (!drawnExtent.value) {
       throw new Error('Drawn extent is not set')
@@ -532,7 +524,7 @@ const handleCompareTiles = async () => {
         Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify({
-        model: modelId,
+        model: settings.value.selectedModel,
         bbox: transformExtent(drawnExtent.value, 'EPSG:3857', 'EPSG:4326'),
         images: [firstTile.itemUrl, secondTile.itemUrl],
       }),
