@@ -8,6 +8,7 @@ export interface Settings {
   cloudCover: number
   areaCoverage: number
   selectedCollection: string[]
+  selectedModel: string
 }
 
 const collections = {
@@ -18,6 +19,8 @@ const availableCollections: [keyof typeof collections][] = Object.keys(collectio
   c,
 ]) as [keyof typeof collections][]
 
+const availableModels = ref<{ id: string; title: string }[]>([])
+
 // Default settings
 export const defaultSettings: Settings = {
   startDate: '',
@@ -25,6 +28,7 @@ export const defaultSettings: Settings = {
   cloudCover: 10,
   areaCoverage: 60,
   selectedCollection: availableCollections[0],
+  selectedModel: '2_Class_FULL_FTW_Pretrained',
 }
 
 export const loadSettingsFromStorage = (): Settings => {
@@ -38,6 +42,24 @@ export const loadSettingsFromStorage = (): Settings => {
 }
 
 const settings = ref<Settings>(loadSettingsFromStorage())
+
+// Function to set available models from API response
+export const setAvailableModels = (modelsData: { id: string; title?: string }[]) => {
+  const modelsMap: { id: string; title: string }[] = []
+
+  modelsData.forEach((model) => {
+    const modelId = model.id
+    const modelTitle = model.title || modelId
+    modelsMap.push({ id: modelId, title: modelTitle })
+  })
+
+  availableModels.value = modelsMap
+
+  // Set default model if none is selected and models are available
+  if (!settings.value.selectedModel && modelsMap.length > 0) {
+    settings.value.selectedModel = modelsMap[0].id
+  }
+}
 
 // Watch for settings changes and trigger search refresh
 watch(
@@ -56,7 +78,9 @@ export function useSettings() {
     settings,
     collections,
     availableCollections,
+    availableModels,
     defaultSettings,
     loadSettingsFromStorage,
+    setAvailableModels,
   }
 }

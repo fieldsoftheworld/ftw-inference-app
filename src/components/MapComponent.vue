@@ -11,6 +11,7 @@ import { useAreaOfInterest } from '../composables/useAreaOfInterest'
 import { useSearch } from '../composables/useSearch'
 import { usePermalink } from '../composables/usePermalink'
 import { useMap } from '../composables/useMap'
+import { setAvailableModels } from '../composables/useSettings'
 
 const { map, areaValues } = useMap()
 const dataCabinetRef = ref<InstanceType<typeof DataCabinet> | null>(null)
@@ -38,7 +39,7 @@ onMounted(async () => {
     }),
   })
 
-  // Get area values from API
+  // Get area values and models from API
   try {
     const token = generateJWT()
     const apiBaseUrl = import.meta.env.VITE_API_BASE_URL
@@ -55,6 +56,11 @@ onMounted(async () => {
     areaValues.value = {
       min_area_km2: data.min_area_km2 ?? 100,
       max_area_km2: data.max_area_km2 ?? 500,
+    }
+
+    // Set available models if they exist in the response
+    if (data.models && Array.isArray(data.models)) {
+      setAvailableModels(data.models)
     }
   } catch (error) {
     areaValues.value = {
