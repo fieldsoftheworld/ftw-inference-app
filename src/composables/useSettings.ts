@@ -42,6 +42,8 @@ export const loadSettingsFromStorage = (): Settings => {
 }
 
 const settings = ref<Settings>(loadSettingsFromStorage())
+export const autoSceneSelection = ref(true)
+export const sceneYear = ref<number>(new Date().getFullYear() - 1)
 
 // Function to set available models from API response
 export const setAvailableModels = (modelsData: { id: string; title?: string }[]) => {
@@ -76,6 +78,8 @@ watch(
 export function useSettings() {
   return {
     settings,
+    autoSceneSelection,
+    sceneYear,
     collections,
     availableCollections,
     availableModels,

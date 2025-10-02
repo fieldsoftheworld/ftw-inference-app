@@ -9,6 +9,7 @@ import {
 } from './useAreaOfInterest'
 import { map, areaValues } from './useMap'
 import { handleSearchResults } from './useSearch'
+import { autoSceneSelection, sceneYear } from './useSettings'
 import { fromLonLat, toLonLat, transformExtent } from 'ol/proj'
 import { Extent } from 'ol/extent'
 import { type Coordinate } from 'ol/coordinate'
@@ -25,6 +26,7 @@ export interface PermalinkState {
   endDate?: string
   cloudCover?: number
   areaCoverage?: number
+  sceneYear?: number
 }
 
 let registered = false
@@ -82,6 +84,8 @@ const parsePermalink = (): PermalinkState => {
           result.areaCoverage = Number(part.substring(14))
         } else if (part.startsWith('bbox:')) {
           result.bbox = part.substring(5).split(',').map(Number)
+        } else if (part.startsWith('scene_year:')) {
+          result.sceneYear = Number(part.substring(11))
         }
       }
 
@@ -126,11 +130,15 @@ const updatePermalink = (
   if (currentMgrsTileId) {
     // Add tile IDs
     hashParts.push(currentMgrsTileId)
-    hashParts.push(String(activeTileId))
-    hashParts.push(String(secondActiveTileId))
+    hashParts.push(String(autoSceneSelection.value ? null : activeTileId))
+    hashParts.push(String(autoSceneSelection.value ? null : secondActiveTileId))
 
     if (extent) {
       hashParts.push(`bbox:${extent.join(',')}`)
+    }
+
+    if (autoSceneSelection.value && sceneYear.value) {
+      hashParts.push(`scene_year:${sceneYear.value}`)
     }
 
     // If we have a currentMgrsTileId, include search settings
@@ -175,6 +183,18 @@ const restoreMapState = (map: Map, state: PermalinkState) => {
   // since they need to be set in the composable state
 }
 
+function restoreAutoSceneState(state: PermalinkState) {
+  let newAutoSceneSelectionValue = true
+  if (state.sceneYear) {
+    sceneYear.value = state.sceneYear
+    newAutoSceneSelectionValue = true
+  }
+  if (state.activeTileId || state.secondActiveTileId) {
+    newAutoSceneSelectionValue = false
+  }
+  autoSceneSelection.value = newAutoSceneSelectionValue
+}
+
 // Setup permalink functionality
 const setupPermalink = async () => {
   if (!map.value) {
@@ -192,6 +212,8 @@ const setupPermalink = async () => {
       currentMgrsTileId.value,
       activeTileId.value,
       secondActiveTileId.value,
+      autoSceneSelection.value,
+      sceneYear.value,
     ],
     () => {
       if (!map.value) {
@@ -211,6 +233,7 @@ const setupPermalink = async () => {
   // Restore initial state from URL
   const initialState = parsePermalink()
   restoreMapState(map.value, initialState)
+  restoreAutoSceneState(initialState)
 
   // Update the refs with the restored values
   currentMgrsTileId.value = initialState.currentMgrsTileId
@@ -252,6 +275,7 @@ const setupPermalink = async () => {
 
     const state = event.state as PermalinkState
     restoreMapState(map.value!, state)
+    restoreAutoSceneState(state)
 
     // Update the refs
     currentMgrsTileId.value = state.currentMgrsTileId
