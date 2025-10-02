@@ -96,7 +96,7 @@ watch([drawnExtent, sceneYear, settings], async ([newExtent, newYear]) => {
     })
     const data = await response.json()
     if (response.status !== 200) {
-      throw new Error(data.message || 'Scene selection failed')
+      throw new Error(data.detail || 'Scene selection failed')
     }
     // Expecting data to have window_a and window_b properties with STAC item URLs:
     // const data = {
@@ -110,7 +110,10 @@ watch([drawnExtent, sceneYear, settings], async ([newExtent, newYear]) => {
     secondActiveTileId.value = new URL(windowB).pathname.split('/').pop() || null
   } catch (error) {
     console.error('Error during auto scene selection:', error)
-    showWarning('Failed to perform auto scene selection. Please try again.')
+    showWarning(
+      'Failed to perform auto scene selection: ' +
+        (error instanceof Error ? error.message : 'Unknown error'),
+    )
   }
 })
 

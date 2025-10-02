@@ -39,7 +39,7 @@ export const loadSettingsFromStorage = (): Settings => {
 
 const settings = ref<Settings>(loadSettingsFromStorage())
 export const autoSceneSelection = ref(true)
-export const sceneYear = ref<number>(new Date().getFullYear())
+export const sceneYear = ref<number>(new Date().getFullYear() - 1)
 
 // Watch for settings changes and trigger search refresh
 watch(
