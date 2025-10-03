@@ -5,7 +5,7 @@ import { generateJWT } from '../functions/generate-jwt'
 import { transformExtent } from 'ol/proj'
 import { showWarning } from '../functions/snackbar'
 import searchStacApi from '../functions/search-stac-api'
-import { useSearch } from '../composables/useSearch'
+import { SearchResult, useSearch } from '../composables/useSearch'
 import { useProjectMessage } from '../composables/useProjectMessage'
 import VectorSource from 'ol/source/Vector'
 import VectorLayer from 'ol/layer/Vector'
@@ -107,7 +107,13 @@ watch([drawnExtent, sceneYear, settings], async ([newExtent, newYear]) => {
     // }
     const { window_a: windowA, window_b: windowB } = data
     activeTileId.value = new URL(windowA).pathname.split('/').pop() || null
+    if (activeTileId.value) {
+      isFirstResultsOpen.value = false
+    }
     secondActiveTileId.value = new URL(windowB).pathname.split('/').pop() || null
+    if (secondActiveTileId.value) {
+      isSecondResultsOpen.value = false
+    }
   } catch (error) {
     console.error('Error during auto scene selection:', error)
     showWarning(
@@ -115,6 +121,15 @@ watch([drawnExtent, sceneYear, settings], async ([newExtent, newYear]) => {
         (error instanceof Error ? error.message : 'Unknown error'),
     )
   }
+})
+
+const firstTile = ref<SearchResult | null>(null)
+const secondTile = ref<SearchResult | null>(null)
+watch(activeTileId, async (id) => {
+  firstTile.value = id ? await getTileById(id) : null
+})
+watch(secondActiveTileId, async (id) => {
+  secondTile.value = id ? await getTileById(id) : null
 })
 
 const toggleAccordion = () => {
@@ -369,10 +384,8 @@ const handleSmallAreaProcessingRequest = async () => {
     showWarning('Please draw an extent on the map before processing.')
     return
   }
-  const firstTile = await getTileById(activeTileId.value!)
-  const secondTile = await getTileById(secondActiveTileId.value!)
 
-  if (!firstTile || !secondTile) {
+  if (!firstTile.value || !secondTile.value) {
     throw new Error('Could not find selected tiles')
   }
 
@@ -390,7 +403,7 @@ const handleSmallAreaProcessingRequest = async () => {
       body: JSON.stringify({
         inference: {
           model: settings.value.selectedModel,
-          images: [firstTile.itemUrl, secondTile.itemUrl],
+          images: [firstTile.value.itemUrl, secondTile.value.itemUrl],
           bbox: transformExtent(drawnExtent.value, 'EPSG:3857', 'EPSG:4326'),
         },
         polygons: {
@@ -490,10 +503,7 @@ const handleCompareTiles = async () => {
   }
 
   try {
-    const firstTile = await getTileById(activeTileId.value!)
-    const secondTile = await getTileById(secondActiveTileId.value!)
-
-    if (!firstTile || !secondTile) {
+    if (!firstTile.value || !secondTile.value) {
       throw new Error('Could not find selected tiles')
     }
 
@@ -569,7 +579,7 @@ const handleCompareTiles = async () => {
       body: JSON.stringify({
         model: settings.value.selectedModel,
         bbox: transformExtent(drawnExtent.value, 'EPSG:3857', 'EPSG:4326'),
-        images: [firstTile.itemUrl, secondTile.itemUrl],
+        images: [firstTile.value.itemUrl, secondTile.value.itemUrl],
       }),
     })
 
@@ -861,29 +871,79 @@ onUnmounted(() => {
             hide-details
             variant="outlined"
           />
-          <template v-else>
-            <div class="accordion-header" @click="toggleFirstResults">
-              <h3 class="active-tile-id">{{ activeTileId ? activeTileId : 'Select Win A' }}</h3>
-              <span class="accordion-icon" :class="{ open: isFirstResultsOpen }">▼</span>
+          <div class="accordion-header" @click="toggleFirstResults">
+            <h3 class="active-tile-id">
+              {{ activeTileId ? firstTile?.date || activeTileId : 'Select Win A' }}
+            </h3>
+            <span class="accordion-icon" :class="{ open: isFirstResultsOpen }">▼</span>
+          </div>
+
+          <transition name="accordion">
+            <div v-show="isFirstResultsOpen">
+              <!-- Show second accordion's active tile first -->
+              <TilePreview v-if="activeTileId" :tileId="activeTileId" win="a" />
+              <!-- Show other results -->
+              <TilePreview
+                v-for="result in searchResults.filter(
+                  (r) => r.id !== activeTileId && r.id !== secondActiveTileId,
+                )"
+                :key="result?.id"
+                win="a"
+                :tileId="result?.id"
+              />
+              <div v-if="!hasMore">
+                No more images found. Try adjusting your filters (date range, cloud cover, area
+                coverage) to increase the likelihood of finding more results.
+              </div>
+              <div class="button-group">
+                <button
+                  v-if="hasMore"
+                  @click="loadMore"
+                  class="load-more-button"
+                  :disabled="isLoading"
+                >
+                  <template v-if="isLoading">Loading...</template>
+                  <template v-else>Load More</template>
+                </button>
+                <button
+                  v-if="hasLoadedMore"
+                  @click="resetToOriginalSearch"
+                  class="reset-button"
+                  :disabled="isLoading"
+                >
+                  Reset
+                </button>
+              </div>
+            </div>
+          </transition>
+
+          <!-- Second Accordion for Selected Results -->
+          <div class="selected-results-section" :class="{ disabled: !activeTileId }">
+            <div
+              class="accordion-header"
+              @click="toggleSecondResults"
+              :class="{ disabled: !activeTileId }"
+            >
+              <h3 class="active-tile-id">
+                {{ secondActiveTileId ? secondTile?.date || secondActiveTileId : 'Select Win B' }}
+              </h3>
+              <span class="accordion-icon" :class="{ open: isSecondResultsOpen }">▼</span>
             </div>
 
             <transition name="accordion">
-              <div v-show="isFirstResultsOpen">
+              <div v-show="isSecondResultsOpen && activeTileId" class="results">
                 <!-- Show second accordion's active tile first -->
-                <TilePreview v-if="activeTileId" :tileId="activeTileId" win="a" />
+                <TilePreview v-if="secondActiveTileId" :tileId="secondActiveTileId" win="b" />
                 <!-- Show other results -->
                 <TilePreview
                   v-for="result in searchResults.filter(
                     (r) => r.id !== activeTileId && r.id !== secondActiveTileId,
                   )"
                   :key="result?.id"
-                  win="a"
+                  win="b"
                   :tileId="result?.id"
                 />
-                <div v-if="!hasMore">
-                  No more images found. Try adjusting your filters (date range, cloud cover, area
-                  coverage) to increase the likelihood of finding more results.
-                </div>
+
                 <div class="button-group">
                   <button
                     v-if="hasMore"
@@ -891,8 +951,7 @@ onUnmounted(() => {
                     class="load-more-button"
                     :disabled="isLoading"
                   >
-                    <template v-if="isLoading">Loading...</template>
-                    <template v-else>Load More</template>
+                    Load More
                   </button>
                   <button
                     v-if="hasLoadedMore"
@@ -905,56 +964,7 @@ onUnmounted(() => {
                 </div>
               </div>
             </transition>
-
-            <!-- Second Accordion for Selected Results -->
-            <div class="selected-results-section" :class="{ disabled: !activeTileId }">
-              <div
-                class="accordion-header"
-                @click="toggleSecondResults"
-                :class="{ disabled: !activeTileId }"
-              >
-                <h3 class="active-tile-id">
-                  {{ secondActiveTileId ? secondActiveTileId : 'Select Win B' }}
-                </h3>
-                <span class="accordion-icon" :class="{ open: isSecondResultsOpen }">▼</span>
-              </div>
-
-              <transition name="accordion">
-                <div v-show="isSecondResultsOpen && activeTileId" class="results">
-                  <!-- Show second accordion's active tile first -->
-                  <TilePreview v-if="secondActiveTileId" :tileId="secondActiveTileId" win="b" />
-                  <!-- Show other results -->
-                  <TilePreview
-                    v-for="result in searchResults.filter(
-                      (r) => r.id !== activeTileId && r.id !== secondActiveTileId,
-                    )"
-                    :key="result?.id"
-                    win="b"
-                    :tileId="result?.id"
-                  />
-
-                  <div class="button-group">
-                    <button
-                      v-if="hasMore"
-                      @click="loadMore"
-                      class="load-more-button"
-                      :disabled="isLoading"
-                    >
-                      Load More
-                    </button>
-                    <button
-                      v-if="hasLoadedMore"
-                      @click="resetToOriginalSearch"
-                      class="reset-button"
-                      :disabled="isLoading"
-                    >
-                      Reset
-                    </button>
-                  </div>
-                </div>
-              </transition>
-            </div>
-          </template>
+          </div>
         </div>
       </div>
     </transition>
