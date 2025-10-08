@@ -1,6 +1,6 @@
 import { ref, watch } from 'vue'
-import { currentBbox, handleSearchResults } from './useSearch'
 import { currentMgrsTileId } from './useAreaOfInterest'
+import { currentBbox, handleSearchResults } from './useSearch'
 
 export interface Settings {
   startDate: string

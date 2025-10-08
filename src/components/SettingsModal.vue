@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch, computed } from 'vue'
+import { ref, watch, computed, onMounted } from 'vue'
 import { useSettings } from '../composables/useSettings'
 import { mdiClose } from '@mdi/js'
 
@@ -29,6 +29,13 @@ const closeModal = () => {
 const saveSettings = () => {
   closeModal()
 }
+
+onMounted(() => {
+  const stored = localStorage.getItem('ftw-search-settings')
+  if (!stored) {
+    localStorage.setItem('ftw-search-settings', JSON.stringify(defaultSettings))
+  }
+})
 
 const updateCloudCoverInput = () => {
   // Ensure the value is a number and not below 1
