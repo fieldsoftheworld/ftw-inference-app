@@ -25,10 +25,10 @@ const availableModels = ref<{ id: string; title: string }[]>([])
 export const defaultSettings: Settings = {
   startDate: '',
   endDate: '',
-  cloudCover: 10,
+  cloudCover: 20,
   areaCoverage: 60,
   selectedCollection: availableCollections[0],
-  selectedModel: '2_Class_FULL_FTW_Pretrained',
+  selectedModel: '3_Class_FULL_FTW_Pretrained',
 }
 
 export const loadSettingsFromStorage = (): Settings => {
