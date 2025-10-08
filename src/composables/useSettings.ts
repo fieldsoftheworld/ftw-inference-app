@@ -1,6 +1,6 @@
 import { ref, watch } from 'vue'
-import { currentBbox, handleSearchResults } from './useSearch'
 import { currentMgrsTileId } from './useAreaOfInterest'
+import { currentBbox, handleSearchResults } from './useSearch'
 
 export interface Settings {
   startDate: string
@@ -25,10 +25,10 @@ const availableModels = ref<{ id: string; title: string }[]>([])
 export const defaultSettings: Settings = {
   startDate: '',
   endDate: '',
-  cloudCover: 50,
+  cloudCover: 10,
   areaCoverage: 60,
   selectedCollection: availableCollections[0],
-  selectedModel: '3_Class_FULL_FTW_Pretrained',
+  selectedModel: '2_Class_FULL_FTW_Pretrained',
 }
 
 export const loadSettingsFromStorage = (): Settings => {
