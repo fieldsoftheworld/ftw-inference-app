@@ -4,6 +4,7 @@ import { Map, View } from 'ol'
 import DataCabinet from './DataCabinet.vue'
 import Snackbar from './Snackbar.vue'
 import ProcessingResults from './ProcessingResults.vue'
+import createLabelLayer from '../layers/Label-Layer'
 import createS2GridLayer from '../layers/S2-Grid-Layer'
 import createCloudlessLayer from '../layers/S2-Cloudless-Layer'
 import { generateJWT } from '../functions/generate-jwt'
@@ -32,7 +33,10 @@ const clearResults = () => {
 onMounted(async () => {
   map.value = new Map({
     target: 'map',
-    layers: [createCloudlessLayer()],
+    layers: [
+      createCloudlessLayer(),
+      createLabelLayer(),
+    ],
     view: new View({
       center: [0, 0],
       zoom: 2,
