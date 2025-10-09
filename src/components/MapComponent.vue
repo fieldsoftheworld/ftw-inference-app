@@ -12,6 +12,8 @@ import { useSearch } from '../composables/useSearch'
 import { usePermalink } from '../composables/usePermalink'
 import { useMap } from '../composables/useMap'
 import { setAvailableModels } from '../composables/useSettings'
+import Geocoder from 'ol-geocoder'
+import 'ol-geocoder/dist/ol-geocoder.css'
 
 const { map, areaValues } = useMap()
 const dataCabinetRef = ref<InstanceType<typeof DataCabinet> | null>(null)
@@ -38,6 +40,16 @@ onMounted(async () => {
       zoom: 2,
     }),
   })
+
+  const geocoder = new Geocoder('nominatim', {
+    keepOpen: true,
+    preventPanning: false,
+  });
+  map.value?.addControl(geocoder);
+  geocoder.on('addresschosen', (evt) => {
+    const coord = evt.coordinate
+    map.value?.getView().animate({center: coord, zoom: 8})
+  });
 
   // Get area values and models from API
   try {
@@ -163,6 +175,16 @@ defineExpose({
 }
 
 :deep(.ol-attribution ul li a) {
+  color: #fff;
+}
+
+:deep(.gcd-gl-control button) {
+  background-color: rgba(0, 0, 0, 0.6);
+  color: #fff;
+}
+
+:deep(.gcd-gl-control button:hover) {
+  background-color: rgba(0, 0, 0, 0.8);
   color: #fff;
 }
 </style>
