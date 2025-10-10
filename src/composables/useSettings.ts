@@ -19,7 +19,9 @@ const availableCollections: [keyof typeof collections][] = Object.keys(collectio
   c,
 ]) as [keyof typeof collections][]
 
-const availableModels = ref<{ id: string; title: string }[]>([])
+const availableModels = ref<
+  { id: string; title: string; description?: string; version?: string; license?: string }[]
+>([])
 
 // Default settings
 export const defaultSettings: Settings = {
@@ -46,13 +48,31 @@ export const autoSceneSelection = ref(true)
 export const sceneYear = ref<number>(new Date().getFullYear() - 1)
 
 // Function to set available models from API response
-export const setAvailableModels = (modelsData: { id: string; title?: string }[]) => {
-  const modelsMap: { id: string; title: string }[] = []
+export const setAvailableModels = (
+  modelsData: {
+    id: string
+    title?: string
+    description?: string
+    version?: string
+    license?: string
+  }[],
+) => {
+  const modelsMap: {
+    id: string
+    title: string
+    description?: string
+    version?: string
+    license?: string
+  }[] = []
 
   modelsData.forEach((model) => {
-    const modelId = model.id
-    const modelTitle = model.title || modelId
-    modelsMap.push({ id: modelId, title: modelTitle })
+    modelsMap.push({
+      id: model.id,
+      title: model.title || model.id,
+      description: model.description,
+      version: model.version,
+      license: model.license,
+    })
   })
 
   availableModels.value = modelsMap
