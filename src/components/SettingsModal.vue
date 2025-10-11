@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, watch, computed, onMounted } from 'vue'
 import { useSettings } from '../composables/useSettings'
-import { mdiClose } from '@mdi/js'
+import { mdiClose, mdiHelpCircleOutline } from '@mdi/js'
 
 const { collections, availableCollections, availableModels, settings, defaultSettings } =
   useSettings()
@@ -118,12 +118,36 @@ watch(() => props.isOpen, initializeSettings)
               <v-label class="text-subtitle-2 mb-2">Model</v-label>
               <v-radio-group v-model="settings.selectedModel" inline>
                 <v-radio
-                  v-for="{ id, title } in availableModels"
-                  :key="id"
-                  :label="title"
-                  :value="id"
+                  v-for="model in availableModels"
+                  :key="model.id"
+                  :value="model.id"
                   color="teal"
-                />
+                  ><template v-slot:label>
+                    {{ model.title }}
+                    <span v-if="model.version" class="badge" title="Version">{{
+                      model.version
+                    }}</span>
+                    <v-tooltip v-if="model.description" max-width="400" open-on-click>
+                      <template #activator="{ props }">
+                        <v-icon
+                          class="ml-1"
+                          :icon="mdiHelpCircleOutline"
+                          size="x-small"
+                          v-bind="props"
+                        ></v-icon>
+                      </template>
+                      <div>
+                        <strong>License:</strong> {{ model.license || 'unknown' }}<br />
+                        <template v-if="model.description">
+                          <strong>Description:</strong>
+                          <div style="white-space: pre-wrap">
+                            {{ model.description }}
+                          </div>
+                        </template>
+                      </div>
+                    </v-tooltip></template
+                  ></v-radio
+                >
               </v-radio-group>
             </v-card-text>
           </v-card>
@@ -256,6 +280,15 @@ watch(() => props.isOpen, initializeSettings)
 </template>
 
 <style scoped>
+.badge {
+  background-color: rgba(255, 255, 255, 0.2);
+  color: white;
+  border-radius: 6px;
+  padding: 2px 6px;
+  font-size: 0.8rem;
+  margin: 0 0.5rem;
+}
+
 :deep(.v-field__input) {
   color: white !important;
 }
