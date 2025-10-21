@@ -1,4 +1,4 @@
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { currentMgrsTileId } from './useAreaOfInterest'
 import { currentBbox, handleSearchResults } from './useSearch'
 
@@ -11,6 +11,15 @@ export interface Settings {
   selectedModel: string
 }
 
+export interface ModelInfo {
+  id: string
+  title: string
+  description?: string
+  requires_window?: boolean
+  version?: string
+  license?: string
+}
+
 const collections = {
   'sentinel-2-c1-l2a': 'Sentinel-2 Level 2A, Collection 1',
   'sentinel-2-l2a': 'Sentinel-2 Level 2A, Legacy',
@@ -19,9 +28,7 @@ const availableCollections: [keyof typeof collections][] = Object.keys(collectio
   c,
 ]) as [keyof typeof collections][]
 
-const availableModels = ref<
-  { id: string; title: string; description?: string; version?: string; license?: string }[]
->([])
+const availableModels = ref<ModelInfo[]>([])
 
 // Default settings
 export const defaultSettings: Settings = {
@@ -48,28 +55,15 @@ export const autoSceneSelection = ref(true)
 export const sceneYear = ref<number>(new Date().getFullYear() - 1)
 
 // Function to set available models from API response
-export const setAvailableModels = (
-  modelsData: {
-    id: string
-    title?: string
-    description?: string
-    version?: string
-    license?: string
-  }[],
-) => {
-  const modelsMap: {
-    id: string
-    title: string
-    description?: string
-    version?: string
-    license?: string
-  }[] = []
+export const setAvailableModels = (modelsData: ModelInfo[]) => {
+  const modelsMap: ModelInfo[] = []
 
   modelsData.forEach((model) => {
     modelsMap.push({
       id: model.id,
       title: model.title || model.id,
       description: model.description,
+      requires_window: model.requires_window,
       version: model.version,
       license: model.license,
     })
@@ -95,6 +89,11 @@ watch(
   { deep: true },
 )
 
+const modelIsSingleShot = computed(() => {
+  const model = availableModels.value.find((m) => m.id === settings.value.selectedModel)
+  return model?.requires_window === false
+})
+
 export function useSettings() {
   return {
     settings,
@@ -106,5 +105,6 @@ export function useSettings() {
     defaultSettings,
     loadSettingsFromStorage,
     setAvailableModels,
+    modelIsSingleShot,
   }
 }

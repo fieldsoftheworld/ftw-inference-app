@@ -74,7 +74,7 @@ const showPropertiesBox = ref(false)
 
 const sceneYears = Array.from({ length: 10 }, (_, i) => new Date().getFullYear() - i)
 
-const { settings, autoSceneSelection, sceneYear } = useSettings()
+const { settings, autoSceneSelection, sceneYear, modelIsSingleShot } = useSettings()
 
 watch([drawnExtent, sceneYear, settings], async ([newExtent, newYear]) => {
   if (!autoSceneSelection.value || !newExtent || !newYear) {
@@ -385,7 +385,7 @@ const handleSmallAreaProcessingRequest = async () => {
     return
   }
 
-  if (!firstTile.value || !secondTile.value) {
+  if (!firstTile.value || (!modelIsSingleShot.value && !secondTile.value)) {
     throw new Error('Could not find selected tiles')
   }
 
@@ -403,7 +403,9 @@ const handleSmallAreaProcessingRequest = async () => {
       body: JSON.stringify({
         inference: {
           model: settings.value.selectedModel,
-          images: [firstTile.value.itemUrl, secondTile.value.itemUrl],
+          images: modelIsSingleShot.value
+            ? [firstTile.value.itemUrl]
+            : [firstTile.value.itemUrl, secondTile.value?.itemUrl],
           bbox: transformExtent(drawnExtent.value, 'EPSG:3857', 'EPSG:4326'),
         },
         polygons: {
@@ -494,7 +496,9 @@ const handleSmallAreaProcessingRequest = async () => {
 }
 
 const handleCompareTiles = async () => {
-  if (!activeTileId.value || !secondActiveTileId.value) return
+  if (!firstTile.value || (!modelIsSingleShot.value && !secondTile.value)) {
+    throw new Error('Could not find selected tiles')
+  }
 
   isCreatingProject.value = true
   projectMessage.value = {
@@ -503,10 +507,6 @@ const handleCompareTiles = async () => {
   }
 
   try {
-    if (!firstTile.value || !secondTile.value) {
-      throw new Error('Could not find selected tiles')
-    }
-
     projectMessage.value = {
       type: 'loading',
       text: 'Creating batch processing project...',
@@ -579,7 +579,9 @@ const handleCompareTiles = async () => {
       body: JSON.stringify({
         model: settings.value.selectedModel,
         bbox: transformExtent(drawnExtent.value, 'EPSG:3857', 'EPSG:4326'),
-        images: [firstTile.value.itemUrl, secondTile.value.itemUrl],
+        images: modelIsSingleShot.value
+          ? [firstTile.value.itemUrl]
+          : [firstTile.value.itemUrl, secondTile.value?.itemUrl],
       }),
     })
 
@@ -814,7 +816,9 @@ onUnmounted(() => {
           <button
             v-if="processingMode === 'batchProcessing'"
             class="action-button"
-            :disabled="!activeTileId || !secondActiveTileId || isCreatingProject"
+            :disabled="
+              !activeTileId || (!modelIsSingleShot && !secondActiveTileId) || isCreatingProject
+            "
             @click="handleCompareTiles"
           >
             <span v-if="isCreatingProject">Creating Project...</span>
@@ -823,7 +827,7 @@ onUnmounted(() => {
           <button
             v-if="processingMode === 'smallAreaProcessing'"
             class="action-button"
-            :disabled="!activeTileId || !secondActiveTileId || isProcessing"
+            :disabled="!activeTileId || (!modelIsSingleShot && !secondActiveTileId) || isProcessing"
             @click="handleSmallAreaProcessingRequest"
           >
             <span v-if="isProcessing">Processing...</span>
@@ -918,7 +922,11 @@ onUnmounted(() => {
           </transition>
 
           <!-- Second Accordion for Selected Results -->
-          <div class="selected-results-section" :class="{ disabled: !activeTileId }">
+          <div
+            v-if="modelIsSingleShot === false"
+            class="selected-results-section"
+            :class="{ disabled: !activeTileId }"
+          >
             <div
               class="accordion-header"
               @click="toggleSecondResults"
