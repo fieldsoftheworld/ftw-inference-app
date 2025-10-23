@@ -30,7 +30,7 @@ export const defaultSettings: Settings = {
   cloudCover: 20,
   areaCoverage: 60,
   selectedCollection: availableCollections[0],
-  selectedModel: '3_Class_FULL_FTW_Pretrained',
+  selectedModel: '3_Class_FULL_multiWindow_v2',
 }
 
 export const loadSettingsFromStorage = (): Settings => {
