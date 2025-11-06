@@ -25,6 +25,7 @@ import { areaValues, map } from './useMap'
 import { useSettings } from './useSettings'
 import { tileDataFromStacFeature } from '../functions/search-stac-api'
 import { processingMode } from './useProcessingMode'
+import { debounce } from 'vuetify/lib/util/helpers.mjs'
 
 const invalidStyle = new Style({
   stroke: new Stroke({
@@ -109,70 +110,83 @@ function addExtentInteraction() {
     extent: drawnExtent.value || undefined,
     createCondition: never,
     drag: true,
-    boxStyle: new Style({
-      fill: new Fill({
-        color: 'rgba(255, 255, 255, 0.2)',
+    boxStyle: [
+      new Style({
+        stroke: new Stroke({
+          color: 'white',
+          width: 2.5,
+        }),
       }),
-    }),
+      new Style({
+        stroke: new Stroke({
+          color: 'rgba(0, 136, 136, 1)',
+          width: 2,
+        }),
+      }),
+    ],
   })
   map.value!.addInteraction(extentInteraction.value)
 
   let warningShown = false
 
-  extentInteraction.value.on('extentchanged', (event) => {
-    const newExtent = event.extent
-    const geometry = fromExtent(newExtent)
-    currentDrawnExtent.value = geometry
+  extentInteraction.value.on(
+    'extentchanged',
+    debounce((event) => {
+      const newExtent = event.extent
+      const geometry = fromExtent(newExtent)
+      currentDrawnExtent.value = geometry
 
-    const area = calculateArea(geometry)
-    const isWithinExtent = currentGridExtent.value
-      ? isPolygonWithinExtent(geometry, currentGridExtent.value)
-      : false
+      const area = calculateArea(geometry)
+      const isWithinExtent = currentGridExtent.value
+        ? isPolygonWithinExtent(geometry, currentGridExtent.value)
+        : false
 
-    // Define area limits based on processing mode
-    const maxArea =
-      processingMode.value === 'batchProcessing' ? 3000 : areaValues.value!.max_area_km2
-    const minArea = processingMode.value === 'batchProcessing' ? 0 : areaValues.value!.min_area_km2
+      // Define area limits based on processing mode
+      const maxArea =
+        processingMode.value === 'batchProcessing' ? 3000 : areaValues.value!.max_area_km2
+      const minArea =
+        processingMode.value === 'batchProcessing' ? 0 : areaValues.value!.min_area_km2
 
-    // Check if the polygon is within the grid extent and within size limits
-    if (area > maxArea || area < minArea || !isWithinExtent) {
-      if (!warningShown) {
-        // Show notification for each validation error
-        if (area > maxArea) {
-          const maxAreaText =
-            processingMode.value === 'batchProcessing'
-              ? '3000 square kilometers'
-              : `${areaValues.value?.max_area_km2} square kilometers`
-          const switchToBatchProcessing =
-            processingMode.value === 'smallAreaProcessing'
-              ? 'To run a larger area, switch to Batch Processing.'
-              : ''
-          showWarning(
-            `Bounding box area exceeds ${maxAreaText}. Using last valid state. ${switchToBatchProcessing}`,
-          )
+      // Check if the polygon is within the grid extent and within size limits
+      if (area > maxArea || area < minArea || !isWithinExtent) {
+        if (!warningShown) {
+          // Show notification for each validation error
+          if (area > maxArea) {
+            const maxAreaText =
+              processingMode.value === 'batchProcessing'
+                ? '3000 square kilometers'
+                : `${areaValues.value?.max_area_km2} square kilometers`
+            const switchToBatchProcessing =
+              processingMode.value === 'smallAreaProcessing'
+                ? 'To run a larger area, switch to Batch Processing.'
+                : ''
+            showWarning(
+              `Bounding box area exceeds ${maxAreaText}. Using last valid state. ${switchToBatchProcessing}`,
+            )
+          }
+          if (area < minArea) {
+            showWarning(
+              `Bounding box area is less than ${areaValues.value?.min_area_km2} square kilometers. Using last valid state.`,
+            )
+          }
+          if (!isWithinExtent) {
+            showWarning(
+              'Running inference across Sentinel 2 tile boundaries is not yet supported. Move your bbox to the selected tile, or select a different tile.',
+            )
+          }
+          warningShown = true
+          drawVectorLayer?.setStyle(invalidStyle)
         }
-        if (area < minArea) {
-          showWarning(
-            `Bounding box area is less than ${areaValues.value?.min_area_km2} square kilometers. Using last valid state.`,
-          )
-        }
-        if (!isWithinExtent) {
-          showWarning(
-            'Running inference across Sentinel 2 tile boundaries is not yet supported. Move your bbox to the selected tile, or select a different tile.',
-          )
-        }
-        warningShown = true
-        drawVectorLayer?.setStyle(invalidStyle)
+      } else {
+        warningShown = false
+        extentFeature.setGeometry(geometry)
+        drawVectorLayer.setStyle(validStyle)
+
+        // Check geometry containment if both tiles are selected
+        checkBboxContainment(newExtent, drawnExtent)
       }
-    } else {
-      warningShown = false
-      extentFeature.setGeometry(geometry)
-      drawVectorLayer.setStyle(validStyle)
-
-      // Check geometry containment if both tiles are selected
-      checkBboxContainment(newExtent, drawnExtent)
-    }
-  })
+    }, 500),
+  )
 
   return extentInteraction.value
 }
