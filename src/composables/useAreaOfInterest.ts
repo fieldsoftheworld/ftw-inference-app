@@ -22,7 +22,7 @@ import { booleanWithin as turfBooleanWithin } from '@turf/boolean-within'
 import { clearSearchResults, SearchResult, searchResults } from './useSearch'
 import { Feature as GeoJSONFeature, Polygon as GeoJSONPolygon } from 'geojson'
 import { areaValues, map } from './useMap'
-import { useSettings } from './useSettings'
+import { autoSceneSelection, useSettings } from './useSettings'
 import { tileDataFromStacFeature } from '../functions/search-stac-api'
 import { processingMode } from './useProcessingMode'
 import { debounce } from 'vuetify/lib/util/helpers.mjs'
@@ -182,8 +182,10 @@ function addExtentInteraction() {
         extentFeature.setGeometry(geometry)
         drawVectorLayer.setStyle(validStyle)
 
-        // Check geometry containment if both tiles are selected
-        checkBboxContainment(newExtent, drawnExtent)
+        if (!autoSceneSelection.value) {
+          // Check geometry containment if both tiles are selected
+          checkBboxContainment(newExtent, drawnExtent)
+        }
       }
     }, 500),
   )
