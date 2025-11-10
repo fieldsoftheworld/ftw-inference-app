@@ -1,10 +1,10 @@
 <template>
   <v-card
     v-if="geoJSONResults.length > 0"
-    class="processing-results"
     elevation="8"
     color="rgba(0, 0, 0, 0.9)"
     rounded="lg"
+    :class="{ closed: !isResultsListOpen, 'processing-results': true }"
   >
     <v-card-title
       class="d-flex align-center justify-space-between pa-2"
@@ -46,48 +46,31 @@
       </div>
     </v-card-title>
 
-    <v-expand-transition>
-      <div
-        v-show="isResultsListOpen"
-        class="results-list"
-        style="max-height: 400px; overflow-y: auto"
+    <div v-show="isResultsListOpen" class="results-list">
+      <v-list
+        density="compact"
+        color="transparent"
+        class="pa-0"
+        style="background-color: rgba(0, 0, 0, 0.95)"
       >
-        <v-list
-          density="compact"
-          color="transparent"
-          class="pa-0"
-          style="background-color: rgba(0, 0, 0, 0.95)"
+        <v-list-item
+          v-for="result in processedResults"
+          :key="result.id"
+          class="result-item"
+          @click.stop="fitMapToResult(result)"
         >
-          <v-list-item
-            v-for="result in processedResults"
-            :key="result.id"
-            class="result-item"
-            style="cursor: pointer; border-bottom: 1px solid rgba(0, 136, 136, 0.2)"
-          >
-            <template v-slot:prepend>
-              <v-btn
-                @click.stop="fitMapToResult(result)"
-                size="small"
-                variant="plain"
-                color="teal"
-                class="mr-0 ml-0"
-              >
-                <v-icon :icon="mdiMapMarker"></v-icon>
-              </v-btn>
-            </template>
-            <v-list-item-subtitle class="mt-2">
-              <div class="result-properties">
-                <PropertyDisplay
-                  v-for="property in result.filteredProperties"
-                  :key="property.key"
-                  :property="property"
-                />
-              </div>
-            </v-list-item-subtitle>
-          </v-list-item>
-        </v-list>
-      </div>
-    </v-expand-transition>
+          <v-list-item-subtitle class="mt-2">
+            <div class="result-properties">
+              <PropertyDisplay
+                v-for="property in result.filteredProperties"
+                :key="property.key"
+                :property="property"
+              />
+            </div>
+          </v-list-item-subtitle>
+        </v-list-item>
+      </v-list>
+    </div>
   </v-card>
 </template>
 
@@ -97,7 +80,7 @@ import { ref, watch } from 'vue'
 import { useSnackbar } from '../composables/useSnackbar'
 import { useAreaOfInterest } from '../composables/useAreaOfInterest'
 import PropertyDisplay from './PropertyDisplay.vue'
-import { mdiDownloadBoxOutline, mdiDelete, mdiChevronDown, mdiMapMarker } from '@mdi/js'
+import { mdiDownloadBoxOutline, mdiDelete, mdiChevronDown } from '@mdi/js'
 
 const props = defineProps<{
   map: Map
@@ -212,7 +195,7 @@ const fitMapToResult = (result: any) => {
   // Fit the map to the result's extent with dynamic padding
   props.map.getView().fit(transformedExtent, {
     duration: 1000,
-    padding: [paddingY, paddingX + 325, paddingY, paddingX + 175], // [top, right, bottom, left]
+    padding: [paddingY, paddingX + 500, paddingY, paddingX + 200], // [top, right, bottom, left]
   })
 }
 
@@ -244,14 +227,46 @@ const clearResults = () => {
 <style scoped>
 .processing-results {
   position: fixed;
-  top: 20px;
-  left: 20px;
-  width: 275px;
+  top: 2.5vh;
+  left: 2vw;
   z-index: 1000;
+  min-width: 250px;
+  width: 260px;
+  max-width: 50vw;
+  min-height: 50px;
+  height: 400px;
+  max-height: 95vh;
+  resize: both;
+  display: flex;
+  flex-direction: column;
+}
+
+.processing-results.closed {
+  height: auto !important;
+  min-height: none;
+  resize: none;
+}
+
+.results-list {
+  overflow-y: auto;
+  height: 100%;
+  flex-grow: 1;
+  padding: 1px;
+}
+
+.result-item {
+  padding: 0.75rem;
+  background-color: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  margin-bottom: 0.5rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
 }
 
 .result-item:hover {
-  background-color: rgba(0, 136, 136, 0.1) !important;
+  background-color: rgba(255, 255, 255, 0.1);
+  border-color: rgba(0, 136, 136, 0.6);
 }
 
 .result-item:last-child {
@@ -262,6 +277,10 @@ const clearResults = () => {
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
+}
+
+.v-list-item--density-compact.v-list-item--one-line {
+  min-height: auto !important;
 }
 
 .rotate-180 {

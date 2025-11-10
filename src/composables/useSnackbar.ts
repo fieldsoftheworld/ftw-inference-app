@@ -20,7 +20,7 @@ export const showWarning = (text: string, timeout: number = 10) => {
   showSnackbar({ type: 'warning', color: 'warning', text, timeout })
 }
 
-export const showError = (text: string, timeout: number = 30) => {
+export const showError = (text: string, timeout: number = 15) => {
   showSnackbar({ type: 'error', color: 'error', text, timeout })
 }
 

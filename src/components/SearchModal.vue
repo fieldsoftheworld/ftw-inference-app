@@ -651,26 +651,6 @@ onUnmounted(() => {
   font-size: 1rem;
 }
 
-.results-list {
-  max-height: 300px;
-  overflow-y: auto;
-}
-
-.result-item {
-  padding: 0.75rem;
-  background-color: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 4px;
-  margin-bottom: 0.5rem;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.result-item:hover {
-  background-color: rgba(255, 255, 255, 0.1);
-  border-color: rgba(0, 136, 136, 0.6);
-}
-
 .tile-name {
   font-weight: 600;
   color: rgba(0, 136, 136, 1);
