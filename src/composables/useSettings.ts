@@ -30,6 +30,8 @@ const availableCollections: [keyof typeof collections][] = Object.keys(collectio
 
 const availableModels = ref<ModelInfo[]>([])
 
+const defaultModel: string = '3_Class_FULL_multiWindow_v2'
+
 // Default settings
 export const defaultSettings: Settings = {
   startDate: '',
@@ -37,7 +39,7 @@ export const defaultSettings: Settings = {
   cloudCover: 20,
   areaCoverage: 60,
   selectedCollection: availableCollections[0],
-  selectedModel: '3_Class_FULL_multiWindow_v2',
+  selectedModel: defaultModel,
 }
 
 export const loadSettingsFromStorage = (): Settings => {
@@ -71,6 +73,14 @@ export const setAvailableModels = (modelsData: ModelInfo[]) => {
 
   availableModels.value = modelsMap
 
+  // If an old model is stored in localStorage, reset to default model
+  if (
+    settings.value.selectedModel &&
+    !modelsMap.find((m) => m.id === settings.value.selectedModel)
+  ) {
+    settings.value.selectedModel = defaultModel
+  }
+
   // Set default model if none is selected and models are available
   if (!settings.value.selectedModel && modelsMap.length > 0) {
     settings.value.selectedModel = modelsMap[0].id
@@ -103,6 +113,7 @@ export function useSettings() {
     availableCollections,
     availableModels,
     defaultSettings,
+    defaultModel,
     loadSettingsFromStorage,
     setAvailableModels,
     modelIsSingleShot,
