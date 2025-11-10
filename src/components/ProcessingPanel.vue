@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, onUnmounted, watch, shallowRef, nextTick } from 'vue'
-import type { Extent } from 'ol/extent'
+import { type Extent } from 'ol/extent'
 import { generateJWT } from '../functions/generate-jwt'
 import { transformExtent } from 'ol/proj'
 import { showWarning } from '../functions/snackbar'
@@ -76,12 +76,22 @@ const sceneYears = Array.from({ length: 10 }, (_, i) => new Date().getFullYear()
 
 const { settings, autoSceneSelection, sceneYear, modelIsSingleShot } = useSettings()
 
+let abortController: AbortController | null = null
 watch([drawnExtent, sceneYear, settings], async ([newExtent, newYear]) => {
   if (!autoSceneSelection.value || !newExtent || !newYear) {
     return
   }
+
   // Auto scene selection is enabled, perform search
   try {
+    // Abort previous fetch if exists
+    if (abortController) {
+      abortController.abort('obsolete request')
+    }
+
+    // Create new AbortController for this fetch
+    abortController = new AbortController()
+
     const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}scene-selection`, {
       method: 'POST',
       headers: {
@@ -93,7 +103,9 @@ watch([drawnExtent, sceneYear, settings], async ([newExtent, newYear]) => {
         year: newYear,
         cloud_cover_max: settings.value.cloudCover,
       }),
+      signal: abortController.signal,
     })
+    abortController = null // Clear abortController on successful fetch
     const data = await response.json()
     if (response.status !== 200) {
       throw new Error(data.detail || 'Scene selection failed')
@@ -115,11 +127,13 @@ watch([drawnExtent, sceneYear, settings], async ([newExtent, newYear]) => {
       isSecondResultsOpen.value = false
     }
   } catch (error) {
-    console.error('Error during auto scene selection:', error)
-    showWarning(
-      'Failed to perform auto scene selection: ' +
-        (error instanceof Error ? error.message : 'Unknown error'),
-    )
+    if (error !== 'obsolete request') {
+      console.error('Error during auto scene selection:', error)
+      showWarning(
+        'Failed to perform auto scene selection: ' +
+          (error instanceof Error ? error.message : 'Unknown error'),
+      )
+    }
   }
 })
 
