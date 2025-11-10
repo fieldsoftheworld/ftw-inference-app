@@ -94,7 +94,7 @@
 <script setup lang="ts">
 import type Map from 'ol/Map'
 import { ref, watch } from 'vue'
-import { showWarning } from '../functions/snackbar'
+import { useSnackbar } from '../composables/useSnackbar'
 import { useAreaOfInterest } from '../composables/useAreaOfInterest'
 import PropertyDisplay from './PropertyDisplay.vue'
 import { mdiDownloadBoxOutline, mdiDelete, mdiChevronDown, mdiMapMarker } from '@mdi/js'
@@ -109,6 +109,7 @@ const emit = defineEmits<{
 }>()
 
 const { setBlockMapClicks, clearResultsAndZoomToGrid } = useAreaOfInterest()
+const { showInfo, showError } = useSnackbar()
 
 import { computed } from 'vue'
 import { formatMeasurementDisplay } from '../functions/format-measurement-display'
@@ -123,17 +124,14 @@ const processedResults = computed(() => {
     formattedResults[parseInt(id) - 1] = {
       id,
       ...feature,
-      filteredProperties: Object.entries({ id, ...rest }).reduce(
-        (acc, [key, value]) => {
-          acc.push({
-            key,
-            value,
-            formattedValue: formatMeasurementDisplay(value as number, key),
-          })
-          return acc
-        },
-        [] as { key: string; value: any; formattedValue: string }[],
-      ),
+      filteredProperties: Object.entries({ id, ...rest }).reduce((acc, [key, value]) => {
+        acc.push({
+          key,
+          value,
+          formattedValue: formatMeasurementDisplay(value as number, key),
+        })
+        return acc
+      }, [] as { key: string; value: any; formattedValue: string }[]),
     }
   }
   return formattedResults
@@ -147,7 +145,7 @@ const toggleResultsList = () => {
 
 const downloadResults = () => {
   if (!props.geoJSONResults || props.geoJSONResults.length === 0) {
-    showWarning('No results to download.')
+    showInfo('No results to download.')
     return
   }
 
@@ -179,13 +177,13 @@ const downloadResults = () => {
     URL.revokeObjectURL(url)
   } catch (error) {
     console.error('Error downloading results:', error)
-    showWarning('Failed to download results.')
+    showError('Failed to download results.')
   }
 }
 
 const fitMapToResult = (result: any) => {
   if (!result || !result.geometry) {
-    showWarning('No valid geometry found for this result.')
+    showError('No valid geometry found for this result.')
     return
   }
 
@@ -196,7 +194,7 @@ const fitMapToResult = (result: any) => {
     extent.every((coord: number) => coord === 0) ||
     extent.some((coord: number) => isNaN(coord))
   ) {
-    showWarning('Invalid extent for this result.')
+    showError('Invalid extent for this result.')
     return
   }
 
@@ -232,7 +230,7 @@ watch(
       isResultsListOpen.value = false
     }
   },
-  { immediate: true },
+  { immediate: true }
 )
 
 const clearResults = () => {

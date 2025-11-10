@@ -3,12 +3,13 @@ import { computed, onMounted, ref } from 'vue'
 import { useAreaOfInterest } from '../composables/useAreaOfInterest'
 import { useMap } from '../composables/useMap'
 import { useStacLayer } from '../composables/useStacLayer'
-import { showWarning } from '../functions/snackbar'
+import { useSnackbar } from '../composables/useSnackbar'
 import { SearchResult } from '../composables/useSearch'
 
 const { activeTileId, secondActiveTileId, currentGridExtent, getTileById } = useAreaOfInterest()
 const { removeStacLayer, addStacLayer } = useStacLayer()
 const { map } = useMap()
+const { showWarning } = useSnackbar()
 
 const props = defineProps<{
   tileId: string
@@ -49,8 +50,8 @@ const handleViewOnMap = async () => {
     if (!isNaN(areaCoverage) && areaCoverage <= 99.9) {
       showWarning(
         `Selected tile has only ${areaCoverage.toFixed(
-          1,
-        )}% area coverage. Be sure to select an area where there is imagery coverage.`,
+          1
+        )}% area coverage. Be sure to select an area where there is imagery coverage.`
       )
     }
   }

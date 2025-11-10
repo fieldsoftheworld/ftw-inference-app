@@ -3,10 +3,9 @@ import { ref, onUnmounted, watch, shallowRef, nextTick } from 'vue'
 import { type Extent } from 'ol/extent'
 import { generateJWT } from '../functions/generate-jwt'
 import { transformExtent } from 'ol/proj'
-import { showWarning } from '../functions/snackbar'
+import { useSnackbar } from '../composables/useSnackbar'
 import searchStacApi from '../functions/search-stac-api'
 import { SearchResult, useSearch } from '../composables/useSearch'
-import { useProjectMessage } from '../composables/useProjectMessage'
 import VectorSource from 'ol/source/Vector'
 import VectorLayer from 'ol/layer/Vector'
 import GeoJSON from 'ol/format/GeoJSON'
@@ -34,7 +33,7 @@ const { map } = useMap()
 const { removeStacLayer } = useStacLayer()
 const { removeExtentInteraction, removeDrawVectorLayer, drawnExtent, getTileById } =
   useAreaOfInterest()
-const { projectMessage, dismissMessage } = useProjectMessage()
+const { showInfo, showWarning, showError, showSuccess } = useSnackbar()
 
 const { currentBbox, hasMore, isLoading, searchResults, searchStatus, handleSearchResults } =
   useSearch()
@@ -129,9 +128,9 @@ watch([drawnExtent, sceneYear, settings], async ([newExtent, newYear]) => {
   } catch (error) {
     if (error !== 'obsolete request') {
       console.error('Error during auto scene selection:', error)
-      showWarning(
+      showError(
         'Failed to perform auto scene selection: ' +
-          (error instanceof Error ? error.message : 'Unknown error'),
+          (error instanceof Error ? error.message : 'Unknown error')
       )
     }
   }
@@ -352,7 +351,7 @@ const displayGeoJSON = (geojson: FeatureCollection & { crs: { properties: { name
   // Check if we have valid features
   if (source.getFeatures().length === 0) {
     showWarning(
-      'No valid features found in the processing results. Please try again with a different area or settings.',
+      'No valid features found in the processing results. Please try again with a different area or settings.'
     )
     return null
   }
@@ -385,7 +384,7 @@ const displayGeoJSON = (geojson: FeatureCollection & { crs: { properties: { name
   const extent = source.getExtent()
   if (!extent || extent.every((coord) => coord === 0) || extent.some((coord) => isNaN(coord))) {
     showWarning(
-      'Invalid extent generated from processing results. Please try again with a different area or settings.',
+      'Invalid extent generated from processing results. Please try again with a different area or settings.'
     )
     return null
   }
@@ -404,7 +403,6 @@ const handleSmallAreaProcessingRequest = async () => {
   }
 
   isProcessing.value = true
-  projectMessage.value = { type: 'loading', text: 'Processing small area...' }
   const apiBaseUrl = import.meta.env.VITE_API_BASE_URL
   try {
     const token = generateJWT()
@@ -430,10 +428,7 @@ const handleSmallAreaProcessingRequest = async () => {
 
     if (response.status === 503) {
       // Server is busy, schedule retry
-      projectMessage.value = {
-        type: 'error',
-        text: 'Server is busy. Retrying in 15 seconds...',
-      }
+      showInfo('Server is busy. Retrying in 15 seconds...', 15)
       isProcessing.value = false
 
       // Clear any existing timeout
@@ -448,11 +443,12 @@ const handleSmallAreaProcessingRequest = async () => {
       return
     }
 
-    if (!response.ok) {
-      throw new Error(`Failed to process small area: ${response.statusText}`)
-    }
-
     const data = await response.json()
+
+    if (!response.ok) {
+      const error = data?.detail || response.statusText
+      throw new Error(`Failed to process small area: ${error}`)
+    }
 
     // Display GeoJSON if available
     if (data && data.features && Array.isArray(data.features) && data.features.length > 0) {
@@ -460,33 +456,19 @@ const handleSmallAreaProcessingRequest = async () => {
       // Fit map to bbox only if we have a valid extent
       if (extent) {
         fitMapToBbox(extent)
-        projectMessage.value = { type: 'success', text: 'Small area processed successfully' }
+        showSuccess('Finished processing, results will be shown on the map.')
         // Remove the editable bbox since we have results
         removeDrawVectorLayer(map.value!)
       } else {
         // displayGeoJSON returned null, which means no valid features or invalid extent
-        projectMessage.value = {
-          type: 'warning',
-          text: 'Processing completed but no valid results were generated. Please try again with a different area or settings.',
-        }
-        // Clear warning message after 5 seconds
-        setTimeout(() => {
-          if (projectMessage.value?.type === 'warning') {
-            projectMessage.value = null
-          }
-        }, 5000)
+        showWarning(
+          'Processing completed but the extent of the results is empty. Please try again with a different settings.'
+        )
       }
     } else {
-      projectMessage.value = {
-        type: 'warning',
-        text: 'Processing completed but no valid results were generated. Please try again with a different area or settings.',
-      }
-      // Clear warning message after 5 seconds
-      setTimeout(() => {
-        if (projectMessage.value?.type === 'warning') {
-          projectMessage.value = null
-        }
-      }, 5000)
+      showWarning(
+        'Processing completed but no valid results were generated. Please try again with a different settings.'
+      )
     }
 
     removeStacLayer(map.value!)
@@ -494,18 +476,12 @@ const handleSmallAreaProcessingRequest = async () => {
     removeExtentInteraction()
   } catch (error) {
     console.error('Error processing small area:', error)
-    projectMessage.value = {
-      type: 'error',
-      text: error instanceof Error ? error.message : 'Failed to process small area',
-    }
+    showError(
+      'Failed to process small area: ' +
+        (error instanceof Error ? error.message : 'An unknown error occured')
+    )
   } finally {
     isProcessing.value = false
-    // Clear message after 3 seconds (only for non-retry cases)
-    if (retryTimeout.value === null) {
-      setTimeout(() => {
-        projectMessage.value = null
-      }, 3000)
-    }
   }
 }
 
@@ -515,17 +491,8 @@ const handleCompareTiles = async () => {
   }
 
   isCreatingProject.value = true
-  projectMessage.value = {
-    type: 'warning',
-    text: 'Batch processing may take up to 30 seconds to complete...',
-  }
 
   try {
-    projectMessage.value = {
-      type: 'loading',
-      text: 'Creating batch processing project...',
-    }
-
     const token = generateJWT()
 
     // Create project
@@ -544,10 +511,7 @@ const handleCompareTiles = async () => {
 
     if (createResponse.status === 503) {
       // Server is busy, schedule retry
-      projectMessage.value = {
-        type: 'error',
-        text: 'Server is busy. Retrying in 15 seconds...',
-      }
+      showInfo('Server is busy. Retrying in 15 seconds...', 15)
       isCreatingProject.value = false
 
       // Clear any existing timeout
@@ -562,22 +526,17 @@ const handleCompareTiles = async () => {
       return
     }
 
-    if (!createResponse.ok) {
-      throw new Error(`Failed to create project: ${createResponse.statusText}`)
-    }
-
-    projectMessage.value = {
-      type: 'success',
-      text: 'Project created',
-    }
-
     const projectData = await createResponse.json()
+    if (!createResponse.ok) {
+      const error = projectData?.detail || createResponse.statusText
+      isCreatingProject.value = false
+      throw new Error(`Failed to create project: ${error}`)
+    }
+
     const projectId = projectData.id
 
-    projectMessage.value = {
-      type: 'loading',
-      text: 'Running batch processing...',
-    }
+    isCreatingProject.value = false
+    isProcessing.value = true
 
     if (!drawnExtent.value) {
       throw new Error('Drawn extent is not set')
@@ -601,11 +560,8 @@ const handleCompareTiles = async () => {
 
     if (batchProcessingResponse.status === 503) {
       // Server is busy, schedule retry
-      projectMessage.value = {
-        type: 'error',
-        text: 'Server is busy. Retrying in 15 seconds...',
-      }
-      isCreatingProject.value = false
+      showInfo('Server is busy. Retrying in 15 seconds...', 15)
+      isProcessing.value = false
 
       // Clear any existing timeout
       if (retryTimeout.value) {
@@ -671,7 +627,7 @@ const handleCompareTiles = async () => {
           })
           if (!resultsResponse.ok) {
             throw new Error(
-              `Failed to fetch batch processing results: ${resultsResponse.statusText}`,
+              `Failed to fetch batch processing results: ${resultsResponse.statusText}`
             )
           }
 
@@ -689,27 +645,22 @@ const handleCompareTiles = async () => {
           removeStacLayer(map.value!, true)
           removeExtentInteraction()
 
-          projectMessage.value = {
-            type: 'success',
-            text: 'Batch processing completed',
-          }
+          isProcessing.value = false
+          showSuccess('Finished batch processing, results will be shown on the map.')
           // Remove the editable bbox since batch processing completed successfully
           removeDrawVectorLayer(map.value!)
-          // Clear message after 3 seconds
-          setTimeout(() => {
-            projectMessage.value = null
-          }, 3000)
         } else if (projectStatus.status === 'failed') {
           clearInterval(pollInterval)
-          projectMessage.value = {
-            type: 'error',
-            text: 'Batch processing failed to process',
-          }
+          showError('Batch processing failed')
           throw new Error('Batch processing failed')
         }
       } catch (error) {
         clearInterval(pollInterval)
+        isProcessing.value = false
         throw error
+      } finally {
+        isCreatingProject.value = false
+        isProcessing.value = false
       }
     }, 10000) // Poll every 10 seconds
 
@@ -723,20 +674,10 @@ const handleCompareTiles = async () => {
     })
   } catch (error) {
     console.error('Error:', error)
-    projectMessage.value = {
-      type: 'error',
-      text: error instanceof Error ? error.message : 'Failed to create project or upload images',
-    }
+    showError(error instanceof Error ? error.message : 'Failed to create project or upload images')
   } finally {
     isCreatingProject.value = false
     // Clear message after 3 seconds (only for non-retry cases)
-    if (retryTimeout.value === null) {
-      setTimeout(() => {
-        if (projectMessage.value?.type === 'error') {
-          projectMessage.value = null
-        }
-      }, 3000)
-    }
   }
 }
 
@@ -817,16 +758,6 @@ onUnmounted(() => {
               class="project-title-input"
             />
           </div>
-          <div v-if="projectMessage" :class="['message', projectMessage.type]">
-            {{ projectMessage.text }}
-            <button
-              v-if="projectMessage.type === 'error'"
-              class="close-button"
-              @click="dismissMessage"
-            >
-              ×
-            </button>
-          </div>
           <button
             v-if="processingMode === 'batchProcessing'"
             class="action-button"
@@ -835,8 +766,12 @@ onUnmounted(() => {
             "
             @click="handleCompareTiles"
           >
-            <span v-if="isCreatingProject">Creating Project...</span>
-            <span v-else>Run Batch Processing</span>
+            <span v-if="isCreatingProject || isProcessing"
+              ><v-progress-circular indeterminate size="16" width="2" class="me-1" />
+              <template v-if="isCreatingProject">Creating Project...</template>
+              <template v-else>Processing...</template>
+            </span>
+            <span v-else>Create project and start processing</span>
           </button>
           <button
             v-if="processingMode === 'smallAreaProcessing'"
@@ -844,8 +779,11 @@ onUnmounted(() => {
             :disabled="!activeTileId || (!modelIsSingleShot && !secondActiveTileId) || isProcessing"
             @click="handleSmallAreaProcessingRequest"
           >
-            <span v-if="isProcessing">Processing...</span>
-            <span v-else>Run Small Area Processing</span>
+            <span v-if="isProcessing"
+              ><v-progress-circular indeterminate size="16" width="2" class="me-1" />
+              Processing...</span
+            >
+            <span v-else>Start processing</span>
           </button>
         </div>
 
@@ -903,7 +841,7 @@ onUnmounted(() => {
               <!-- Show other results -->
               <TilePreview
                 v-for="result in searchResults.filter(
-                  (r) => r.id !== activeTileId && r.id !== secondActiveTileId,
+                  (r) => r.id !== activeTileId && r.id !== secondActiveTileId
                 )"
                 :key="result?.id"
                 win="a"
@@ -959,7 +897,7 @@ onUnmounted(() => {
                 <!-- Show other results -->
                 <TilePreview
                   v-for="result in searchResults.filter(
-                    (r) => r.id !== activeTileId && r.id !== secondActiveTileId,
+                    (r) => r.id !== activeTileId && r.id !== secondActiveTileId
                   )"
                   :key="result?.id"
                   win="b"
@@ -1124,63 +1062,6 @@ onUnmounted(() => {
 
 .project-title-input::placeholder {
   color: rgba(255, 255, 255, 0.5);
-}
-
-.message {
-  margin-bottom: 0.5rem;
-  padding: 0.25rem;
-  border-radius: 4px;
-  font-size: 0.875rem;
-  text-align: center;
-  position: relative;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.message.success {
-  background-color: rgba(0, 255, 0, 0.1);
-  border: 1px solid rgba(0, 255, 0, 0.3);
-  color: #00ff00;
-}
-
-.message.error {
-  background-color: rgba(255, 0, 0, 0.1);
-  border: 1px solid rgba(255, 0, 0, 0.3);
-  color: #ff0000;
-}
-
-.message.warning {
-  background-color: rgba(255, 255, 0, 0.1);
-  border: 1px solid rgba(255, 255, 0, 0.3);
-  color: #ffff00;
-}
-
-.message.loading {
-  background-color: rgba(0, 136, 136, 0.1);
-  border: 1px solid rgba(0, 136, 136, 0.3);
-  color: #00ffff;
-}
-
-.close-button {
-  position: absolute;
-  right: 0.25rem;
-  top: 50%;
-  transform: translateY(-50%);
-  background: none;
-  border: none;
-  color: inherit;
-  font-size: 1.25rem;
-  cursor: pointer;
-  padding: 0 0.5rem;
-  line-height: 1;
-  opacity: 0.7;
-  transition: opacity 0.2s ease;
-}
-
-.close-button:hover {
-  opacity: 1;
 }
 
 .action-button {

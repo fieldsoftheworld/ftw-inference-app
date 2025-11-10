@@ -2,7 +2,6 @@
 import { ref, onMounted } from 'vue'
 import { Map, View } from 'ol'
 import DataCabinet from './DataCabinet.vue'
-import Snackbar from './Snackbar.vue'
 import ProcessingResults from './ProcessingResults.vue'
 import createLabelLayer from '../layers/Label-Layer'
 import createS2GridLayer from '../layers/S2-Grid-Layer'
@@ -12,6 +11,7 @@ import { useAreaOfInterest } from '../composables/useAreaOfInterest'
 import { useSearch } from '../composables/useSearch'
 import { usePermalink } from '../composables/usePermalink'
 import { useMap } from '../composables/useMap'
+import { useSnackbar } from '../composables/useSnackbar'
 import { setAvailableModels } from '../composables/useSettings'
 
 const { map, areaValues } = useMap()
@@ -21,6 +21,7 @@ const geoJSONResults = ref<any[]>([])
 const { addMapClickHandler } = useAreaOfInterest()
 const { handleSearchResults } = useSearch()
 const { setupPermalink } = usePermalink()
+const { messages, showCritical } = useSnackbar()
 
 const updateGeoJSONResults = (results: any[]) => {
   geoJSONResults.value = results
@@ -33,10 +34,7 @@ const clearResults = () => {
 onMounted(async () => {
   map.value = new Map({
     target: 'map',
-    layers: [
-      createCloudlessLayer(),
-      createLabelLayer(),
-    ],
+    layers: [createCloudlessLayer(), createLabelLayer()],
     view: new View({
       center: [0, 0],
       zoom: 2,
@@ -53,10 +51,11 @@ onMounted(async () => {
         Authorization: `Bearer ${token}`,
       },
     })
-    if (!response.ok) {
-      throw new Error(`Failed to fetch area values: ${response.statusText}`)
-    }
     const data = await response.json()
+    if (!response.ok) {
+      const error = data?.detail || response.statusText
+      showCritical(`Can't connect to server: ${error}`)
+    }
     areaValues.value = {
       min_area_km2: data.min_area_km2 ?? 100,
       max_area_km2: data.max_area_km2 ?? 500,
@@ -71,7 +70,7 @@ onMounted(async () => {
       min_area_km2: 500,
       max_area_km2: 100,
     }
-    console.error('Error fetching area values:', error)
+    showCritical(`Can't connect to server: ${error.message}`)
   }
 
   // Add S2 Grid layer after map is initialized
@@ -109,7 +108,13 @@ defineExpose({
       :geoJSONResults="geoJSONResults"
       @clearResults="clearResults"
     />
-    <Snackbar />
+    <v-snackbar-queue
+      closable
+      timer
+      close-on-back
+      close-text="✖"
+      v-model="messages"
+    ></v-snackbar-queue>
   </div>
 </template>
 
