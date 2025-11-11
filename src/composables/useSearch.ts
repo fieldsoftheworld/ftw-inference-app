@@ -4,7 +4,8 @@ import searchStacApi, { SearchSettings } from '../functions/search-stac-api'
 
 export interface SearchResult {
   id: string
-  date: string
+  date: string // Formatted date string
+  isoDate: string // ISO date and time string
   cloudCover: number | string
   thumbnailUrl: string
   bounds: number[] | null
@@ -22,20 +23,20 @@ export const currentBbox = ref<number[] | undefined>(undefined)
 
 const hasMore = ref(false)
 const isLoading = ref(false)
-const searchStatus = ref('')
+// true = searching, false = error, number = number of results, null = not started
+const searchStatus: Ref<number | null | boolean> = ref(null)
 
 // Function to handle search results
 export const handleSearchResults = async (
-  mgrsTileId: string,
   bbox?: number[],
   settings: SearchSettings = {} as SearchSettings,
 ) => {
   isLoading.value = true
-  searchStatus.value = `Searching for Sentinel-2 images in tile ${mgrsTileId}...`
 
   currentBbox.value = bbox
 
   const performSearch = async () => {
+    searchStatus.value = true
     try {
       const response = await searchStacApi(bbox, true, settings)
       if (response) {
@@ -43,15 +44,12 @@ export const handleSearchResults = async (
         searchResults.value = response.results
         hasMore.value = response.hasMore
 
-        if (response.results.length === 0) {
-          searchStatus.value = `No images found. Try adjusting your filters (date range, cloud cover, area coverage) to increase the likelihood of finding results.`
-        } else {
-          searchStatus.value = `Found ${response.results.length} images`
-        }
+        searchStatus.value = response.results.length
       }
     } catch (error: unknown) {
+      searchStatus.value = false
       console.error('DataCabinet: Error searching:', error)
-      searchStatus.value = `Error searching: ${error instanceof Error ? error.message : 'Unknown error'}`
+      showError(`Error searching: ${error instanceof Error ? error.message : 'Unknown error'}`)
     } finally {
       isLoading.value = false
     }
@@ -63,7 +61,7 @@ export const clearSearchResults = () => {
   searchResults.value = []
   hasMore.value = false
   isLoading.value = false
-  searchStatus.value = ''
+  searchStatus.value = null
   currentBbox.value = undefined
 }
 

@@ -1,6 +1,4 @@
 import { computed, ref, watch } from 'vue'
-import { currentMgrsTileId } from './useAreaOfInterest'
-import { currentBbox, handleSearchResults } from './useSearch'
 
 export interface Settings {
   startDate: string
@@ -9,6 +7,7 @@ export interface Settings {
   areaCoverage: number
   selectedCollection: string[]
   selectedModel: string
+  expertMode: boolean
 }
 
 export interface ModelInfo {
@@ -20,7 +19,7 @@ export interface ModelInfo {
   license?: string
 }
 
-const collections = {
+const collections: Record<string, string> = {
   'sentinel-2-c1-l2a': 'Sentinel-2 Level 2A, Collection 1',
   'sentinel-2-l2a': 'Sentinel-2 Level 2A, Legacy',
 }
@@ -40,6 +39,7 @@ export const defaultSettings: Settings = {
   areaCoverage: 60,
   selectedCollection: availableCollections[0],
   selectedModel: defaultModel,
+  expertMode: false,
 }
 
 export const loadSettingsFromStorage = (): Settings => {
@@ -87,14 +87,11 @@ export const setAvailableModels = (modelsData: ModelInfo[]) => {
   }
 }
 
-// Watch for settings changes and trigger search refresh
+// Watch for settings changes and store locally
 watch(
   settings,
   (newSettings) => {
     localStorage.setItem('ftw-search-settings', JSON.stringify(newSettings))
-    if (currentBbox.value && currentMgrsTileId.value) {
-      handleSearchResults(currentMgrsTileId.value, currentBbox.value, newSettings)
-    }
   },
   { deep: true },
 )

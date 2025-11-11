@@ -1,5 +1,6 @@
 import { Polygon } from 'geojson'
 import { SearchResult } from '../composables/useSearch'
+import { sceneYear } from '../composables/useSettings'
 
 // Store the currently selected feature
 let nextPageToken: string | null = null
@@ -68,24 +69,17 @@ export interface SearchSettings {
 
 // Function to convert date string to RFC3339 format
 const convertToRFC3339 = (dateString: string, isEndDate: boolean = false): string => {
-  if (!dateString) return ''
-
-  // Handle month input format (YYYY-MM) by appending appropriate day
-  let fullDateString = dateString
-  if (dateString.match(/^\d{4}-\d{2}$/)) {
-    if (isEndDate) {
-      // For end date, use the last day of the month
-      const [year, month] = dateString.split('-')
-      const lastDay = new Date(parseInt(year), parseInt(month), 0).getDate()
-      fullDateString = `${dateString}-${lastDay.toString().padStart(2, '0')}`
-    } else {
-      // For start date, use the first day of the month
-      fullDateString = dateString + '-01'
-    }
+  if (typeof dateString !== 'string' || dateString.length != 10) {
+    return ''
   }
-
-  // Create a Date object and convert to ISO string (RFC3339 format)
-  return new Date(fullDateString).toISOString()
+  dateString += 'T'
+  if (isEndDate) {
+    dateString += '23:59:59'
+  } else {
+    dateString += '00:00:00Z'
+  }
+  dateString += 'Z'
+  return dateString
 }
 
 export const tileDataFromStacFeature = (item: StacFeature): SearchResult => {
@@ -96,7 +90,7 @@ export const tileDataFromStacFeature = (item: StacFeature): SearchResult => {
   const result = {
     id: item.id,
     date: new Date(item.properties.datetime).toLocaleDateString(),
-    formattedDate: new Date(item.properties.datetime).toLocaleDateString(),
+    isoDate: item.properties.datetime,
     cloudCover: item.properties['eo:cloud_cover'] || 'N/A',
     areaCoverage: areaCoverage,
     thumbnailUrl: item.assets?.thumbnail?.href || item.assets?.visual?.href || '#',
@@ -125,8 +119,12 @@ export default async function searchStacApi(
   }
 
   // Use provided settings or fall back to DOM elements
-  const startDate = settings?.startDate ? convertToRFC3339(settings.startDate) : ''
-  const endDate = settings?.endDate ? convertToRFC3339(settings.endDate, true) : ''
+  const startDate = settings?.startDate
+    ? convertToRFC3339(settings.startDate)
+    : `${sceneYear.value}-01-01T00:00:00Z`
+  const endDate = settings?.endDate
+    ? convertToRFC3339(settings.endDate, true)
+    : `${sceneYear.value}-12-31T23:59:59Z`
   const cloudCover = settings?.cloudCover || 10
   const areaCoverage = settings?.areaCoverage || 60
 

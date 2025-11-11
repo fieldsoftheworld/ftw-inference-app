@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { ref, onUnmounted, watch, nextTick, computed } from 'vue'
+import { ref, onUnmounted, watch, nextTick, computed, onMounted } from 'vue'
 import { type Extent } from 'ol/extent'
 import { generateJWT } from '../functions/generate-jwt'
 import { transformExtent } from 'ol/proj'
 import { useSnackbar } from '../composables/useSnackbar'
 import searchStacApi from '../functions/search-stac-api'
 import { SearchResult, useSearch } from '../composables/useSearch'
+import { fromExtent } from 'ol/geom/Polygon'
 import VectorSource from 'ol/source/Vector'
 import VectorLayer from 'ol/layer/Vector'
 import GeoJSON from 'ol/format/GeoJSON'
@@ -23,49 +24,66 @@ const emit = defineEmits<{
   (e: 'processingChanged', isProcessing: boolean): void
 }>()
 
-const { map, vectorLayer, handleMapClick } = useMap()
+const { map, vectorLayer, handleMapClick, areaValues } = useMap()
 const { removeStacLayer } = useStacLayer()
-const { removeExtentInteraction, removeDrawVectorLayer, drawnExtent, getTileById } =
-  useAreaOfInterest()
+const {
+  calculateArea,
+  removeExtentInteraction,
+  removeDrawVectorLayer,
+  drawnExtent,
+  getTileById,
+  getHemisphere,
+  triggerTileSelection,
+} = useAreaOfInterest()
 const { showInfo, showWarning, showError, showSuccess } = useSnackbar()
+const { isBatchProcessing, updateProcessingMode } = useProcessingMode()
 
 const { currentBbox, hasMore, isLoading, searchResults, searchStatus, handleSearchResults } =
   useSearch()
 
-const { currentMgrsTileId, activeTileId, secondActiveTileId } = useAreaOfInterest()
+const { activeTileId, secondActiveTileId, currentMgrsTileId } = useAreaOfInterest()
 
 watch(drawnExtent, (newValue) => {
-  if (newValue) {
-    isFirstResultsOpen.value = true
+  if (!autoSceneSelection.value && newValue) {
+    activePanel.value = 'win-a'
   }
 })
 
 watch(activeTileId, (newValue) => {
-  if (newValue && !secondActiveTileId.value) {
-    isFirstResultsOpen.value = false
-    isSecondResultsOpen.value = true
+  if (!newValue) {
+    activePanel.value = 'win-a'
+  } else if (!secondActiveTileId.value) {
+    activePanel.value = 'win-b'
   }
 })
-
-const { processingMode, isBatchProcessing } = useProcessingMode()
 
 const isCreatingProject = ref(false)
 const isProcessing = ref(false)
 const projectTitle = ref(new Date().toISOString())
-const isFirstResultsOpen = ref(false)
-const isSecondResultsOpen = ref(false)
+const activePanel = ref<string | null>(null)
 const hasLoadedMore = ref(false)
 const retryTimeout = ref<number | null>(null)
+const sceneSelectionStatus = ref<boolean | null>(null)
 
 const sceneYears = Array.from({ length: 10 }, (_, i) => new Date().getFullYear() - i)
 
-const { settings, autoSceneSelection, sceneYear, modelIsSingleShot } = useSettings()
+const {
+  settings,
+  collections,
+  availableCollections,
+  availableModels,
+  autoSceneSelection,
+  sceneYear,
+  modelIsSingleShot,
+} = useSettings()
 
 let abortController: AbortController | null = null
 watch([drawnExtent, sceneYear, settings], async ([newExtent, newYear]) => {
   if (!autoSceneSelection.value || !newExtent || !newYear) {
     return
   }
+
+  sceneSelectionStatus.value = null
 
   // Auto scene selection is enabled, perform search
   try {
@@ -93,6 +111,11 @@ watch([drawnExtent, sceneYear, settings], async ([newExtent, newYear]) => {
     abortController = null // Clear abortController on successful fetch
     const data = await response.json()
     if (response.status !== 200) {
+      if (data.detail) {
+        sceneSelectionStatus.value = false
+        showError(data.detail)
+        return
+      }
       throw new Error(data.detail || 'Scene selection failed')
     }
     // Expecting data to have window_a and window_b properties with STAC item URLs:
@@ -104,15 +127,18 @@ watch([drawnExtent, sceneYear, settings], async ([newExtent, newYear]) => {
     // }
     const { window_a: windowA, window_b: windowB } = data
     activeTileId.value = new URL(windowA).pathname.split('/').pop() || null
-    if (activeTileId.value) {
-      isFirstResultsOpen.value = false
+    if (activeTileId.value && activePanel.value === 'win-a') {
+      activePanel.value = null
     }
     secondActiveTileId.value = new URL(windowB).pathname.split('/').pop() || null
-    if (secondActiveTileId.value) {
-      isSecondResultsOpen.value = false
+    if (secondActiveTileId.value && activePanel.value === 'win-b') {
+      activePanel.value = null
     }
+
+    sceneSelectionStatus.value = true
   } catch (error) {
     if (error !== 'obsolete request') {
+      sceneSelectionStatus.value = false
       console.error('Error during auto scene selection:', error)
       showError(
         'Failed to perform auto scene selection: ' +
@@ -122,6 +148,100 @@ watch([drawnExtent, sceneYear, settings], async ([newExtent, newYear]) => {
   }
 })
 
+// todo: check whether we should only run on a subset of settings
+watch(
+  [settings, sceneYear, currentBbox],
+  () => {
+    // If there's an active search area, refresh the search with new settings
+    if (currentBbox.value && currentMgrsTileId.value) {
+      // Trigger a new search with the updated settings
+      handleSearchResults(currentBbox.value, settings.value)
+    }
+  },
+  { deep: true }
+)
+
+const availableTiles = ref<any[]>([])
+
+// Load available S2 tiles from the map layer
+const loadAvailableTiles = () => {
+  if (!map.value) {
+    return
+  }
+
+  const layers = map.value.getLayers().getArray()
+
+  const s2GridLayer = layers.find(
+    (layer) =>
+      layer.get('name') === 's2-grid' ||
+      (layer.get('properties') && layer.get('properties').name === 's2-grid') ||
+      ((layer as any).getSource && (layer as any).getSource().getFeatures)
+  )
+
+  if (s2GridLayer && (s2GridLayer as any).getSource) {
+    const features = (s2GridLayer as any).getSource().getFeatures()
+
+    availableTiles.value = features
+      .map((feature: any) => ({
+        feature,
+        name: feature.get('Name'),
+        geometry: feature.getGeometry(),
+      }))
+      .filter((tile: any) => tile.name) // Only include tiles with names
+      .sort((a: any, b: any) => a.name.localeCompare(b.name)) // Sort alphabetically
+  }
+}
+
+// Bounding box selection
+const bbox = ref<number[]>(currentBbox.value || [-180.0, -90.0, 180.0, 90.0])
+
+const bboxValid = computed(() => {
+  if (bbox.value.length !== 4) {
+    return false
+  }
+  const [minX, minY, maxX, maxY] = bbox.value
+  return (
+    typeof minX === 'number' &&
+    typeof minY === 'number' &&
+    typeof maxX === 'number' &&
+    typeof maxY === 'number' &&
+    minX >= -180 &&
+    maxX <= 180 &&
+    minY >= -90 &&
+    maxY <= 90 &&
+    minX < maxX &&
+    minY < maxY
+  )
+})
+
+watch(bboxValid, (newValue) => {
+  if (newValue) {
+    const transformedBbox = transformExtent(bbox.value, 'EPSG:4326', 'EPSG:3857')
+    handleBboxSelected(transformedBbox)
+  }
+})
+
+const updateBBox = (index: number, value: number) => {
+  const newBbox = [...bbox.value]
+  newBbox[index] = value
+  bbox.value = newBbox
+}
+
+const syncBBox = (newValue) => {
+  // todo: Sync doesn't work properly when only chancing in a single tile
+  if (Array.isArray(newValue)) {
+    bbox.value = transformExtent(newValue, 'EPSG:3857', 'EPSG:4326')
+  }
+}
+
+watch(currentBbox, syncBBox, { immediate: true, deep: 1 })
+
+onMounted(() => {
+  loadAvailableTiles()
+  syncBBox(currentBbox.value)
+})
+
+// Window A and B input fields
 const firstTile = ref<SearchResult | null>(null)
 const secondTile = ref<SearchResult | null>(null)
 watch(activeTileId, async (id) => {
@@ -130,17 +250,60 @@ watch(activeTileId, async (id) => {
 watch(secondActiveTileId, async (id) => {
   secondTile.value = id ? await getTileById(id) : null
 })
-
 watch([isProcessing, isCreatingProject], () => {
   emit('processingChanged', isProcessing.value || isCreatingProject.value)
 })
+watch(sceneSelectionStatus, (newValue) => {
+  if (newValue === false) {
+    activeTileId.value = null
+    secondActiveTileId.value = null
+  }
+})
+watch(activePanel, (newValue) => {
+  console.log(newValue)
+})
 
-const toggleFirstResults = () => {
-  isFirstResultsOpen.value = !isFirstResultsOpen.value
+const collectionTitle = computed(() => {
+  const collection = settings.value.selectedCollection[0]
+  return collection ? collections[collection] : null
+})
+
+const modelTitle = computed(() => {
+  const model = settings.value.selectedModel
+  return model ? availableModels.value.find((m) => m.id === model)?.title || null : null
+})
+
+const filteredResults = computed(() => {
+  if (!Array.isArray(searchResults.value)) {
+    return []
+  }
+  return searchResults.value.filter(
+    (r) => r.id !== activeTileId.value && r.id !== secondActiveTileId.value
+  )
+})
+
+const sortAsc = (a, b) => {
+  return (a.isoDate || a.id).localeCompare(b.isoDate || b.id)
+}
+const sortDesc = (a, b) => {
+  return (b.isoDate || b.id).localeCompare(a.isoDate || a.id)
 }
 
-const toggleSecondResults = () => {
-  isSecondResultsOpen.value = !isSecondResultsOpen.value
+// Sorts based on hemisphere of currentMgrsTileId
+// Window A: Southern: Descending, Equatorial: Ascending, Northern: Ascending
+// Window B: Southern: Ascending, Equatorial: Ascending, Northern: Descending
+const resultsA = computed(() => {
+  const hemisphere = getHemisphere(currentMgrsTileId.value)
+  return filteredResults.value.sort(hemisphere === 'S' ? sortDesc : sortAsc)
+})
+const resultsB = computed(() => {
+  const hemisphere = getHemisphere(currentMgrsTileId.value)
+  return filteredResults.value.sort(hemisphere === 'N' ? sortDesc : sortAsc)
+})
+
+const clearDateFilters = () => {
+  settings.value.startDate = ''
+  settings.value.endDate = ''
 }
 
 // Function to load more results
@@ -148,6 +311,7 @@ const loadMore = async () => {
   isLoading.value = true
   let firstNewItemId: string | null = null
 
+  searchStatus.value = true
   try {
     const response = await searchStacApi(currentBbox.value, false, settings.value)
     if (response) {
@@ -159,17 +323,14 @@ const loadMore = async () => {
       hasMore.value = response.hasMore
       hasLoadedMore.value = true // Mark that loadMore has been called
 
-      if (response.results.length === 0) {
-        searchStatus.value = `No more images found. Try adjusting your filters (date range, cloud cover, area coverage) to increase the likelihood of finding more results.`
-      } else {
-        searchStatus.value = `Loaded ${response.results.length} more images (${searchResults.value.length} total)`
-      }
+      searchStatus.value = searchResults.value.length
     }
   } catch (error: unknown) {
     console.error('Error loading more results:', error)
-    searchStatus.value = `Error loading more results: ${
-      error instanceof Error ? error.message : 'Unknown error'
-    }`
+    showError(
+      `Error loading more results: ${error instanceof Error ? error.message : 'Unknown error'}`
+    )
+    searchStatus.value = false
   } finally {
     isLoading.value = false
 
@@ -198,12 +359,36 @@ const loadMore = async () => {
   }
 }
 
+const updateCloudCoverInput = () => {
+  // Ensure the value is a number and not below 1
+  const value = Number(settings.value.cloudCover)
+  settings.value.cloudCover = Math.max(1, value)
+}
+
+const updateCloudCoverSlider = () => {
+  // Ensure the value is a number and not below 1
+  const value = Number(settings.value.cloudCover)
+  settings.value.cloudCover = Math.max(1, value)
+}
+
+const updateAreaCoverageInput = () => {
+  // Ensure the value is a number and not below 1
+  const value = Number(settings.value.areaCoverage)
+  settings.value.areaCoverage = Math.max(1, value)
+}
+
+const updateAreaCoverageSlider = () => {
+  // Ensure the value is a number and not below 1
+  const value = Number(settings.value.areaCoverage)
+  settings.value.areaCoverage = Math.max(1, value)
+}
+
 // Function to reset to original search results
 const resetToOriginalSearch = async () => {
   if (!currentBbox.value) return
 
   // Use the existing handleSearchResults function to reset to original search
-  await handleSearchResults(currentMgrsTileId.value, currentBbox.value, settings.value)
+  await handleSearchResults(currentBbox.value, settings.value)
   hasLoadedMore.value = false // Reset the flag
 }
 
@@ -377,6 +562,39 @@ const handleSmallAreaProcessingRequest = async () => {
   } finally {
     isProcessing.value = false
   }
+}
+
+// Handle tile selection from search modal
+const handleTileSelected = (tileName: string) => {
+  // Find the tile feature on the map and trigger the tile selection
+  const layers = map.value!.getLayers().getArray()
+  const s2GridLayer = layers.find(
+    (layer) =>
+      layer.get('name') === 's2-grid' ||
+      (layer.get('properties') && layer.get('properties').name === 's2-grid') ||
+      ((layer as any).getSource && (layer as any).getSource().getFeatures)
+  )
+
+  if (s2GridLayer && (s2GridLayer as any).getSource) {
+    const features = (s2GridLayer as any).getSource().getFeatures()
+    const targetFeature = features.find((f: any) => f.get('Name') === tileName)
+
+    if (targetFeature) {
+      triggerTileSelection(map.value!, tileName, areaValues.value!, handleSearchResults)
+    }
+  }
+}
+
+const handleBboxSelected = (bbox: number[]) => {
+  // Set the drawn extent for the area of interest
+  drawnExtent.value = bbox
+
+  const geometry = fromExtent(bbox)
+  const area = calculateArea(geometry)
+  updateProcessingMode(area, areaValues)
+
+  // Trigger the search with the custom bbox
+  handleSearchResults(bbox, settings.value)
 }
 
 const handleCompareTiles = async () => {
@@ -585,7 +803,12 @@ onUnmounted(() => {
 
 <template>
   <div class="settings">
-    <v-alert density="compact" :type="isBatchProcessing ? 'warning' : 'info'" class="mb-2">
+    <v-alert
+      density="compact"
+      :type="isBatchProcessing ? 'warning' : 'info'"
+      :color="isBatchProcessing ? 'warning' : 'gray'"
+      class="mb-2"
+    >
       <template v-if="isBatchProcessing">
         You are in <strong>batch mode</strong> due to the selected larger area. The processing may
         take multiple minutes depending on the selected settings.
@@ -596,113 +819,542 @@ onUnmounted(() => {
       </template>
     </v-alert>
 
-    <div v-if="searchStatus" class="search-status">{{ searchStatus }}</div>
+    <v-row>
+      <v-col class="d-flex justify-end">
+        <v-switch
+          v-model="settings.expertMode"
+          label="Expert Mode"
+          density="compact"
+          hide-details
+          class
+        ></v-switch>
+      </v-col>
+    </v-row>
 
-    <div v-if="searchResults.length > 0" class="results-container">
-      <v-checkbox v-model="autoSceneSelection" density="compact" hide-details
-        ><template v-slot:label
-          >Automatic Scene Selection
-          <v-tooltip max-width="400" open-on-click>
-            <template #activator="{ props }">
-              <v-icon
-                class="ml-1"
-                :icon="mdiHelpCircleOutline"
-                size="x-small"
-                v-bind="props"
-              ></v-icon>
-            </template>
-            <div>
-              When checked, a suitable scene will be automatically chosen based on the selected year
-              and the crop calendar for the selected area. When not checked, two scenes have to be
-              selected manually - one for the time around planting and one for the time around
-              harvest.
-            </div>
-          </v-tooltip>
-        </template>
-      </v-checkbox>
-      <v-select
-        v-if="autoSceneSelection"
-        class="pt-2 pb-2"
-        type="number"
-        v-model.number="sceneYear"
-        :items="sceneYears"
-        label="Select scene year"
-        density="compact"
-        hide-details
-        variant="outlined"
-      />
-      <div class="accordion-header" @click="toggleFirstResults">
-        <h3 class="window-header">
-          {{ activeTileId ? firstTile?.date || activeTileId : 'Select Win A' }}
-        </h3>
-        <span class="accordion-icon" :class="{ open: isFirstResultsOpen }">▼</span>
-      </div>
-
-      <transition name="accordion">
-        <div v-show="isFirstResultsOpen">
-          <!-- Show second accordion's active tile first -->
-          <TilePreview v-if="activeTileId" :tileId="activeTileId" win="a" />
-          <!-- Show other results -->
-          <TilePreview
-            v-for="result in searchResults.filter(
-              (r) => r.id !== activeTileId && r.id !== secondActiveTileId
-            )"
-            :key="result?.id"
-            win="a"
-            :tileId="result?.id"
+    <v-expansion-panels v-model="activePanel">
+      <!-- Project, disabled until in use -->
+      <v-expansion-panel v-if="isBatchProcessing" value="project" disabled>
+        <v-expansion-panel-title>
+          <span class="header-text">
+            Project
+            <v-badge inline color="teal" :content="projectTitle"></v-badge>
+          </span>
+        </v-expansion-panel-title>
+        <v-expansion-panel-text>
+          <v-text-field
+            v-model="projectTitle"
+            label="Title"
+            variant="outlined"
+            density="compact"
+            hide-details
           />
-          <div v-if="!hasMore">
-            No more images found. Try adjusting your filters (date range, cloud cover, area
-            coverage) to increase the likelihood of finding more results.
-          </div>
-          <div class="button-group">
-            <button v-if="hasMore" @click="loadMore" class="load-more-button" :disabled="isLoading">
-              <template v-if="isLoading">Loading...</template>
-              <template v-else>Load More</template>
-            </button>
-            <button
-              v-if="hasLoadedMore"
-              @click="resetToOriginalSearch"
-              class="reset-button"
-              :disabled="isLoading"
+        </v-expansion-panel-text>
+      </v-expansion-panel>
+      <!-- Model -->
+      <v-expansion-panel value="model">
+        <v-expansion-panel-title>
+          <span class="header-text">
+            Model
+            <v-badge v-if="modelTitle" inline color="teal" :content="modelTitle"></v-badge>
+            <v-badge v-else inline color="error" content="Missing"></v-badge>
+          </span>
+        </v-expansion-panel-title>
+        <v-expansion-panel-text>
+          <v-radio-group v-model="settings.selectedModel" inline hide-details>
+            <v-radio v-for="model in availableModels" :key="model.id" :value="model.id" color="teal"
+              ><template v-slot:label>
+                {{ model.title }}
+                <v-badge
+                  inline
+                  color="black"
+                  v-if="model.version"
+                  title="Version"
+                  :content="model.version"
+                ></v-badge>
+                <v-tooltip v-if="model.description" max-width="400" open-on-click>
+                  <template #activator="{ props }">
+                    <v-icon
+                      class="ml-1"
+                      :icon="mdiHelpCircleOutline"
+                      size="x-small"
+                      v-bind="props"
+                    ></v-icon>
+                  </template>
+                  <div>
+                    <strong>License:</strong> {{ model.license || 'unknown' }}<br />
+                    <template v-if="model.description">
+                      <strong>Description:</strong>
+                      <div style="white-space: pre-wrap">
+                        {{ model.description }}
+                      </div>
+                    </template>
+                  </div>
+                </v-tooltip></template
+              ></v-radio
             >
-              Reset
-            </button>
+          </v-radio-group>
+        </v-expansion-panel-text>
+      </v-expansion-panel>
+      <!-- Data Collection -->
+      <v-expansion-panel v-if="settings.expertMode" value="data">
+        <v-expansion-panel-title>
+          <span class="header-text">
+            Imagery
+            <v-badge
+              v-if="collectionTitle"
+              inline
+              color="teal"
+              :content="collectionTitle"
+            ></v-badge>
+            <v-badge v-else inline color="error" content="Missing"></v-badge>
+          </span>
+        </v-expansion-panel-title>
+        <v-expansion-panel-text>
+          <v-radio-group v-model="settings.selectedCollection" inline hide-details>
+            <v-radio
+              v-for="collection in availableCollections"
+              :key="collection[0]"
+              :label="collections[collection[0]]"
+              :value="collection"
+              color="teal"
+            />
+          </v-radio-group>
+        </v-expansion-panel-text>
+      </v-expansion-panel>
+      <!-- Location -->
+      <v-expansion-panel v-if="settings.expertMode" value="location">
+        <v-expansion-panel-title>
+          <span class="header-text">
+            Location
+            <v-badge
+              v-if="currentMgrsTileId"
+              inline
+              color="teal"
+              :content="currentMgrsTileId"
+            ></v-badge>
+            <v-badge v-else inline color="error" content="Missing"></v-badge>
+          </span>
+        </v-expansion-panel-title>
+        <v-expansion-panel-text>
+          <!-- S2 Grid Selection Dropdown -->
+          <v-row>
+            <v-col>
+              <v-autocomplete
+                v-model="currentMgrsTileId"
+                @update:model-value="handleTileSelected"
+                label="S2 Grid Selection"
+                hide-details
+                dense
+                variant="outlined"
+                :items="availableTiles"
+                item-title="name"
+                item-value="name"
+              ></v-autocomplete>
+            </v-col>
+          </v-row>
+
+          <!-- Bbox Input Section -->
+          <v-row>
+            <v-col>
+              <v-label>
+                Bounding Box
+                <v-badge v-if="bboxValid" inline color="success" content="OK"></v-badge>
+                <v-badge v-else inline color="error" content="Invalid"></v-badge>
+              </v-label>
+            </v-col>
+          </v-row>
+          <v-row>
+            <v-col cols="3"> </v-col>
+            <v-col cols="6">
+              <v-number-input
+                :model-value="bbox[3]"
+                @update:model-value="(value) => updateBBox(3, value)"
+                label="max. Latitude"
+                :min="-180.0"
+                :max="180.0"
+                :step="0.0001"
+                :precision="4"
+                density="compact"
+                variant="outlined"
+                control-variant="stacked"
+                hide-details
+              ></v-number-input>
+            </v-col>
+            <v-col cols="3"> </v-col>
+          </v-row>
+          <v-row>
+            <v-col cols="5">
+              <v-number-input
+                :model-value="bbox[0]"
+                @update:model-value="(value) => updateBBox(0, value)"
+                label="min. Longitude"
+                :min="-180.0"
+                :max="180.0"
+                :step="0.0000001"
+                :precision="7"
+                density="compact"
+                variant="outlined"
+                control-variant="stacked"
+                hide-details
+              ></v-number-input
+            ></v-col>
+            <v-col cols="2"> < </v-col>
+            <v-col cols="5">
+              <v-number-input
+                :model-value="bbox[2]"
+                @update:model-value="(value) => updateBBox(2, value)"
+                label="max. Longitude"
+                :min="-180.0"
+                :max="180.0"
+                :step="0.0000001"
+                :precision="7"
+                density="compact"
+                variant="outlined"
+                control-variant="stacked"
+                hide-details
+              ></v-number-input
+            ></v-col>
+          </v-row>
+          <v-row>
+            <v-col cols="3"> </v-col>
+            <v-col cols="6">
+              <v-number-input
+                :model-value="bbox[1]"
+                @update:model-value="(value) => updateBBox(1, value)"
+                label="min. Latitude"
+                :min="-180.0"
+                :max="180.0"
+                :step="0.0000001"
+                :precision="7"
+                density="compact"
+                variant="outlined"
+                control-variant="stacked"
+                hide-details
+              ></v-number-input>
+            </v-col>
+            <v-col cols="3"></v-col>
+          </v-row>
+        </v-expansion-panel-text>
+      </v-expansion-panel>
+      <!-- Time -->
+      <v-expansion-panel value="time">
+        <v-expansion-panel-title>
+          <span class="header-text">
+            Time
+            <v-badge v-if="sceneYear" inline color="teal" :content="sceneYear"></v-badge>
+            <v-badge v-else inline color="error" content="Missing"></v-badge>
+          </span>
+        </v-expansion-panel-title>
+        <v-expansion-panel-text>
+          <v-row>
+            <v-col>
+              <v-select
+                type="number"
+                v-model.number="sceneYear"
+                :items="sceneYears"
+                label="Year for scene selection"
+                hide-details
+                variant="outlined"
+              />
+            </v-col>
+          </v-row>
+
+          <v-row>
+            <v-col cols="5">
+              <v-text-field
+                v-model="settings.startDate"
+                type="date"
+                label="Start Date"
+                variant="outlined"
+                density="compact"
+                hide-details
+                :disabled="autoSceneSelection"
+              />
+            </v-col>
+            <v-col cols="5">
+              <v-text-field
+                v-model="settings.endDate"
+                type="date"
+                label="End Date"
+                variant="outlined"
+                density="compact"
+                hide-details
+                :disabled="autoSceneSelection"
+              />
+            </v-col>
+            <v-col cols="2">
+              <v-btn
+                variant="outlined"
+                color="grey"
+                @click="clearDateFilters"
+                :disabled="autoSceneSelection"
+              >
+                Clear
+              </v-btn>
+            </v-col>
+          </v-row>
+          <v-row>
+            <v-col>
+              <v-alert color="gray" type="info" density="compact">
+                Select a year for the scene selection. Automatic scene selection will automatically
+                choose start and end dates based on crop calendars. Thus, start and end date
+                selection will only be available for manual scene selection.
+                <v-btn @click="autoSceneSelection = !autoSceneSelection" size="small" class="mt-2">
+                  <template v-if="autoSceneSelection">Disable</template>
+                  <template v-else>Enable</template>
+                  automatic scene selection
+                </v-btn>
+              </v-alert>
+            </v-col>
+          </v-row>
+        </v-expansion-panel-text>
+      </v-expansion-panel>
+      <!-- Coverage -->
+      <v-expansion-panel v-if="settings.expertMode" value="coverage">
+        <v-expansion-panel-title>
+          <span class="header-text">
+            Coverage
+            <v-badge inline color="blue" :content="`Cloud ${settings.cloudCover}%`"></v-badge>
+            <v-badge inline color="brown" :content="`Area ${settings.areaCoverage}%`"></v-badge>
+          </span>
+        </v-expansion-panel-title>
+        <v-expansion-panel-text>
+          <!-- Cloud Coverage -->
+          <v-row>
+            <v-col cols="6">
+              <v-label class="text-subtitle-2">Cloud Cover (%)</v-label>
+            </v-col>
+            <v-col cols="6" align="right">
+              <v-text-field
+                v-model="settings.cloudCover"
+                type="number"
+                min="1"
+                max="100"
+                variant="outlined"
+                density="compact"
+                hide-details
+                style="width: 80px"
+                @update:model-value="updateCloudCoverInput"
+              />
+            </v-col>
+          </v-row>
+          <v-row>
+            <v-col>
+              <v-slider
+                v-model="settings.cloudCover"
+                min="1"
+                max="100"
+                step="1"
+                color="teal"
+                track-color="grey-darken-2"
+                thumb-color="teal"
+                hide-details
+                @update:model-value="updateCloudCoverSlider"
+              />
+            </v-col>
+          </v-row>
+          <v-row>
+            <v-col>
+              <v-alert
+                v-if="settings.cloudCover > 50"
+                type="warning"
+                variant="tonal"
+                density="compact"
+              >
+                Cloud cover above 50% may decrease the probability of getting accurate results. Try
+                to select an area without clouds.
+              </v-alert>
+            </v-col>
+          </v-row>
+          <!-- Area Coverage -->
+          <v-row>
+            <v-col cols="6">
+              <v-label class="text-subtitle-2">Area Coverage (%)</v-label>
+            </v-col>
+            <v-col cols="6" align="right">
+              <v-text-field
+                v-model="settings.areaCoverage"
+                type="number"
+                min="1"
+                max="100"
+                variant="outlined"
+                density="compact"
+                hide-details
+                style="width: 80px"
+                @update:model-value="updateAreaCoverageInput"
+              />
+            </v-col>
+          </v-row>
+          <v-row>
+            <v-col>
+              <v-slider
+                v-model="settings.areaCoverage"
+                min="1"
+                max="100"
+                step="1"
+                color="teal"
+                track-color="grey-darken-2"
+                thumb-color="teal"
+                hide-details
+                @update:model-value="updateAreaCoverageSlider"
+              />
+            </v-col>
+          </v-row>
+        </v-expansion-panel-text>
+      </v-expansion-panel>
+      <!-- Scene Selection -->
+      <v-expansion-panel value="scene-selection">
+        <v-expansion-panel-title>
+          <span class="header-text">
+            Scene Selection
+            <v-badge v-if="autoSceneSelection" inline color="teal" content="Automatic"></v-badge>
+            <v-badge v-else inline color="warning" content="Manual"></v-badge>
+            <template v-if="autoSceneSelection">
+              <v-badge
+                v-if="sceneSelectionStatus === true"
+                inline
+                color="success"
+                content="Selected"
+              ></v-badge>
+              <v-badge
+                v-if="sceneSelectionStatus === false"
+                inline
+                color="error"
+                content="Failed"
+              ></v-badge>
+            </template>
+          </span>
+        </v-expansion-panel-title>
+        <v-expansion-panel-text>
+          <v-row>
+            <v-col>
+              <v-checkbox v-model="autoSceneSelection" density="compact" hide-details
+                ><template v-slot:label>Automatic Scene Selection </template>
+              </v-checkbox>
+            </v-col>
+          </v-row>
+          <v-row>
+            <v-col>
+              <v-alert color="gray" type="info" density="compact">
+                When checked, a suitable scene will be automatically chosen based on the selected
+                year and the crop calendar for the selected area. When not checked, two scenes have
+                to be selected manually - one for the time around planting and one for the time
+                around harvest.
+              </v-alert>
+            </v-col>
+          </v-row>
+        </v-expansion-panel-text>
+      </v-expansion-panel>
+      <!-- Scene A -->
+      <v-expansion-panel value="win-a">
+        <v-expansion-panel-title>
+          <span class="header-text">
+            Scene<template v-if="!modelIsSingleShot">&nbsp;A</template>
+            <v-badge v-if="!activeTileId" inline color="error" content="Missing"></v-badge>
+            <v-badge
+              v-else
+              inline
+              color="teal"
+              :content="firstTile?.date || activeTileId"
+            ></v-badge>
+          </span>
+        </v-expansion-panel-title>
+        <v-expansion-panel-text>
+          <div class="results">
+            <!-- Show second accordion's active tile first -->
+            <TilePreview v-if="activeTileId" :tileId="activeTileId" win="a" />
+            <!-- Show other results -->
+            <TilePreview
+              v-for="result in resultsA"
+              :key="result?.id"
+              win="a"
+              :tileId="result?.id"
+            />
+            <v-alert v-if="!hasMore" class="mb-2 mt-2" color="teal" type="info" density="compact">
+              <p class="mb-2">
+                No more images found. Try adjusting your filters (date range, cloud cover, area
+                coverage) to increase the likelihood of finding more results.
+              </p>
+              <p>
+                You can provide your own EarthSearch STAC Item ID if you didn't find what you were
+                looking for:<br />
+                <v-text-field
+                  v-model="activeTileId"
+                  type="text"
+                  label="STAC Item ID"
+                  variant="outlined"
+                  density="compact"
+                  hide-details
+                  class="mt-2"
+                />
+              </p>
+            </v-alert>
+            <div class="button-group">
+              <button
+                v-if="hasMore"
+                @click="loadMore"
+                class="load-more-button"
+                :disabled="isLoading"
+              >
+                <template v-if="isLoading">Loading...</template>
+                <template v-else>Load More</template>
+              </button>
+              <button
+                v-if="hasLoadedMore"
+                @click="resetToOriginalSearch"
+                class="reset-button"
+                :disabled="isLoading"
+              >
+                Reset
+              </button>
+            </div>
           </div>
-        </div>
-      </transition>
-
-      <!-- Second Accordion for Selected Results -->
-      <div
-        v-if="modelIsSingleShot === false"
-        class="selected-results-section"
-        :class="{ disabled: !activeTileId }"
-      >
-        <div
-          class="accordion-header"
-          @click="toggleSecondResults"
-          :class="{ disabled: !activeTileId }"
-        >
-          <h3 class="window-header">
-            {{ secondActiveTileId ? secondTile?.date || secondActiveTileId : 'Select Win B' }}
-          </h3>
-          <span class="accordion-icon" :class="{ open: isSecondResultsOpen }">▼</span>
-        </div>
-
-        <transition name="accordion">
-          <div v-show="isSecondResultsOpen && activeTileId" class="results">
+        </v-expansion-panel-text>
+      </v-expansion-panel>
+      <!-- Scene B -->
+      <v-expansion-panel v-if="!modelIsSingleShot" value="win-b" :disabled="!activeTileId">
+        <v-expansion-panel-title>
+          <span class="header-text">
+            Scene B
+            <v-badge v-if="!secondActiveTileId" inline color="error" content="Missing"></v-badge>
+            <v-badge
+              v-else
+              inline
+              color="teal"
+              :content="secondTile?.date || secondActiveTileId"
+            ></v-badge>
+          </span>
+        </v-expansion-panel-title>
+        <v-expansion-panel-text>
+          <div class="results">
             <!-- Show second accordion's active tile first -->
             <TilePreview v-if="secondActiveTileId" :tileId="secondActiveTileId" win="b" />
             <!-- Show other results -->
             <TilePreview
-              v-for="result in searchResults.filter(
-                (r) => r.id !== activeTileId && r.id !== secondActiveTileId
-              )"
+              v-for="result in resultsB"
               :key="result?.id"
               win="b"
               :tileId="result?.id"
             />
-
+            <v-alert v-if="!hasMore" class="mb-2 mt-2" color="teal" type="info" density="compact">
+              <p class="mb-2">
+                No more images found. Try adjusting your filters (date range, cloud cover, area
+                coverage) to increase the likelihood of finding more results.
+              </p>
+              <p>
+                You can provide your own EarthSearch STAC Item ID if you didn't find what you were
+                looking for:<br />
+                <v-text-field
+                  v-model="secondActiveTileId"
+                  type="text"
+                  label="STAC Item ID"
+                  variant="outlined"
+                  density="compact"
+                  hide-details
+                  class="mt-2"
+                />
+              </p>
+            </v-alert>
             <div class="button-group">
               <button
                 v-if="hasMore"
@@ -722,24 +1374,14 @@ onUnmounted(() => {
               </button>
             </div>
           </div>
-        </transition>
-      </div>
-    </div>
+        </v-expansion-panel-text>
+      </v-expansion-panel>
+    </v-expansion-panels>
   </div>
 
   <div class="action-buttons">
-    <div v-if="processingMode === 'batchProcessing'" class="title-input">
-      <label for="project-title" class="input-label">Project Title</label>
-      <input
-        id="project-title"
-        type="text"
-        v-model="projectTitle"
-        placeholder="Enter project title"
-        class="project-title-input"
-      />
-    </div>
     <button
-      v-if="processingMode === 'batchProcessing'"
+      v-if="isBatchProcessing"
       class="action-button"
       :disabled="!activeTileId || (!modelIsSingleShot && !secondActiveTileId) || isCreatingProject"
       @click="handleCompareTiles"
@@ -752,7 +1394,7 @@ onUnmounted(() => {
       <span v-else>Create project and start processing</span>
     </button>
     <button
-      v-if="processingMode === 'smallAreaProcessing'"
+      v-if="!isBatchProcessing"
       class="action-button"
       :disabled="!activeTileId || (!modelIsSingleShot && !secondActiveTileId) || isProcessing"
       @click="handleSmallAreaProcessingRequest"
@@ -766,34 +1408,6 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
-.accordion-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0.5rem;
-  background-color: rgba(0, 136, 136, 0.2);
-  border: 1px solid rgba(0, 136, 136, 0.8);
-  border-radius: 4px;
-  cursor: pointer;
-  margin-bottom: 0.125rem;
-}
-
-.accordion-header h3 {
-  margin: 0;
-  font-size: 1rem;
-  color: white;
-}
-
-.accordion-icon {
-  color: white;
-  transition: transform 0.3s ease;
-  font-size: 0.75rem;
-}
-
-.accordion-icon.open {
-  transform: rotate(180deg);
-}
-
 .results-container {
   margin-top: 1rem;
   display: flex;
@@ -823,43 +1437,20 @@ onUnmounted(() => {
   min-height: min-content;
 }
 
+.settings .v-expansion-panel-title .v-badge {
+  margin-left: 0.25rem;
+}
+
+.settings .header-text {
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .action-buttons {
   flex: 0;
-  padding: 0.5rem 1rem;
-}
-
-.title-input {
-  margin-bottom: 0.75rem;
-  width: 100%;
-}
-
-.input-label {
-  display: block;
-  margin-bottom: 0.5rem;
-  color: rgba(255, 255, 255, 0.8);
-  font-size: 0.875rem;
-}
-
-.project-title-input {
-  width: 100%;
-  padding: 0.5rem;
-  background-color: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 4px;
-  color: white;
-  font-size: 0.875rem;
-  transition: all 0.2s ease;
-  box-sizing: border-box;
-}
-
-.project-title-input:focus {
-  outline: none;
-  border-color: rgba(0, 136, 136, 0.8);
-  background-color: rgba(255, 255, 255, 0.15);
-}
-
-.project-title-input::placeholder {
-  color: rgba(255, 255, 255, 0.5);
+  padding: 0.5rem 1rem 1rem 1rem;
 }
 
 .action-button {
@@ -944,17 +1535,5 @@ onUnmounted(() => {
 .selected-results-section.disabled {
   opacity: 0.5;
   pointer-events: none;
-}
-
-.accordion-header.disabled {
-  cursor: not-allowed;
-  opacity: 0.7;
-}
-
-.window-header {
-  max-width: 100%;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 </style>

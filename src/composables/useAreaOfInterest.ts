@@ -25,7 +25,6 @@ import { areaValues, map, useMap } from './useMap'
 import { useProcessingMode } from './useProcessingMode'
 import { autoSceneSelection, useSettings } from './useSettings'
 import { tileDataFromStacFeature } from '../functions/search-stac-api'
-import { processingMode } from './useProcessingMode'
 import { debounce } from 'vuetify/lib/util/helpers.mjs'
 
 const invalidStyle = new Style({
@@ -122,8 +121,6 @@ function addExtentInteraction() {
     ],
   })
   map.value!.addInteraction(extentInteraction.value)
-
-  let warningShown = false
 
   extentInteraction.value.on(
     'extentchanged',
@@ -329,7 +326,7 @@ const checkBboxContainment = async (extent: Extent, drawnExtent: Ref<Extent | nu
 function addMapClickHandler(
   map: Map,
   areaValues: { min_area_km2: number; max_area_km2: number },
-  handleSearchResults: (mgrsTileId: string, bbox?: number[], settings?: any) => Promise<void>,
+  handleSearchResults: (bbox?: number[], settings?: any) => Promise<void>,
 ) {
   // Add click handler
   map?.on('click', (event) => {
@@ -406,7 +403,7 @@ function addMapClickHandler(
 
         // Call the search function through the ref and open the Batch Processing accordion
         if (currentMgrsTileId.value) {
-          handleSearchResults(currentMgrsTileId.value, bbox, settings.value)
+          handleSearchResults(bbox, settings.value)
         } else {
           console.error('S2 Grid Layer: Current MGRS Tile ID is null')
         }
@@ -438,7 +435,7 @@ export async function triggerTileSelection(
   map: Map,
   mgrsTileId: string,
   areaValues: { min_area_km2: number; max_area_km2: number },
-  handleSearchResults: (mgrsTileId: string, bbox?: number[], settings?: any) => Promise<void>,
+  handleSearchResults: (bbox?: number[], settings?: any) => Promise<void>,
   bbox?: number[],
   fit: boolean = true,
 ) {
@@ -518,7 +515,7 @@ export async function triggerTileSelection(
 
       // Call the search function
       if (currentMgrsTileId.value) {
-        await handleSearchResults(currentMgrsTileId.value, finalBbox, settings.value)
+        await handleSearchResults(finalBbox, settings.value)
       }
       // Add the layer and interactions
       if (!layers.includes(drawVectorLayer)) {
@@ -547,6 +544,32 @@ export const getTileById = async (tileId: string): Promise<SearchResult | null> 
   return tile ?? null
 }
 
+function getHemisphere(utmTile: string | null) {
+  if (!utmTile) {
+    return null
+  }
+  // Example input: "39UWA"
+  const match = utmTile.match(/^(\d+)([A-Z])/)
+  if (!match) throw new Error('Invalid UTM tile format')
+
+  const latitudeBand = match[2]
+
+  // 2. Letters N through X (except O) are in the Northern Hemisphere.
+  //    Letters C through M are in the Southern Hemisphere.
+  const northern = 'RSTUVWXY' // UTM uses C–X (skips I and O)
+  const southern = 'CDEFGHJ'
+  const equatorial = 'KLMNPQ'
+
+  if (northern.includes(latitudeBand)) {
+    return 'N'
+  } else if (southern.includes(latitudeBand)) {
+    return 'S'
+  } else if (equatorial.includes(latitudeBand)) {
+    return null
+  }
+  throw new Error('Invalid latitude band in UTM tile')
+}
+
 export function useAreaOfInterest() {
   return {
     maxArea,
@@ -565,5 +588,6 @@ export function useAreaOfInterest() {
     triggerTileSelection,
     calculateArea,
     getTileById,
+    getHemisphere,
   }
 }
