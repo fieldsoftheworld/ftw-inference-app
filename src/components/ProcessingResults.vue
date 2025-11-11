@@ -2,57 +2,40 @@
   <v-card
     v-if="geoJSONResults.length > 0"
     elevation="8"
-    color="rgba(0, 0, 0, 0.9)"
-    rounded="lg"
-    :class="{ closed: !isResultsListOpen, 'processing-results': true }"
+    :class="{ closed: !isOpen, 'processing-results': true, sidebar: true }"
   >
-    <v-card-title
-      class="d-flex align-center justify-space-between pa-2"
-      style="background-color: rgba(0, 136, 136, 0.2); border: 1px solid rgba(0, 136, 136, 0.8)"
-    >
-      <div class="d-flex align-center" @click="toggleResultsList" style="cursor: pointer; flex: 1">
-        <span class="text-h6 text-white font-weight-bold"
-          >Results ({{ geoJSONResults.length }})</span
-        >
+    <v-card-title class="d-flex align-center justify-space-between pa-2">
+      <div class="collapse-action" @click="toggleCollapsible">
         <v-icon
-          :class="{ 'rotate-180': isResultsListOpen }"
-          class="ml-2 text-white transition-transform"
-          size="large"
+          :class="{ 'rotate-180': isOpen }"
+          class="mr-1 text-white transition-transform"
           :icon="mdiChevronDown"
         >
         </v-icon>
+        <span class="text-white title">Results ({{ geoJSONResults.length }})</span>
       </div>
-      <div class="d-flex align-center">
+      <div class="d-flex align-right gap-2 ms-4">
         <v-btn
           @click="downloadResults"
-          size="small"
           variant="plain"
           color="teal"
-          class="mr-0 pa-0 ml-4 action-btn"
+          class="pa-0 action-btn"
           title="Download Results"
-        >
-          <v-icon :icon="mdiDownloadBoxOutline" size="x-large"></v-icon>
-        </v-btn>
+          :icon="mdiDownloadBoxOutline"
+        ></v-btn>
         <v-btn
           @click="clearResults"
-          size="small"
           variant="plain"
           color="error"
-          class="ml-0 mr-2 pa-0 action-btn"
+          class="pa-0 action-btn"
           title="Clear Results"
-        >
-          <v-icon :icon="mdiDelete" size="x-large"></v-icon>
-        </v-btn>
+          :icon="mdiDelete"
+        ></v-btn>
       </div>
     </v-card-title>
 
-    <div v-show="isResultsListOpen" class="results-list">
-      <v-list
-        density="compact"
-        color="transparent"
-        class="pa-0"
-        style="background-color: rgba(0, 0, 0, 0.95)"
-      >
+    <div v-show="isOpen" class="content">
+      <v-list density="compact" color="transparent" class="pa-0">
         <v-list-item
           v-for="result in processedResults"
           :key="result.id"
@@ -120,10 +103,10 @@ const processedResults = computed(() => {
   return formattedResults
 })
 
-const isResultsListOpen = ref(false)
+const isOpen = ref(true)
 
-const toggleResultsList = () => {
-  isResultsListOpen.value = !isResultsListOpen.value
+const toggleCollapsible = () => {
+  isOpen.value = !isOpen.value
 }
 
 const downloadResults = () => {
@@ -195,7 +178,7 @@ const fitMapToResult = (result: any) => {
   // Fit the map to the result's extent with dynamic padding
   props.map.getView().fit(transformedExtent, {
     duration: 1000,
-    padding: [paddingY, paddingX + 500, paddingY, paddingX + 200], // [top, right, bottom, left]
+    padding: [paddingY, paddingX + 200, paddingY, paddingX + 500], // [top, right, bottom, left]
   })
 }
 
@@ -203,14 +186,14 @@ const fitMapToResult = (result: any) => {
 watch(
   () => props.geoJSONResults,
   (newResults) => {
-    if (newResults.length > 0 && !isResultsListOpen.value) {
-      isResultsListOpen.value = true
+    if (newResults.length > 0 && !isOpen.value) {
+      isOpen.value = true
       // Block map clicks when results are displayed
       setBlockMapClicks(true)
     } else if (newResults.length === 0) {
       // Unblock map clicks when results are cleared
       setBlockMapClicks(false)
-      isResultsListOpen.value = false
+      isOpen.value = false
     }
   },
   { immediate: true }
@@ -226,40 +209,29 @@ const clearResults = () => {
 
 <style scoped>
 .processing-results {
-  position: fixed;
-  top: 2.5vh;
-  left: 2vw;
-  z-index: 1000;
+  right: 1em;
+  max-height: calc(100vh - 3rem - 40px);
   min-width: 250px;
   width: 260px;
-  max-width: 50vw;
-  min-height: 50px;
-  height: 400px;
-  max-height: 95vh;
-  resize: both;
-  display: flex;
-  flex-direction: column;
+  max-width: 45vw;
+  height: 45vh;
 }
 
-.processing-results.closed {
-  height: auto !important;
-  min-height: none;
-  resize: none;
-}
-
-.results-list {
-  overflow-y: auto;
-  height: 100%;
-  flex-grow: 1;
+.processing-results.sidebar .content {
   padding: 1px;
+  overflow-y: auto;
+}
+
+.processing-results .v-list {
+  background-color: transparent !important;
 }
 
 .result-item {
   padding: 0.75rem;
   background-color: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 4px;
-  margin-bottom: 0.5rem;
+  margin-top: 2px;
+  margin-bottom: 2px;
   cursor: pointer;
   transition: all 0.2s ease;
 }
@@ -281,20 +253,5 @@ const clearResults = () => {
 
 .v-list-item--density-compact.v-list-item--one-line {
   min-height: auto !important;
-}
-
-.rotate-180 {
-  transform: rotate(180deg);
-}
-
-.transition-transform {
-  transition: transform 0.3s ease;
-}
-
-.action-btn {
-  width: 30px !important;
-  min-width: 30px !important;
-  max-width: 30px !important;
-  height: 30px !important;
 }
 </style>

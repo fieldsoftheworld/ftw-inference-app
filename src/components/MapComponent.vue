@@ -3,6 +3,7 @@ import { ref, onMounted } from 'vue'
 import { Map, View } from 'ol'
 import DataCabinet from './DataCabinet.vue'
 import ProcessingResults from './ProcessingResults.vue'
+import PropertyDisplay from './PropertyDisplay.vue'
 import createLabelLayer from '../layers/Label-Layer'
 import createS2GridLayer from '../layers/S2-Grid-Layer'
 import createCloudlessLayer from '../layers/S2-Cloudless-Layer'
@@ -14,7 +15,15 @@ import { useMap } from '../composables/useMap'
 import { useSnackbar } from '../composables/useSnackbar'
 import { setAvailableModels } from '../composables/useSettings'
 
-const { map, areaValues } = useMap()
+const {
+  map,
+  areaValues,
+  showPropertiesBox,
+  selectedFeature,
+  propertiesBoxPosition,
+  originalClickPosition,
+  hidePropertiesBox,
+} = useMap()
 const dataCabinetRef = ref<InstanceType<typeof DataCabinet> | null>(null)
 const geoJSONResults = ref<any[]>([])
 
@@ -116,6 +125,41 @@ defineExpose({
       v-model="messages"
     ></v-snackbar-queue>
   </div>
+
+  <!-- Properties Box -->
+  <div
+    v-if="showPropertiesBox && selectedFeature && propertiesBoxPosition"
+    class="properties-box"
+    :style="{
+      left: propertiesBoxPosition.x + 'px',
+      top: propertiesBoxPosition.y + 'px',
+    }"
+  >
+    <!-- Arrow indicator pointing to the clicked feature -->
+    <div
+      v-if="
+        originalClickPosition &&
+        (propertiesBoxPosition.x !== originalClickPosition.x ||
+          propertiesBoxPosition.y !== originalClickPosition.y)
+      "
+      class="properties-arrow"
+      :style="{
+        left: originalClickPosition.x - propertiesBoxPosition.x + 'px',
+        top: originalClickPosition.y - propertiesBoxPosition.y + 'px',
+      }"
+    ></div>
+    <div class="properties-header">
+      <h4>Field Properties</h4>
+      <button class="close-properties" @click="hidePropertiesBox">×</button>
+    </div>
+    <div class="properties-content">
+      <PropertyDisplay
+        v-for="property in selectedFeature.cleanProperties"
+        :key="property.key"
+        :property="property"
+      />
+    </div>
+  </div>
 </template>
 
 <style scoped>
@@ -139,39 +183,97 @@ defineExpose({
   height: 100%;
 }
 
+/* Properties Box Styles */
+.properties-box {
+  position: fixed;
+  background-color: rgba(0, 0, 0, 0.95);
+  border: 2px solid rgba(0, 136, 136, 0.8);
+  border-radius: 8px;
+  padding: 0;
+  min-width: 250px;
+  max-width: 350px;
+  z-index: 10000;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(10px);
+}
+
+.properties-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid rgba(0, 136, 136, 0.3);
+  background-color: rgba(0, 136, 136, 0.1);
+}
+
+.properties-header h4 {
+  margin: 0;
+  color: rgba(0, 136, 136, 1);
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.close-properties {
+  background: none;
+  border: none;
+  color: rgba(0, 136, 136, 0.8);
+  font-size: 1.5rem;
+  cursor: pointer;
+  padding: 0;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.close-properties:hover {
+  color: rgba(0, 136, 136, 1);
+  background-color: rgba(0, 136, 136, 0.2);
+}
+
+.properties-content {
+  padding: 1rem;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
 :deep(.ol-zoom) {
   top: unset;
-  bottom: 0.625rem;
-  left: 0.625rem;
-}
-
-:deep(.ol-zoom button) {
-  background-color: rgba(0, 0, 0, 0.6);
-  color: #fff;
-}
-
-:deep(.ol-zoom button:hover) {
-  background-color: rgba(0, 0, 0, 0.8);
-  color: #fff;
-}
-
-:deep(.ol-attribution button) {
-  background-color: rgba(0, 0, 0, 0.6);
-  color: #fff;
+  left: unset;
+  bottom: 1rem;
+  right: 1rem;
 }
 
 :deep(.ol-attribution) {
+  top: unset;
+  left: unset;
+  bottom: 1rem;
+  right: calc(2rem + 20px);
+}
+
+:deep(.ol-zoom button),
+:deep(.ol-attribution button) {
   background-color: rgba(0, 0, 0, 0.8);
+  color: #fff;
+}
+
+:deep(.ol-zoom button:hover),
+:deep(.ol-attribution button:hover) {
+  background-color: rgba(0, 0, 0, 1);
   color: #fff;
 }
 
 :deep(.ol-attribution ul) {
-  color: #fff;
+  color: #000;
   font-size: 0.875rem;
   text-shadow: none;
 }
 
 :deep(.ol-attribution ul li a) {
-  color: #fff;
+  color: #000;
+  text-decoration: underline;
 }
 </style>

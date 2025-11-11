@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { mdiCog, mdiInformation, mdiMagnify } from '@mdi/js'
-import { ref, watch } from 'vue'
+import { mdiChevronDown, mdiCog, mdiMagnify } from '@mdi/js'
+import { ref } from 'vue'
 import { useAreaOfInterest } from '../composables/useAreaOfInterest'
 import { useMap } from '../composables/useMap'
 import { useSearch } from '../composables/useSearch'
 import { useSettings } from '../composables/useSettings'
+import { useProcessingMode } from '../composables/useProcessingMode'
 import ProcessingPanel from './ProcessingPanel.vue'
 import SearchModal from './SearchModal.vue'
 import SettingsModal from './SettingsModal.vue'
@@ -15,16 +16,17 @@ const emit = defineEmits<{
 
 const { map, areaValues } = useMap()
 const { currentBbox, handleSearchResults } = useSearch()
+const { updateProcessingMode } = useProcessingMode()
 const { drawnExtent, currentMgrsTileId, triggerTileSelection, activeTileId, secondActiveTileId } =
   useAreaOfInterest()
 
-const ftwAboutDialogShown = localStorage.getItem('ftw-about-dialog-shown') !== 'true'
-const aboutDialog = ref(ftwAboutDialogShown)
-const dontShowAgain = ref(!ftwAboutDialogShown)
+// Sidebar state
+const isOpen = ref(Boolean(map.value))
+const toggleCollapsible = () => {
+  isOpen.value = !isOpen.value
+}
 
-watch(dontShowAgain, (newValue) => {
-  localStorage.setItem('ftw-about-dialog-shown', String(newValue))
-})
+const isProcessing = ref(false)
 
 // Settings state
 const isSettingsModalOpen = ref(false)
@@ -54,7 +56,7 @@ const handleTileSelected = (tileName: string) => {
     (layer) =>
       layer.get('name') === 's2-grid' ||
       (layer.get('properties') && layer.get('properties').name === 's2-grid') ||
-      ((layer as any).getSource && (layer as any).getSource().getFeatures),
+      ((layer as any).getSource && (layer as any).getSource().getFeatures)
   )
 
   if (s2GridLayer && (s2GridLayer as any).getSource) {
@@ -68,13 +70,15 @@ const handleTileSelected = (tileName: string) => {
 }
 
 // Handle bbox selection from search modal
-const handleBboxSelected = (bbox: number[]) => {
+const handleBboxSelected = (bbox: number[], area: number) => {
   // Set the drawn extent for the area of interest
   drawnExtent.value = bbox
 
   // For bbox searches, we don't have a specific tile ID, so we'll use a placeholder
   // and trigger the search with the custom bbox
   const placeholderTileId = `bbox_${Date.now()}`
+
+  updateProcessingMode(area, areaValues)
 
   // Trigger the search with the custom bbox
   handleSearchResults(placeholderTileId, bbox, settings.value)
@@ -94,134 +98,93 @@ const handleSetActiveTileId = (tileId: string) => {
 const handleSetSecondActiveTileId = (tileId: string) => {
   secondActiveTileId.value = tileId
 }
-
-// Handle combined tile and bbox selection from search modal
-const handleTileAndBboxSelected = (tileName: string, bbox?: number[]) => {
-  // Find the tile feature on the map and trigger the tile selection with bbox
-  const layers = map.value!.getLayers().getArray()
-  const s2GridLayer = layers.find(
-    (layer) =>
-      layer.get('name') === 's2-grid' ||
-      (layer.get('properties') && layer.get('properties').name === 's2-grid') ||
-      ((layer as any).getSource && (layer as any).getSource().getFeatures),
-  )
-
-  if (s2GridLayer && (s2GridLayer as any).getSource) {
-    const features = (s2GridLayer as any).getSource().getFeatures()
-    const targetFeature = features.find((f: any) => f.get('Name') === tileName)
-
-    if (targetFeature) {
-      // Use the updated triggerTileSelection with bbox parameter
-      triggerTileSelection(map.value!, tileName, areaValues.value!, handleSearchResults, bbox)
-    }
-  }
-}
 </script>
 
 <template>
-  <div class="data-cabinet">
-    <div class="header-container">
-      <h2>Fields of the World: Inference App</h2>
-      <v-btn
-        density="compact"
-        variant="plain"
-        :icon="mdiCog"
-        @click="handleSettingsClick"
-        title="Settings"
-      ></v-btn>
-      <v-btn
-        density="compact"
-        variant="plain"
-        :icon="mdiMagnify"
-        @click="isSearchModalOpen = true"
-        title="Search S2 Tiles"
-      ></v-btn>
-      <v-btn
-        density="compact"
-        variant="plain"
-        :icon="mdiInformation"
-        @click="aboutDialog = true"
-        title="About"
-      ></v-btn>
+  <v-card
+    :loading="isProcessing"
+    elevation="8"
+    :class="{ closed: !isOpen, 'data-cabinet': true, sidebar: true }"
+  >
+    <v-card-title class="d-flex align-center justify-space-between pa-2">
+      <div class="collapse-action" @click="toggleCollapsible">
+        <v-icon
+          :class="{ 'rotate-180': isOpen }"
+          class="mr-1 text-white transition-transform"
+          :icon="mdiChevronDown"
+        >
+        </v-icon>
+        <span class="title text-white">
+          Processing
+          <v-badge
+            v-if="currentMgrsTileId"
+            inline
+            :content="currentMgrsTileId"
+            title="The selected tile identifier"
+          ></v-badge>
+        </span>
+      </div>
+      <div class="d-flex align-right gap-2 ms-4">
+        <v-btn
+          @click="handleSettingsClick"
+          variant="plain"
+          class="pa-0 action-btn"
+          title="Download Results"
+          :icon="mdiCog"
+        ></v-btn>
+        <v-btn
+          @click="isSearchModalOpen = true"
+          variant="plain"
+          class="pa-0 action-btn"
+          title="Search S2 Tiles"
+          :icon="mdiMagnify"
+        ></v-btn>
+      </div>
+    </v-card-title>
+
+    <div v-show="isOpen" class="content">
+      <ProcessingPanel
+        v-if="currentMgrsTileId"
+        @processing-changed="(v) => (isProcessing = v)"
+        @updateGeoJSONResults="
+          (results: any[]) => {
+            emit('updateGeoJSONResults', results)
+          }
+        "
+      />
+      <p v-else class="pa-4 text-center">Select a grid cell to search for Sentinel-2 images.</p>
     </div>
-    <ProcessingPanel
-      v-if="map"
-      is-open
-      @updateGeoJSONResults="
-        (results: any[]) => {
-          emit('updateGeoJSONResults', results)
-        }
-      "
-    />
+  </v-card>
+  <!-- Settings Modal -->
+  <SettingsModal
+    :is-open="isSettingsModalOpen"
+    :initial-settings="settings"
+    @update:is-open="isSettingsModalOpen = $event"
+    @save="handleSettingsSave"
+  />
 
-    <!-- Settings Modal -->
-    <SettingsModal
-      :is-open="isSettingsModalOpen"
-      :initial-settings="settings"
-      @update:is-open="isSettingsModalOpen = $event"
-      @save="handleSettingsSave"
-    />
-
-    <!-- Search Modal -->
-    <SearchModal
-      :is-open="isSearchModalOpen"
-      @update:is-open="isSearchModalOpen = $event"
-      @tile-selected="handleTileSelected"
-      @bbox-selected="handleBboxSelected"
-      @tile-and-bbox-selected="handleTileAndBboxSelected"
-      @set-current-mgrs-tile-id="handleSetCurrentMgrsTileId"
-      @set-active-tile-id="handleSetActiveTileId"
-      @set-second-active-tile-id="handleSetSecondActiveTileId"
-    />
-
-    <!-- About Dialog -->
-    <v-dialog v-model="aboutDialog" width="auto">
-      <v-card max-width="600" border :prepend-icon="mdiInformation" title="About the Inference App">
-        <v-card-text>
-          Welcome to the Fields of the World (FTW) Web App. Use it to run the FTW model on
-          Sentinel-2 imagery and generate predicted field boundaries for your chosen area of
-          interest. To get started, either zoom in or click on your area of interest.
-        </v-card-text>
-        <v-card-actions>
-          <v-checkbox-btn v-model="dontShowAgain" label="Don't show again"></v-checkbox-btn>
-          <v-spacer></v-spacer>
-          <v-btn variant="flat" color="primary" text="Ok" @click="aboutDialog = false"></v-btn>
-        </v-card-actions>
-      </v-card>
-    </v-dialog>
-  </div>
+  <!-- Search Modal -->
+  <SearchModal
+    :is-open="isSearchModalOpen"
+    @update:is-open="isSearchModalOpen = $event"
+    @tile-selected="handleTileSelected"
+    @bbox-selected="handleBboxSelected"
+    @set-current-mgrs-tile-id="handleSetCurrentMgrsTileId"
+    @set-active-tile-id="handleSetActiveTileId"
+    @set-second-active-tile-id="handleSetSecondActiveTileId"
+  />
 </template>
 
 <style scoped>
 .data-cabinet {
-  position: absolute;
-  top: 1rem;
-  right: 1rem;
+  left: 1rem;
   min-width: 300px;
   width: 30vw;
-  max-width: 600px;
-  height: calc(100vh - 4rem);
-  background-color: rgba(0, 0, 0, 0.8);
-  color: white;
-  padding: 1rem;
-  border-radius: 4px;
-  z-index: 1000;
+  max-width: 45vw;
+}
+.data-cabinet.sidebar .content {
   display: flex;
   flex-direction: column;
-  overflow-y: auto;
-}
-
-.header-container {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1rem;
-}
-
-h2 {
-  margin: 0;
-  font-size: 1.25rem;
-  color: white;
-  flex: 1;
+  overflow: hidden;
 }
 </style>

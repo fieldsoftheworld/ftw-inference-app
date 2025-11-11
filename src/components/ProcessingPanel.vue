@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onUnmounted, watch, shallowRef, nextTick } from 'vue'
+import { ref, onUnmounted, watch, nextTick, computed } from 'vue'
 import { type Extent } from 'ol/extent'
 import { generateJWT } from '../functions/generate-jwt'
 import { transformExtent } from 'ol/proj'
@@ -12,24 +12,18 @@ import GeoJSON from 'ol/format/GeoJSON'
 import { FeatureCollection } from 'geojson'
 import { useStacLayer } from '../composables/useStacLayer'
 import { useAreaOfInterest } from '../composables/useAreaOfInterest'
-import PropertyDisplay from './PropertyDisplay.vue'
-import { formatMeasurementDisplay } from '../functions/format-measurement-display'
 import { useProcessingMode } from '../composables/useProcessingMode'
 import { useMap } from '../composables/useMap'
 import { mdiHelpCircleOutline } from '@mdi/js'
 import { useSettings } from '../composables/useSettings'
 import TilePreview from './TilePreview.vue'
 
-const props = defineProps<{
-  isOpen: boolean
-}>()
-
 const emit = defineEmits<{
-  (e: 'update:isOpen', value: boolean): void
   (e: 'updateGeoJSONResults', results: any[]): void
+  (e: 'processingChanged', isProcessing: boolean): void
 }>()
 
-const { map } = useMap()
+const { map, vectorLayer, handleMapClick } = useMap()
 const { removeStacLayer } = useStacLayer()
 const { removeExtentInteraction, removeDrawVectorLayer, drawnExtent, getTileById } =
   useAreaOfInterest()
@@ -53,8 +47,7 @@ watch(activeTileId, (newValue) => {
   }
 })
 
-const isOpen = ref(props.isOpen)
-const { processingMode } = useProcessingMode()
+const { processingMode, isBatchProcessing } = useProcessingMode()
 
 const isCreatingProject = ref(false)
 const isProcessing = ref(false)
@@ -63,13 +56,6 @@ const isFirstResultsOpen = ref(false)
 const isSecondResultsOpen = ref(false)
 const hasLoadedMore = ref(false)
 const retryTimeout = ref<number | null>(null)
-const vectorLayer = shallowRef<VectorLayer<VectorSource> | null>(null)
-
-// Properties display state
-const selectedFeature = ref<any>(null)
-const propertiesBoxPosition = ref<{ x: number; y: number } | null>(null)
-const originalClickPosition = ref<{ x: number; y: number } | null>(null)
-const showPropertiesBox = ref(false)
 
 const sceneYears = Array.from({ length: 10 }, (_, i) => new Date().getFullYear() - i)
 
@@ -145,10 +131,9 @@ watch(secondActiveTileId, async (id) => {
   secondTile.value = id ? await getTileById(id) : null
 })
 
-const toggleAccordion = () => {
-  isOpen.value = !isOpen.value
-  emit('update:isOpen', isOpen.value)
-}
+watch([isProcessing, isCreatingProject], () => {
+  emit('processingChanged', isProcessing.value || isCreatingProject.value)
+})
 
 const toggleFirstResults = () => {
   isFirstResultsOpen.value = !isFirstResultsOpen.value
@@ -158,98 +143,8 @@ const toggleSecondResults = () => {
   isSecondResultsOpen.value = !isSecondResultsOpen.value
 }
 
-const handleMapClick = (event: any) => {
-  // Check if click is on a feature from our vector layer
-  const pixel = event.pixel
-  let clickedFeature: any = null
-
-  // Check if we clicked on a feature from our results layer
-  map.value?.forEachFeatureAtPixel(pixel, (feature) => {
-    // Only process features from our results layer
-    if (
-      vectorLayer.value
-        ?.getSource()
-        ?.getFeatures()
-        .includes(feature as any)
-    ) {
-      clickedFeature = feature
-      return true // Stop after finding a feature from our results layer
-    }
-    return false // Continue checking other features
-  })
-
-  if (clickedFeature) {
-    // Clicked on a feature from our results layer
-    selectedFeature.value = clickedFeature
-    const properties = clickedFeature.getProperties()
-    // Remove geometry and other non-property fields
-    const { geometry, ...cleanProperties } = properties
-    selectedFeature.value.cleanProperties = Object.entries(cleanProperties).map(([key, value]) => {
-      return {
-        key,
-        value,
-        formattedValue: formatMeasurementDisplay(value as string | number, key),
-      }
-    })
-    // Store original click position for arrow indicator
-    originalClickPosition.value = { x: pixel[0], y: pixel[1] }
-
-    // Calculate optimal position for the properties box to avoid screen edges
-    const optimalPosition = calculateOptimalPosition(pixel[0], pixel[1])
-    propertiesBoxPosition.value = optimalPosition
-    showPropertiesBox.value = true
-  } else {
-    // Clicked outside our results layer features, hide properties box
-    hidePropertiesBox()
-  }
-}
-
-const hidePropertiesBox = () => {
-  showPropertiesBox.value = false
-  selectedFeature.value = null
-  propertiesBoxPosition.value = null
-  originalClickPosition.value = null
-}
-
-const calculateOptimalPosition = (clickX: number, clickY: number) => {
-  const boxWidth = 300 // Approximate width of properties box
-  const boxHeight = 200 // Approximate height of properties box
-  const margin = 20 // Minimum margin from screen edges
-
-  let optimalX = clickX
-  let optimalY = clickY
-
-  // Get viewport dimensions
-  const viewportWidth = window.innerWidth
-  const viewportHeight = window.innerHeight
-
-  // Adjust X position if too close to right edge
-  if (clickX + boxWidth + margin > viewportWidth) {
-    optimalX = clickX - boxWidth - margin
-  }
-
-  // Adjust X position if too close to left edge
-  if (optimalX < margin) {
-    optimalX = margin
-  }
-
-  // Adjust Y position if too close to bottom edge
-  if (clickY + boxHeight + margin > viewportHeight) {
-    optimalY = clickY - boxHeight - margin
-  }
-
-  // Adjust Y position if too close to top edge
-  if (optimalY < margin) {
-    optimalY = margin
-  }
-
-  return { x: optimalX, y: optimalY }
-}
-
 // Function to load more results
 const loadMore = async () => {
-  if (!currentMgrsTileId.value) return
-
   isLoading.value = true
   let firstNewItemId: string | null = null
 
@@ -305,7 +200,7 @@ const loadMore = async () => {
 
 // Function to reset to original search results
 const resetToOriginalSearch = async () => {
-  if (!currentMgrsTileId.value || !currentBbox.value) return
+  if (!currentBbox.value) return
 
   // Use the existing handleSearchResults function to reset to original search
   await handleSearchResults(currentMgrsTileId.value, currentBbox.value, settings.value)
@@ -447,7 +342,7 @@ const handleSmallAreaProcessingRequest = async () => {
 
     if (!response.ok) {
       const error = data?.detail || response.statusText
-      throw new Error(`Failed to process small area: ${error}`)
+      throw new Error(`Failed to process: ${error}`)
     }
 
     // Display GeoJSON if available
@@ -475,10 +370,9 @@ const handleSmallAreaProcessingRequest = async () => {
     removeStacLayer(map.value!, true)
     removeExtentInteraction()
   } catch (error) {
-    console.error('Error processing small area:', error)
+    console.error('Error processing:', error)
     showError(
-      'Failed to process small area: ' +
-        (error instanceof Error ? error.message : 'An unknown error occured')
+      'Failed to process: ' + (error instanceof Error ? error.message : 'An unknown error occured')
     )
   } finally {
     isProcessing.value = false
@@ -690,279 +584,184 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div>
-    <div class="accordion-header" @click="toggleAccordion">
-      <h3>Processing</h3>
-      <span class="accordion-icon" :class="{ open: isOpen }">▼</span>
-    </div>
+  <div class="settings">
+    <v-alert density="compact" :type="isBatchProcessing ? 'warning' : 'info'" class="mb-2">
+      <template v-if="isBatchProcessing">
+        You are in <strong>batch mode</strong> due to the selected larger area. The processing may
+        take multiple minutes depending on the selected settings.
+      </template>
+      <template v-else>
+        You are in <strong>small area mode</strong>. The processing usually takes less than 30
+        seconds. Use this for a quick preview on smaller areas.
+      </template>
+    </v-alert>
 
-    <transition name="accordion">
-      <div v-show="isOpen">
-        <v-radio-group
-          v-show="currentMgrsTileId"
-          class="processing-mode hide-details"
-          v-model="processingMode"
-          density="compact"
-        >
-          <v-radio value="smallAreaProcessing" :disabled="isProcessing || isCreatingProject"
-            ><template v-slot:label
-              >Small Area Processing
-              <v-tooltip max-width="400" open-on-click>
-                <template #activator="{ props }">
-                  <v-icon
-                    class="ml-1"
-                    :icon="mdiHelpCircleOutline"
-                    size="x-small"
-                    v-bind="props"
-                  ></v-icon>
-                </template>
-                <div>
-                  Limited to areas smaller than 200 km². Processing usually takes less than 15
-                  seconds, result polygons will be shown upon finish.
-                </div>
-              </v-tooltip></template
-            ></v-radio
-          >
-          <v-radio value="batchProcessing" :disabled="isProcessing || isCreatingProject"
-            ><template v-slot:label
-              >Batch Processing
-              <v-tooltip max-width="400" open-on-click>
-                <template #activator="{ props }">
-                  <v-icon
-                    class="ml-1"
-                    :icon="mdiHelpCircleOutline"
-                    size="x-small"
-                    v-bind="props"
-                  ></v-icon>
-                </template>
-                <div>
-                  Allows for larger areas to be processed, but may take 30 seconds or more to
-                  complete. Result polygons will be shown upon finish, a raster image showing the
-                  inference is also available. A project will be created, results will be saved for
-                  later access.
-                </div>
-              </v-tooltip></template
-            ></v-radio
-          >
-        </v-radio-group>
+    <div v-if="searchStatus" class="search-status">{{ searchStatus }}</div>
 
-        <!-- Action buttons section -->
-        <div v-if="currentMgrsTileId" class="action-buttons">
-          <div v-if="processingMode === 'batchProcessing'" class="title-input">
-            <label for="project-title" class="input-label">Project Title</label>
-            <input
-              id="project-title"
-              type="text"
-              v-model="projectTitle"
-              placeholder="Enter project title"
-              class="project-title-input"
-            />
-          </div>
-          <button
-            v-if="processingMode === 'batchProcessing'"
-            class="action-button"
-            :disabled="
-              !activeTileId || (!modelIsSingleShot && !secondActiveTileId) || isCreatingProject
-            "
-            @click="handleCompareTiles"
-          >
-            <span v-if="isCreatingProject || isProcessing"
-              ><v-progress-circular indeterminate size="16" width="2" class="me-1" />
-              <template v-if="isCreatingProject">Creating Project...</template>
-              <template v-else>Processing...</template>
-            </span>
-            <span v-else>Create project and start processing</span>
-          </button>
-          <button
-            v-if="processingMode === 'smallAreaProcessing'"
-            class="action-button"
-            :disabled="!activeTileId || (!modelIsSingleShot && !secondActiveTileId) || isProcessing"
-            @click="handleSmallAreaProcessingRequest"
-          >
-            <span v-if="isProcessing"
-              ><v-progress-circular indeterminate size="16" width="2" class="me-1" />
-              Processing...</span
-            >
-            <span v-else>Start processing</span>
-          </button>
-        </div>
-
-        <h4 class="selected-tile-header">
-          <template v-if="currentMgrsTileId">Selected Tile: {{ currentMgrsTileId }}</template>
-          <template v-else>Select a grid cell to search for Sentinel-2 images</template>
-        </h4>
-
-        <div v-if="currentMgrsTileId && searchStatus" class="search-status">{{ searchStatus }}</div>
-
-        <div v-if="currentMgrsTileId && searchResults.length > 0" class="results-container">
-          <v-checkbox v-model="autoSceneSelection" density="compact" hide-details
-            ><template v-slot:label
-              >Automatic Scene Selection
-              <v-tooltip max-width="400" open-on-click>
-                <template #activator="{ props }">
-                  <v-icon
-                    class="ml-1"
-                    :icon="mdiHelpCircleOutline"
-                    size="x-small"
-                    v-bind="props"
-                  ></v-icon>
-                </template>
-                <div>
-                  When checked, a suitable scene will be automatically chosen based on the selected
-                  year and the crop calendar for the selected area. When not checked, two scenes
-                  have to be selected manually - one for the time around planting and one for the
-                  time around harvest.
-                </div>
-              </v-tooltip>
+    <div v-if="searchResults.length > 0" class="results-container">
+      <v-checkbox v-model="autoSceneSelection" density="compact" hide-details
+        ><template v-slot:label
+          >Automatic Scene Selection
+          <v-tooltip max-width="400" open-on-click>
+            <template #activator="{ props }">
+              <v-icon
+                class="ml-1"
+                :icon="mdiHelpCircleOutline"
+                size="x-small"
+                v-bind="props"
+              ></v-icon>
             </template>
-          </v-checkbox>
-          <v-select
-            v-if="autoSceneSelection"
-            class="pt-2 pb-2"
-            type="number"
-            v-model.number="sceneYear"
-            :items="sceneYears"
-            label="Select scene year"
-            density="compact"
-            hide-details
-            variant="outlined"
+            <div>
+              When checked, a suitable scene will be automatically chosen based on the selected year
+              and the crop calendar for the selected area. When not checked, two scenes have to be
+              selected manually - one for the time around planting and one for the time around
+              harvest.
+            </div>
+          </v-tooltip>
+        </template>
+      </v-checkbox>
+      <v-select
+        v-if="autoSceneSelection"
+        class="pt-2 pb-2"
+        type="number"
+        v-model.number="sceneYear"
+        :items="sceneYears"
+        label="Select scene year"
+        density="compact"
+        hide-details
+        variant="outlined"
+      />
+      <div class="accordion-header" @click="toggleFirstResults">
+        <h3 class="window-header">
+          {{ activeTileId ? firstTile?.date || activeTileId : 'Select Win A' }}
+        </h3>
+        <span class="accordion-icon" :class="{ open: isFirstResultsOpen }">▼</span>
+      </div>
+
+      <transition name="accordion">
+        <div v-show="isFirstResultsOpen">
+          <!-- Show second accordion's active tile first -->
+          <TilePreview v-if="activeTileId" :tileId="activeTileId" win="a" />
+          <!-- Show other results -->
+          <TilePreview
+            v-for="result in searchResults.filter(
+              (r) => r.id !== activeTileId && r.id !== secondActiveTileId
+            )"
+            :key="result?.id"
+            win="a"
+            :tileId="result?.id"
           />
-          <div class="accordion-header" @click="toggleFirstResults">
-            <h3 class="active-tile-id">
-              {{ activeTileId ? firstTile?.date || activeTileId : 'Select Win A' }}
-            </h3>
-            <span class="accordion-icon" :class="{ open: isFirstResultsOpen }">▼</span>
+          <div v-if="!hasMore">
+            No more images found. Try adjusting your filters (date range, cloud cover, area
+            coverage) to increase the likelihood of finding more results.
           </div>
-
-          <transition name="accordion">
-            <div v-show="isFirstResultsOpen">
-              <!-- Show second accordion's active tile first -->
-              <TilePreview v-if="activeTileId" :tileId="activeTileId" win="a" />
-              <!-- Show other results -->
-              <TilePreview
-                v-for="result in searchResults.filter(
-                  (r) => r.id !== activeTileId && r.id !== secondActiveTileId
-                )"
-                :key="result?.id"
-                win="a"
-                :tileId="result?.id"
-              />
-              <div v-if="!hasMore">
-                No more images found. Try adjusting your filters (date range, cloud cover, area
-                coverage) to increase the likelihood of finding more results.
-              </div>
-              <div class="button-group">
-                <button
-                  v-if="hasMore"
-                  @click="loadMore"
-                  class="load-more-button"
-                  :disabled="isLoading"
-                >
-                  <template v-if="isLoading">Loading...</template>
-                  <template v-else>Load More</template>
-                </button>
-                <button
-                  v-if="hasLoadedMore"
-                  @click="resetToOriginalSearch"
-                  class="reset-button"
-                  :disabled="isLoading"
-                >
-                  Reset
-                </button>
-              </div>
-            </div>
-          </transition>
-
-          <!-- Second Accordion for Selected Results -->
-          <div
-            v-if="modelIsSingleShot === false"
-            class="selected-results-section"
-            :class="{ disabled: !activeTileId }"
-          >
-            <div
-              class="accordion-header"
-              @click="toggleSecondResults"
-              :class="{ disabled: !activeTileId }"
+          <div class="button-group">
+            <button v-if="hasMore" @click="loadMore" class="load-more-button" :disabled="isLoading">
+              <template v-if="isLoading">Loading...</template>
+              <template v-else>Load More</template>
+            </button>
+            <button
+              v-if="hasLoadedMore"
+              @click="resetToOriginalSearch"
+              class="reset-button"
+              :disabled="isLoading"
             >
-              <h3 class="active-tile-id">
-                {{ secondActiveTileId ? secondTile?.date || secondActiveTileId : 'Select Win B' }}
-              </h3>
-              <span class="accordion-icon" :class="{ open: isSecondResultsOpen }">▼</span>
-            </div>
-
-            <transition name="accordion">
-              <div v-show="isSecondResultsOpen && activeTileId" class="results">
-                <!-- Show second accordion's active tile first -->
-                <TilePreview v-if="secondActiveTileId" :tileId="secondActiveTileId" win="b" />
-                <!-- Show other results -->
-                <TilePreview
-                  v-for="result in searchResults.filter(
-                    (r) => r.id !== activeTileId && r.id !== secondActiveTileId
-                  )"
-                  :key="result?.id"
-                  win="b"
-                  :tileId="result?.id"
-                />
-
-                <div class="button-group">
-                  <button
-                    v-if="hasMore"
-                    @click="loadMore"
-                    class="load-more-button"
-                    :disabled="isLoading"
-                  >
-                    Load More
-                  </button>
-                  <button
-                    v-if="hasLoadedMore"
-                    @click="resetToOriginalSearch"
-                    class="reset-button"
-                    :disabled="isLoading"
-                  >
-                    Reset
-                  </button>
-                </div>
-              </div>
-            </transition>
+              Reset
+            </button>
           </div>
         </div>
-      </div>
-    </transition>
+      </transition>
 
-    <!-- Properties Box -->
-    <div
-      v-if="showPropertiesBox && selectedFeature && propertiesBoxPosition"
-      class="properties-box"
-      :style="{
-        left: propertiesBoxPosition.x + 'px',
-        top: propertiesBoxPosition.y + 'px',
-      }"
-    >
-      <!-- Arrow indicator pointing to the clicked feature -->
+      <!-- Second Accordion for Selected Results -->
       <div
-        v-if="
-          originalClickPosition &&
-          (propertiesBoxPosition.x !== originalClickPosition.x ||
-            propertiesBoxPosition.y !== originalClickPosition.y)
-        "
-        class="properties-arrow"
-        :style="{
-          left: originalClickPosition.x - propertiesBoxPosition.x + 'px',
-          top: originalClickPosition.y - propertiesBoxPosition.y + 'px',
-        }"
-      ></div>
-      <div class="properties-header">
-        <h4>Field Properties</h4>
-        <button class="close-properties" @click="hidePropertiesBox">×</button>
-      </div>
-      <div class="properties-content">
-        <PropertyDisplay
-          v-for="property in selectedFeature.cleanProperties"
-          :key="property.key"
-          :property="property"
-        />
+        v-if="modelIsSingleShot === false"
+        class="selected-results-section"
+        :class="{ disabled: !activeTileId }"
+      >
+        <div
+          class="accordion-header"
+          @click="toggleSecondResults"
+          :class="{ disabled: !activeTileId }"
+        >
+          <h3 class="window-header">
+            {{ secondActiveTileId ? secondTile?.date || secondActiveTileId : 'Select Win B' }}
+          </h3>
+          <span class="accordion-icon" :class="{ open: isSecondResultsOpen }">▼</span>
+        </div>
+
+        <transition name="accordion">
+          <div v-show="isSecondResultsOpen && activeTileId" class="results">
+            <!-- Show second accordion's active tile first -->
+            <TilePreview v-if="secondActiveTileId" :tileId="secondActiveTileId" win="b" />
+            <!-- Show other results -->
+            <TilePreview
+              v-for="result in searchResults.filter(
+                (r) => r.id !== activeTileId && r.id !== secondActiveTileId
+              )"
+              :key="result?.id"
+              win="b"
+              :tileId="result?.id"
+            />
+
+            <div class="button-group">
+              <button
+                v-if="hasMore"
+                @click="loadMore"
+                class="load-more-button"
+                :disabled="isLoading"
+              >
+                Load More
+              </button>
+              <button
+                v-if="hasLoadedMore"
+                @click="resetToOriginalSearch"
+                class="reset-button"
+                :disabled="isLoading"
+              >
+                Reset
+              </button>
+            </div>
+          </div>
+        </transition>
       </div>
     </div>
+  </div>
+
+  <div class="action-buttons">
+    <div v-if="processingMode === 'batchProcessing'" class="title-input">
+      <label for="project-title" class="input-label">Project Title</label>
+      <input
+        id="project-title"
+        type="text"
+        v-model="projectTitle"
+        placeholder="Enter project title"
+        class="project-title-input"
+      />
+    </div>
+    <button
+      v-if="processingMode === 'batchProcessing'"
+      class="action-button"
+      :disabled="!activeTileId || (!modelIsSingleShot && !secondActiveTileId) || isCreatingProject"
+      @click="handleCompareTiles"
+    >
+      <span v-if="isCreatingProject || isProcessing"
+        ><v-progress-circular indeterminate size="16" width="2" class="me-1" />
+        <template v-if="isCreatingProject">Creating Project...</template>
+        <template v-else>Processing...</template>
+      </span>
+      <span v-else>Create project and start processing</span>
+    </button>
+    <button
+      v-if="processingMode === 'smallAreaProcessing'"
+      class="action-button"
+      :disabled="!activeTileId || (!modelIsSingleShot && !secondActiveTileId) || isProcessing"
+      @click="handleSmallAreaProcessingRequest"
+    >
+      <span v-if="isProcessing"
+        ><v-progress-circular indeterminate size="16" width="2" class="me-1" /> Processing...</span
+      >
+      <span v-else>Start processing</span>
+    </button>
   </div>
 </template>
 
@@ -1017,17 +816,16 @@ onUnmounted(() => {
   max-height: 50vh;
 }
 
-.selected-tile-header {
-  padding: 0.75rem 0;
-  color: white;
-  font-weight: 600;
+.settings {
+  flex: 1;
+  padding: 0.5rem 1rem;
+  overflow-y: auto;
+  min-height: min-content;
 }
 
 .action-buttons {
-  margin: 0.75rem 0;
-  padding-bottom: 0.25rem;
-  width: 100%;
-  flex-shrink: 0;
+  flex: 0;
+  padding: 0.5rem 1rem;
 }
 
 .title-input {
@@ -1153,74 +951,10 @@ onUnmounted(() => {
   opacity: 0.7;
 }
 
-.active-tile-id {
+.window-header {
   max-width: 100%;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-
-/* Properties Box Styles */
-.properties-box {
-  position: fixed;
-  background-color: rgba(0, 0, 0, 0.95);
-  border: 2px solid rgba(0, 136, 136, 0.8);
-  border-radius: 8px;
-  padding: 0;
-  min-width: 250px;
-  max-width: 350px;
-  z-index: 10000;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
-  backdrop-filter: blur(10px);
-}
-
-.properties-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0.75rem 1rem;
-  border-bottom: 1px solid rgba(0, 136, 136, 0.3);
-  background-color: rgba(0, 136, 136, 0.1);
-}
-
-.properties-header h4 {
-  margin: 0;
-  color: rgba(0, 136, 136, 1);
-  font-size: 1rem;
-  font-weight: 600;
-}
-
-.close-properties {
-  background: none;
-  border: none;
-  color: rgba(0, 136, 136, 0.8);
-  font-size: 1.5rem;
-  cursor: pointer;
-  padding: 0;
-  width: 24px;
-  height: 24px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 4px;
-  transition: all 0.2s ease;
-}
-
-.close-properties:hover {
-  color: rgba(0, 136, 136, 1);
-  background-color: rgba(0, 136, 136, 0.2);
-}
-
-.properties-content {
-  padding: 1rem;
-  max-height: 300px;
-  overflow-y: auto;
-}
-
-.processing-mode {
-  margin-top: 0.75rem;
-}
-.collections {
-  margin: 0.25rem 0 0.5rem;
 }
 </style>

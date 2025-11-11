@@ -13,8 +13,7 @@ interface Props {
 interface Emits {
   (e: 'update:isOpen', value: boolean): void
   (e: 'tileSelected', tileName: string): void
-  (e: 'bboxSelected', bbox: number[]): void
-  (e: 'tileAndBboxSelected', tileName: string, bbox?: number[]): void
+  (e: 'bboxSelected', bbox: number[], area: number): void
   (e: 'setCurrentMgrsTileId', tileId: string): void
   (e: 'setActiveTileId', tileId: string): void
   (e: 'setSecondActiveTileId', tileId: string): void
@@ -23,7 +22,7 @@ interface Emits {
 const props = defineProps<Props>()
 const emit = defineEmits<Emits>()
 
-const { map, areaValues } = useMap()
+const { map, areaValues, maxArea } = useMap()
 // Use the area calculation function and drawnExtent from the composable
 const { calculateArea } = useAreaOfInterest()
 const { processingMode } = useProcessingMode()
@@ -93,34 +92,6 @@ const parseBboxInput = (input: string): { isValid: boolean; bbox: number[]; erro
   }
 }
 
-// Function to validate bbox area
-const validateBboxArea = (bbox: number[]): { isValid: boolean; message: string } => {
-  if (!areaValues.value) {
-    return { isValid: false, message: 'Area values are not available' }
-  }
-  const area = calculateBboxArea(bbox)
-
-  // Define area limits based on processing mode
-  const maxArea = processingMode.value === 'batchProcessing' ? 3000 : areaValues.value.max_area_km2
-  const minArea = areaValues.value.min_area_km2
-
-  if (area < minArea) {
-    return {
-      isValid: false,
-      message: `Bounding box area (${area.toFixed(2)} km²) is too small. Minimum area required: ${minArea} km²`,
-    }
-  }
-
-  if (area > maxArea) {
-    return {
-      isValid: false,
-      message: `Bounding box area (${area.toFixed(2)} km²) is too large. Maximum area allowed: ${maxArea} km²`,
-    }
-  }
-
-  return { isValid: true, message: '' }
-}
-
 // Close modal
 const closeModal = () => {
   emit('update:isOpen', false)
@@ -145,7 +116,7 @@ const loadAvailableTiles = () => {
     (layer) =>
       layer.get('name') === 's2-grid' ||
       (layer.get('properties') && layer.get('properties').name === 's2-grid') ||
-      ((layer as any).getSource && (layer as any).getSource().getFeatures),
+      ((layer as any).getSource && (layer as any).getSource().getFeatures)
   )
 
   if (s2GridLayer && (s2GridLayer as any).getSource) {
@@ -244,20 +215,23 @@ const navigateToTileAndSearch = () => {
         return
       }
 
-      // Validate bbox area
-      const areaValidation = validateBboxArea(bbox)
-      if (!areaValidation.isValid) {
-        areaErrorMessage.value = areaValidation.message
-        return
+      if (!areaValues.value) {
+        return { isValid: false, message: 'Area values are not available' }
       }
-      // Emit the bbox selection event
-      emit('bboxSelected', bbox)
-    }
+      const area = calculateBboxArea(bbox)
 
-    // Emit combined tile and bbox selection event
-    if (tileName) {
-      const bbox = hasBboxInput ? parseBboxInput(bboxInput.value).bbox : undefined
-      emit('tileAndBboxSelected', tileName, bbox)
+      // Define area limits based on processing mode
+      const minArea = areaValues.value.min_area_km2
+
+      const displayArea = area.toFixed(2)
+      if (area < minArea) {
+        areaErrorMessage.value = `Bounding box area (${displayArea} km²) is too small. Minimum area required: ${minArea} km²`
+      } else if (area > maxArea) {
+        areaErrorMessage.value = `Bounding box area (${displayArea} km²) is too large. Maximum area allowed: ${maxArea} km²`
+      }
+
+      // Emit the bbox selection event
+      emit('bboxSelected', bbox, area)
     }
 
     // Close the modal after navigation
@@ -316,7 +290,7 @@ watch(
       }
     }
   },
-  { immediate: true },
+  { immediate: true }
 )
 
 // Clean up event listener
