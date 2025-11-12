@@ -148,9 +148,17 @@ defineExpose({
         top: originalClickPosition.y - propertiesBoxPosition.y + 'px',
       }"
     ></div>
-    <div class="properties-header">
+    <div class="d-flex align-center justify-space-between ps-4 pe-4 pt-2 pb-2 properties-header">
       <h4>Field Properties</h4>
-      <button class="close-properties" @click="hidePropertiesBox">×</button>
+      <div class="d-flex align-right gap-2 ms-4">
+        <v-btn
+          @click="hidePropertiesBox"
+          variant="plain"
+          color="teal"
+          class="pa-0 action-btn"
+          text="✖"
+        ></v-btn>
+      </div>
     </div>
     <div class="properties-content">
       <PropertyDisplay
@@ -209,11 +217,11 @@ defineExpose({
   backdrop-filter: blur(10px);
 }
 
+.properties-box .action-btn {
+  min-width: auto;
+}
+
 .properties-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0.75rem 1rem;
   border-bottom: 1px solid rgba(0, 136, 136, 0.3);
   background-color: rgba(0, 136, 136, 0.1);
 }
@@ -223,27 +231,6 @@ defineExpose({
   color: rgba(0, 136, 136, 1);
   font-size: 1rem;
   font-weight: 600;
-}
-
-.close-properties {
-  background: none;
-  border: none;
-  color: rgba(0, 136, 136, 0.8);
-  font-size: 1.5rem;
-  cursor: pointer;
-  padding: 0;
-  width: 24px;
-  height: 24px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 4px;
-  transition: all 0.2s ease;
-}
-
-.close-properties:hover {
-  color: rgba(0, 136, 136, 1);
-  background-color: rgba(0, 136, 136, 0.2);
 }
 
 .properties-content {

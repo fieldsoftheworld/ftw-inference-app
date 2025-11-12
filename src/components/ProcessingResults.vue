@@ -59,11 +59,12 @@
 
 <script setup lang="ts">
 import type Map from 'ol/Map'
-import { ref, watch } from 'vue'
+import { computed, ref, watch, defineProps, defineEmits } from 'vue'
 import useNotifier from '../composables/useNotifier'
 import useAreaOfInterest from '../composables/useAreaOfInterest'
 import PropertyDisplay from './PropertyDisplay.vue'
 import { mdiDownloadBoxOutline, mdiDelete, mdiChevronDown } from '@mdi/js'
+import { formatMeasurementDisplay } from '../functions/format-measurement-display'
 
 const props = defineProps<{
   map: Map
@@ -76,9 +77,6 @@ const emit = defineEmits<{
 
 const { setBlockMapClicks, clearResultsAndZoomToGrid } = useAreaOfInterest()
 const { showInfo, showError } = useNotifier()
-
-import { computed } from 'vue'
-import { formatMeasurementDisplay } from '../functions/format-measurement-display'
 
 const processedResults = computed(() => {
   const formattedResults = new Array(props.geoJSONResults.length)

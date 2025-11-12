@@ -127,13 +127,7 @@ watch([drawnExtent, sceneYear, settings], async ([newExtent, newYear]) => {
     // }
     const { window_a: windowA, window_b: windowB } = data
     activeTileId.value = new URL(windowA).pathname.split('/').pop() || null
-    if (activeTileId.value && activePanel.value === 'win-a') {
-      activePanel.value = null
-    }
     secondActiveTileId.value = new URL(windowB).pathname.split('/').pop() || null
-    if (secondActiveTileId.value && activePanel.value === 'win-b') {
-      activePanel.value = null
-    }
 
     sceneSelectionStatus.value = true
   } catch (error) {
@@ -378,15 +372,6 @@ const updateAreaCoverageSlider = () => {
   // Ensure the value is a number and not below 1
   const value = Number(settings.value.areaCoverage)
   settings.value.areaCoverage = Math.max(1, value)
-}
-
-// Function to reset to original search results
-const resetToOriginalSearch = async () => {
-  if (!currentBbox.value) return
-
-  // Use the existing handleSearchResults function to reset to original search
-  await handleSearchResults(currentBbox.value, settings.value)
-  hasLoadedMore.value = false // Reset the flag
 }
 
 const fitMapToBbox = (bbox: number[]) => {
@@ -1286,25 +1271,15 @@ onUnmounted(() => {
                 />
               </p>
             </v-alert>
-            <div class="button-group">
-              <button
-                v-if="hasMore"
-                @click="loadMore"
-                class="load-more-button"
-                :disabled="isLoading"
-              >
-                <template v-if="isLoading">Loading...</template>
-                <template v-else>Load More</template>
-              </button>
-              <button
-                v-if="hasLoadedMore"
-                @click="resetToOriginalSearch"
-                class="reset-button"
-                :disabled="isLoading"
-              >
-                Reset
-              </button>
-            </div>
+            <v-btn
+              v-if="hasMore"
+              @click="loadMore"
+              class="action-button mt-4"
+              :disabled="isLoading"
+            >
+              <template v-if="isLoading">Loading...</template>
+              <template v-else>Load more</template>
+            </v-btn>
           </div>
         </v-expansion-panel-text>
       </v-expansion-panel>
@@ -1352,24 +1327,15 @@ onUnmounted(() => {
                 />
               </p>
             </v-alert>
-            <div class="button-group">
-              <button
-                v-if="hasMore"
-                @click="loadMore"
-                class="load-more-button"
-                :disabled="isLoading"
-              >
-                Load More
-              </button>
-              <button
-                v-if="hasLoadedMore"
-                @click="resetToOriginalSearch"
-                class="reset-button"
-                :disabled="isLoading"
-              >
-                Reset
-              </button>
-            </div>
+            <v-btn
+              v-if="hasMore"
+              @click="loadMore"
+              class="action-button mt-4"
+              :disabled="isLoading"
+            >
+              <template v-if="isLoading">Loading...</template>
+              <template v-else>Load more</template>
+            </v-btn>
           </div>
         </v-expansion-panel-text>
       </v-expansion-panel>
@@ -1377,7 +1343,7 @@ onUnmounted(() => {
   </div>
 
   <div class="action-buttons">
-    <button
+    <v-btn
       v-if="isBatchProcessing"
       class="action-button"
       :disabled="!activeTileId || (!modelIsSingleShot && !secondActiveTileId) || isCreatingProject"
@@ -1389,8 +1355,8 @@ onUnmounted(() => {
         <template v-else>Processing...</template>
       </span>
       <span v-else>Create project and start processing</span>
-    </button>
-    <button
+    </v-btn>
+    <v-btn
       v-if="!isBatchProcessing"
       class="action-button"
       :disabled="!activeTileId || (!modelIsSingleShot && !secondActiveTileId) || isProcessing"
@@ -1400,7 +1366,7 @@ onUnmounted(() => {
         ><v-progress-circular indeterminate size="16" width="2" class="me-1" /> Processing...</span
       >
       <span v-else>Start processing</span>
-    </button>
+    </v-btn>
   </div>
 </template>
 
@@ -1472,52 +1438,6 @@ onUnmounted(() => {
 
 .action-button:disabled {
   background-color: rgba(0, 136, 136, 0.4);
-  cursor: not-allowed;
-}
-
-.load-more-button {
-  background-color: rgba(0, 136, 136, 0.8);
-  color: white;
-  border: none;
-  padding: 0.75rem;
-  border-radius: 4px;
-  cursor: pointer;
-  flex: 1;
-  font-size: 0.875rem;
-}
-
-.load-more-button:hover {
-  background-color: rgba(0, 136, 136, 1);
-}
-
-.load-more-button:disabled {
-  background-color: rgba(0, 136, 136, 0.4);
-  cursor: not-allowed;
-}
-
-.button-group {
-  display: flex;
-  gap: 0.5rem;
-  margin-top: 1rem;
-}
-
-.reset-button {
-  background-color: rgba(255, 165, 0, 0.8);
-  color: white;
-  border: none;
-  padding: 0.75rem;
-  border-radius: 4px;
-  cursor: pointer;
-  flex: 1;
-  font-size: 0.875rem;
-}
-
-.reset-button:hover {
-  background-color: rgba(255, 165, 0, 1);
-}
-
-.reset-button:disabled {
-  background-color: rgba(255, 165, 0, 0.4);
   cursor: not-allowed;
 }
 
