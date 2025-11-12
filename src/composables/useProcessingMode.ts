@@ -1,40 +1,35 @@
 import { ref, computed } from 'vue'
-import { useSnackbar } from './useSnackbar'
-import { useMap } from './useMap'
+import useNotifier from './useNotifier'
+import useMap, { AreaValues } from './useMap'
 
-const { showWarning, showError } = useSnackbar()
-const { maxArea } = useMap()
+const processingMode = ref<'smallAreaProcessing' | 'batchProcessing' | null>('smallAreaProcessing')
 
-export const processingMode = ref<'smallAreaProcessing' | 'batchProcessing' | null>(
-  'smallAreaProcessing',
-)
+export default function useProcessingMode() {
+  const { maxArea } = useMap()
+  const { showWarning, showError } = useNotifier()
 
-export function updateProcessingMode(area: number, areaValues) {
-  if (!areaValues.value) {
-    return
+  function updateProcessingMode(area: number, areaValues: AreaValues) {
+    if (area < areaValues.min_area_km2) {
+      showWarning(
+        `The selected area is below the minimum threshold of ${areaValues.min_area_km2} km². Please select a larger area. Using last valid state.`,
+      )
+    }
+    if (area > maxArea) {
+      showError(
+        `The selected area exceeds the maximum limit of ${maxArea} km². Please select a smaller area. Using last valid state.`,
+      )
+    }
+    if (area > areaValues.max_area_km2) {
+      processingMode.value = 'batchProcessing'
+    } else {
+      processingMode.value = 'smallAreaProcessing'
+    }
   }
-  if (area < areaValues.value.min_area_km2) {
-    showWarning(
-      `The selected area is below the minimum threshold of ${areaValues.value.min_area_km2} km². Please select a larger area. Using last valid state.`,
-    )
-  }
-  if (area > maxArea) {
-    showError(
-      `The selected area exceeds the maximum limit of ${areaValues.value.max_area_km2} km². Please select a smaller area. Using last valid state.`,
-    )
-  }
-  if (area > areaValues.value.max_area_km2) {
-    processingMode.value = 'batchProcessing'
-  } else {
-    processingMode.value = 'smallAreaProcessing'
-  }
-}
 
-const isBatchProcessing = computed(() => {
-  return processingMode.value === 'batchProcessing'
-})
+  const isBatchProcessing = computed(() => {
+    return processingMode.value === 'batchProcessing'
+  })
 
-export function useProcessingMode() {
   return {
     processingMode,
     updateProcessingMode,

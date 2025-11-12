@@ -1,22 +1,22 @@
 <script setup lang="ts">
-import { ref, onUnmounted, watch, nextTick, computed, onMounted } from 'vue'
+import { ref, onUnmounted, watch, nextTick, computed, onMounted, defineEmits } from 'vue'
 import { type Extent } from 'ol/extent'
 import { generateJWT } from '../functions/generate-jwt'
 import { transformExtent } from 'ol/proj'
-import { useSnackbar } from '../composables/useSnackbar'
 import searchStacApi from '../functions/search-stac-api'
-import { SearchResult, useSearch } from '../composables/useSearch'
+import useSearch, { SearchResult } from '../composables/useSearch'
 import { fromExtent } from 'ol/geom/Polygon'
 import VectorSource from 'ol/source/Vector'
 import VectorLayer from 'ol/layer/Vector'
 import GeoJSON from 'ol/format/GeoJSON'
 import { FeatureCollection } from 'geojson'
-import { useStacLayer } from '../composables/useStacLayer'
-import { useAreaOfInterest } from '../composables/useAreaOfInterest'
-import { useProcessingMode } from '../composables/useProcessingMode'
-import { useMap } from '../composables/useMap'
+import useNotifier from '../composables/useNotifier'
+import useStacLayer from '../composables/useStacLayer'
+import useAreaOfInterest from '../composables/useAreaOfInterest'
+import useProcessingMode from '../composables/useProcessingMode'
+import useMap from '../composables/useMap'
 import { mdiHelpCircleOutline } from '@mdi/js'
-import { useSettings } from '../composables/useSettings'
+import useSettings from '../composables/useSettings'
 import TilePreview from './TilePreview.vue'
 
 const emit = defineEmits<{
@@ -35,7 +35,7 @@ const {
   getHemisphere,
   triggerTileSelection,
 } = useAreaOfInterest()
-const { showInfo, showWarning, showError, showSuccess } = useSnackbar()
+const { showInfo, showWarning, showError, showSuccess } = useNotifier()
 const { isBatchProcessing, updateProcessingMode } = useProcessingMode()
 
 const { currentBbox, hasMore, isLoading, searchResults, searchStatus, handleSearchResults } =
@@ -259,9 +259,6 @@ watch(sceneSelectionStatus, (newValue) => {
     secondActiveTileId.value = null
   }
 })
-watch(activePanel, (newValue) => {
-  console.log(newValue)
-})
 
 const collectionTitle = computed(() => {
   const collection = settings.value.selectedCollection[0]
@@ -408,7 +405,7 @@ const fitMapToBbox = (bbox: number[]) => {
   }
 
   // TODO: FIX ISSUE WITH SCROLLING AND CHANGE LAYER COLOR
-  map.value?.getView().fit(extent, {
+  map.value!.getView().fit(extent, {
     padding: [50, 50, 50, 50],
     duration: 500,
   })
@@ -417,7 +414,7 @@ const fitMapToBbox = (bbox: number[]) => {
 const displayGeoJSON = (geojson: FeatureCollection & { crs: { properties: { name: string } } }) => {
   // Remove existing vector layer if it exists
   if (vectorLayer.value) {
-    map.value?.removeLayer(vectorLayer.value)
+    map.value!.removeLayer(vectorLayer.value)
   }
 
   // Create new vector source and layer
@@ -447,7 +444,7 @@ const displayGeoJSON = (geojson: FeatureCollection & { crs: { properties: { name
   })
 
   // Ensure the results layer is on top by setting a high z-index
-  map.value?.addLayer(vectorLayer.value)
+  map.value!.addLayer(vectorLayer.value)
 
   // Emit the GeoJSON results to the parent component
   const results = source.getFeatures().map((feature) => ({
@@ -458,7 +455,7 @@ const displayGeoJSON = (geojson: FeatureCollection & { crs: { properties: { name
   emit('updateGeoJSONResults', results)
 
   // Add map click handler to detect feature clicks and show properties
-  map.value?.on('click', handleMapClick)
+  map.value!.on('click', handleMapClick)
 
   // Get the extent and validate it
   const extent = source.getExtent()
@@ -591,7 +588,7 @@ const handleBboxSelected = (bbox: number[]) => {
 
   const geometry = fromExtent(bbox)
   const area = calculateArea(geometry)
-  updateProcessingMode(area, areaValues)
+  updateProcessingMode(area, areaValues.value)
 
   // Trigger the search with the custom bbox
   handleSearchResults(bbox, settings.value)

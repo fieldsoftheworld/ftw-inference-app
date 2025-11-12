@@ -60,8 +60,8 @@
 <script setup lang="ts">
 import type Map from 'ol/Map'
 import { ref, watch } from 'vue'
-import { useSnackbar } from '../composables/useSnackbar'
-import { useAreaOfInterest } from '../composables/useAreaOfInterest'
+import useNotifier from '../composables/useNotifier'
+import useAreaOfInterest from '../composables/useAreaOfInterest'
 import PropertyDisplay from './PropertyDisplay.vue'
 import { mdiDownloadBoxOutline, mdiDelete, mdiChevronDown } from '@mdi/js'
 
@@ -75,7 +75,7 @@ const emit = defineEmits<{
 }>()
 
 const { setBlockMapClicks, clearResultsAndZoomToGrid } = useAreaOfInterest()
-const { showInfo, showError } = useSnackbar()
+const { showInfo, showError } = useNotifier()
 
 import { computed } from 'vue'
 import { formatMeasurementDisplay } from '../functions/format-measurement-display'

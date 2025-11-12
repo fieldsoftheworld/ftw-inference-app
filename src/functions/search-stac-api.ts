@@ -1,6 +1,8 @@
 import { Polygon } from 'geojson'
 import { SearchResult } from '../composables/useSearch'
-import { sceneYear } from '../composables/useSettings'
+import useSettings from '../composables/useSettings'
+
+const { sceneYear } = useSettings()
 
 // Store the currently selected feature
 let nextPageToken: string | null = null

@@ -6,10 +6,17 @@ import { createApp } from 'vue'
 import App from './App.vue'
 import router from './router'
 import vuetify from './plugins/vuetify.ts'
+import VuetifyNotifier from 'vuetify-notifier'
 
-const app = createApp(App)
-
-app.use(router)
-app.use(vuetify)
-
-app.mount('#app')
+createApp(App)
+  .use(router)
+  .use(vuetify)
+  .use(VuetifyNotifier, {
+    toast: {
+      location: 'bottom',
+      timeout: 10000,
+      max: 3,
+      width: 500,
+    },
+  })
+  .mount('#app')

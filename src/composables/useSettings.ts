@@ -32,7 +32,7 @@ const availableModels = ref<ModelInfo[]>([])
 const defaultModel: string = '3_Class_FULL_multiWindow_v2'
 
 // Default settings
-export const defaultSettings: Settings = {
+const defaultSettings: Settings = {
   startDate: '',
   endDate: '',
   cloudCover: 20,
@@ -42,7 +42,7 @@ export const defaultSettings: Settings = {
   expertMode: false,
 }
 
-export const loadSettingsFromStorage = (): Settings => {
+const loadSettingsFromStorage = (): Settings => {
   const stored = localStorage.getItem('ftw-search-settings')
   if (stored) {
     const parsed = JSON.parse(stored)
@@ -53,11 +53,11 @@ export const loadSettingsFromStorage = (): Settings => {
 }
 
 const settings = ref<Settings>(loadSettingsFromStorage())
-export const autoSceneSelection = ref(true)
-export const sceneYear = ref<number>(new Date().getFullYear() - 1)
+const autoSceneSelection = ref(true)
+const sceneYear = ref<number>(new Date().getFullYear() - 1)
 
 // Function to set available models from API response
-export const setAvailableModels = (modelsData: ModelInfo[]) => {
+const setAvailableModels = (modelsData: ModelInfo[]) => {
   const modelsMap: ModelInfo[] = []
 
   modelsData.forEach((model) => {
@@ -101,7 +101,7 @@ const modelIsSingleShot = computed(() => {
   return model?.requires_window === false
 })
 
-export function useSettings() {
+export default function useSettings() {
   return {
     settings,
     autoSceneSelection,

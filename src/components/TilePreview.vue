@@ -1,15 +1,15 @@
 <script lang="ts" setup>
 import { computed, onMounted, ref } from 'vue'
-import { useAreaOfInterest } from '../composables/useAreaOfInterest'
-import { useMap } from '../composables/useMap'
-import { useStacLayer } from '../composables/useStacLayer'
-import { useSnackbar } from '../composables/useSnackbar'
+import useAreaOfInterest from '../composables/useAreaOfInterest'
+import useMap from '../composables/useMap'
+import useStacLayer from '../composables/useStacLayer'
+import useNotifier from '../composables/useNotifier'
 import { SearchResult } from '../composables/useSearch'
 
 const { activeTileId, secondActiveTileId, currentGridExtent, getTileById } = useAreaOfInterest()
 const { removeStacLayer, addStacLayer } = useStacLayer()
 const { map } = useMap()
-const { showWarning } = useSnackbar()
+const { showWarning } = useNotifier()
 
 const props = defineProps<{
   tileId: string

@@ -18,7 +18,8 @@
     "ol": "^10.7.0",
     "vue": "^3.4.15",
     "vue-router": "^4.2.5",
-    "vuetify": "^3.9.5"
+    "vuetify": "^3.9.5",
+    "vuetify-notifier": "^2.0.19"
   },
   "devDependencies": {
     "@mdi/js": "^7.4.47",

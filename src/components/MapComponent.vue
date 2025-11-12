@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, defineExpose } from 'vue'
 import { Map, View } from 'ol'
 import DataCabinet from './DataCabinet.vue'
 import ProcessingResults from './ProcessingResults.vue'
@@ -8,12 +8,12 @@ import createLabelLayer from '../layers/Label-Layer'
 import createS2GridLayer from '../layers/S2-Grid-Layer'
 import createCloudlessLayer from '../layers/S2-Cloudless-Layer'
 import { generateJWT } from '../functions/generate-jwt'
-import { useAreaOfInterest } from '../composables/useAreaOfInterest'
-import { useSearch } from '../composables/useSearch'
-import { usePermalink } from '../composables/usePermalink'
-import { useMap } from '../composables/useMap'
-import { useSnackbar } from '../composables/useSnackbar'
-import { setAvailableModels } from '../composables/useSettings'
+import useAreaOfInterest from '../composables/useAreaOfInterest'
+import useSearch from '../composables/useSearch'
+import usePermalink from '../composables/usePermalink'
+import useMap from '../composables/useMap'
+import useNotifier from '../composables/useNotifier'
+import useSettings from '../composables/useSettings'
 
 const {
   map,
@@ -24,13 +24,14 @@ const {
   originalClickPosition,
   hidePropertiesBox,
 } = useMap()
-const dataCabinetRef = ref<InstanceType<typeof DataCabinet> | null>(null)
-const geoJSONResults = ref<any[]>([])
 
 const { addMapClickHandler } = useAreaOfInterest()
 const { handleSearchResults } = useSearch()
-const { setupPermalink } = usePermalink()
-const { messages, showCritical } = useSnackbar()
+const { showCritical } = useNotifier()
+const { setAvailableModels } = useSettings()
+
+const dataCabinetRef = ref<InstanceType<typeof DataCabinet> | null>(null)
+const geoJSONResults = ref<any[]>([])
 
 const updateGeoJSONResults = (results: any[]) => {
   geoJSONResults.value = results
@@ -39,6 +40,10 @@ const updateGeoJSONResults = (results: any[]) => {
 const clearResults = () => {
   geoJSONResults.value = []
 }
+
+const { setupPermalink } = usePermalink()
+
+const critical = ref<string | null>(null)
 
 onMounted(async () => {
   map.value = new Map({
@@ -63,23 +68,23 @@ onMounted(async () => {
     const data = await response.json()
     if (!response.ok) {
       const error = data?.detail || response.statusText
-      showCritical(`Can't connect to server: ${error}`)
+      throw new Error(error)
     }
-    areaValues.value = {
-      min_area_km2: data.min_area_km2 ?? 100,
-      max_area_km2: data.max_area_km2 ?? 500,
+    if (typeof data.min_area_km2 === 'number') {
+      areaValues.value.min_area_km2 = data.min_area_km2
+      areaValues.value.default = false
+    }
+    if (typeof data.max_area_km2 === 'number') {
+      areaValues.value.max_area_km2 = data.max_area_km2
+      areaValues.value.default = false
     }
 
     // Set available models if they exist in the response
     if (data.models && Array.isArray(data.models)) {
       setAvailableModels(data.models)
     }
-  } catch (error) {
-    areaValues.value = {
-      min_area_km2: 500,
-      max_area_km2: 100,
-    }
-    showCritical(`Can't connect to server: ${error.message}`)
+  } catch (error: any) {
+    critical.value = `Can't connect to server: ${error?.message || error}`
   }
 
   // Add S2 Grid layer after map is initialized
@@ -89,7 +94,7 @@ onMounted(async () => {
     map.value.addLayer(s2GridLayer)
 
     // Setup permalink functionality
-    setupPermalink()
+    setupPermalink(map)
   }
 })
 
@@ -103,27 +108,22 @@ defineExpose({
 <template>
   <div class="map-wrapper">
     <div id="map" class="map-container"></div>
+
     <DataCabinet
       v-if="map"
       :map="map as Map"
-      :areaValues="areaValues!"
+      :areaValues="areaValues"
       :dataCabinetRef="dataCabinetRef"
       ref="dataCabinetRef"
       @updateGeoJSONResults="updateGeoJSONResults"
     />
+
     <ProcessingResults
       v-if="map"
       :map="map as Map"
       :geoJSONResults="geoJSONResults"
       @clearResults="clearResults"
     />
-    <v-snackbar-queue
-      closable
-      timer
-      close-on-back
-      close-text="✖"
-      v-model="messages"
-    ></v-snackbar-queue>
   </div>
 
   <!-- Properties Box -->
@@ -160,9 +160,21 @@ defineExpose({
       />
     </div>
   </div>
+
+  <header v-if="critical" id="critical">
+    <v-alert closable type="error" :text="critical"></v-alert>
+  </header>
 </template>
 
 <style scoped>
+#critical {
+  position: absolute;
+  bottom: 1rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1000;
+}
+
 .map-wrapper {
   position: absolute;
   top: 0;

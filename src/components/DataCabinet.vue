@@ -1,26 +1,23 @@
 <script setup lang="ts">
 import { mdiChevronDown } from '@mdi/js'
-import { ref } from 'vue'
-import { useAreaOfInterest } from '../composables/useAreaOfInterest'
-import { useMap } from '../composables/useMap'
-import { useSearch } from '../composables/useSearch'
+import { ref, defineEmits, watch } from 'vue'
+import useAreaOfInterest from '../composables/useAreaOfInterest'
+import useSearch from '../composables/useSearch'
 import ProcessingPanel from './ProcessingPanel.vue'
 
 const emit = defineEmits<{
   (e: 'updateGeoJSONResults', results: any[]): void
 }>()
 
-const { map } = useMap()
 const { searchStatus } = useSearch()
 const { currentMgrsTileId } = useAreaOfInterest()
 
 // Sidebar state
-const isOpen = ref(Boolean(map.value))
+const isProcessing = ref(false)
+const isOpen = ref(true)
 const toggleCollapsible = () => {
   isOpen.value = !isOpen.value
 }
-
-const isProcessing = ref(false)
 </script>
 
 <template>
@@ -54,7 +51,7 @@ const isProcessing = ref(false)
         v-if="currentMgrsTileId"
         @processing-changed="(v) => (isProcessing = v)"
         @updateGeoJSONResults="
-          (results: any[]) => {
+          (results) => {
             emit('updateGeoJSONResults', results)
           }
         "
