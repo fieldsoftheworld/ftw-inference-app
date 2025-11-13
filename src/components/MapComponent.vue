@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, defineExpose } from 'vue'
+import { ref, onMounted } from 'vue'
 import { Map, View } from 'ol'
 import DataCabinet from './DataCabinet.vue'
 import ProcessingResults from './ProcessingResults.vue'

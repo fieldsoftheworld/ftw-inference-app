@@ -1,5 +1,5 @@
-import { Polygon } from 'geojson'
-import { SearchResult } from '../composables/useSearch'
+import type { Polygon } from 'geojson'
+import type { SearchResult } from '../composables/useSearch'
 import useSettings from '../composables/useSettings'
 
 const { sceneYear } = useSettings()

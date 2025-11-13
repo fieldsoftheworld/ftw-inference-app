@@ -1,6 +1,6 @@
-import { Polygon } from 'geojson'
+import type { Polygon } from 'geojson'
 import { type Ref, ref } from 'vue'
-import searchStacApi, { SearchSettings } from '../functions/search-stac-api'
+import searchStacApi, { type SearchSettings } from '../functions/search-stac-api'
 import useNotifier from './useNotifier'
 
 export interface SearchResult {

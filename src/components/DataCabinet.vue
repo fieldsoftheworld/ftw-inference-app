@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { mdiChevronDown } from '@mdi/js'
-import { ref, defineEmits } from 'vue'
+import { ref } from 'vue'
 import useAreaOfInterest from '../composables/useAreaOfInterest'
 import useSearch from '../composables/useSearch'
 import ProcessingPanel from './ProcessingPanel.vue'

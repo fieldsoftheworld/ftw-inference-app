@@ -1,11 +1,11 @@
-import { Ref, watch } from 'vue'
+import { type Ref, watch } from 'vue'
 import type Map from 'ol/Map'
 import useAreaOfInterest from './useAreaOfInterest'
 import useMap from './useMap'
 import useSearch from './useSearch'
 import useSettings from './useSettings'
 import { fromLonLat, toLonLat, transformExtent } from 'ol/proj'
-import { Extent } from 'ol/extent'
+import { type Extent } from 'ol/extent'
 import { type Coordinate } from 'ol/coordinate'
 
 export interface PermalinkState {

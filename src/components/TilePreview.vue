@@ -4,7 +4,7 @@ import useAreaOfInterest from '../composables/useAreaOfInterest'
 import useMap from '../composables/useMap'
 import useStacLayer from '../composables/useStacLayer'
 import useNotifier from '../composables/useNotifier'
-import { SearchResult } from '../composables/useSearch'
+import type { SearchResult } from '../composables/useSearch'
 
 const { activeTileId, secondActiveTileId, currentGridExtent, getTileById } = useAreaOfInterest()
 const { removeStacLayer, addStacLayer } = useStacLayer()

@@ -59,7 +59,7 @@
 
 <script setup lang="ts">
 import type Map from 'ol/Map'
-import { computed, ref, watch, defineProps, defineEmits } from 'vue'
+import { computed, ref, watch } from 'vue'
 import useNotifier from '../composables/useNotifier'
 import useAreaOfInterest from '../composables/useAreaOfInterest'
 import PropertyDisplay from './PropertyDisplay.vue'

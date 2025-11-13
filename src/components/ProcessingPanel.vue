@@ -1,15 +1,15 @@
 <script setup lang="ts">
-import { ref, onUnmounted, watch, nextTick, computed, onMounted, defineEmits } from 'vue'
+import { ref, onUnmounted, watch, nextTick, computed, onMounted } from 'vue'
 import { type Extent } from 'ol/extent'
 import { generateJWT } from '../functions/generate-jwt'
 import { transformExtent } from 'ol/proj'
 import searchStacApi from '../functions/search-stac-api'
-import useSearch, { SearchResult } from '../composables/useSearch'
+import useSearch, { type SearchResult } from '../composables/useSearch'
 import { fromExtent } from 'ol/geom/Polygon'
 import VectorSource from 'ol/source/Vector'
 import VectorLayer from 'ol/layer/Vector'
 import GeoJSON from 'ol/format/GeoJSON'
-import { FeatureCollection } from 'geojson'
+import { type FeatureCollection } from 'geojson'
 import useNotifier from '../composables/useNotifier'
 import useStacLayer from '../composables/useStacLayer'
 import useAreaOfInterest from '../composables/useAreaOfInterest'
@@ -221,7 +221,7 @@ const updateBBox = (index: number, value: number) => {
   bbox.value = newBbox
 }
 
-const syncBBox = (newValue) => {
+const syncBBox = (newValue?: number[]) => {
   // todo: Sync doesn't work properly when only chancing in a single tile
   if (Array.isArray(newValue)) {
     bbox.value = transformExtent(newValue, 'EPSG:3857', 'EPSG:4326')
@@ -273,10 +273,10 @@ const filteredResults = computed(() => {
   )
 })
 
-const sortAsc = (a, b) => {
+const sortAsc = (a: SearchResult, b: SearchResult) => {
   return (a.isoDate || a.id).localeCompare(b.isoDate || b.id)
 }
-const sortDesc = (a, b) => {
+const sortDesc = (a: SearchResult, b: SearchResult) => {
   return (b.isoDate || b.id).localeCompare(a.isoDate || a.id)
 }
 
@@ -972,15 +972,15 @@ onUnmounted(() => {
                 label="min. Longitude"
                 :min="-180.0"
                 :max="180.0"
-                :step="0.0000001"
-                :precision="7"
+                :step="0.0001"
+                :precision="4"
                 density="compact"
                 variant="outlined"
                 control-variant="stacked"
                 hide-details
               ></v-number-input
             ></v-col>
-            <v-col cols="2"> < </v-col>
+            <v-col cols="2"> </v-col>
             <v-col cols="5">
               <v-number-input
                 :model-value="bbox[2]"
@@ -988,8 +988,8 @@ onUnmounted(() => {
                 label="max. Longitude"
                 :min="-180.0"
                 :max="180.0"
-                :step="0.0000001"
-                :precision="7"
+                :step="0.0001"
+                :precision="4"
                 density="compact"
                 variant="outlined"
                 control-variant="stacked"
@@ -1006,8 +1006,8 @@ onUnmounted(() => {
                 label="min. Latitude"
                 :min="-180.0"
                 :max="180.0"
-                :step="0.0000001"
-                :precision="7"
+                :step="0.0001"
+                :precision="4"
                 density="compact"
                 variant="outlined"
                 control-variant="stacked"

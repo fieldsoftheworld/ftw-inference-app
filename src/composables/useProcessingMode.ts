@@ -1,6 +1,6 @@
 import { ref, computed } from 'vue'
 import useNotifier from './useNotifier'
-import useMap, { AreaValues } from './useMap'
+import useMap, { type AreaValues } from './useMap'
 
 const processingMode = ref<'smallAreaProcessing' | 'batchProcessing' | null>('smallAreaProcessing')
 
