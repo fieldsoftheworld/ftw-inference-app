@@ -37,6 +37,7 @@ const updateGeoJSONResults = (results: any[]) => {
 
 const clearResults = () => {
   geoJSONResults.value = []
+  hidePropertiesBox()
 }
 
 const { setupPermalink } = usePermalink()

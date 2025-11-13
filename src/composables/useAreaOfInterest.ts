@@ -161,20 +161,20 @@ export default function useAreaOfInterest() {
     blockMapClicks.value = false
 
     // Remove the GeoJSON results layer from the map
-    if (vectorLayer) {
-      map.removeLayer(vectorLayer)
+    if (vectorLayer.value) {
+      map.removeLayer(vectorLayer.value)
       // Dispose of the layer source to free memory
-      if ((vectorLayer as any).getSource) {
-        ;(vectorLayer as any).getSource().dispose()
+      if (vectorLayer.value.getSource) {
+        vectorLayer.value.getSource()!.dispose()
       }
     }
 
     addExtentInteraction(map, areaValues.value)
 
     // Zoom back to the stored grid extent if available
-    if (drawnExtent.value) {
+    if (currentGridExtent.value) {
       const padding = 50
-      const paddedExtent = buffer(drawnExtent.value, padding)
+      const paddedExtent = buffer(currentGridExtent.value, padding)
 
       map.getView().fit(paddedExtent, {
         duration: 1000,
