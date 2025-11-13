@@ -63,7 +63,7 @@ const validStyle = new Style({
 
 export default function useAreaOfInterest() {
   const { clearSearchResults, searchResults } = useSearch()
-  const { autoSceneSelection, settings } = useSettings()
+  const { settings } = useSettings()
   const { maxArea } = useMap()
   const { updateProcessingMode } = useProcessingMode()
   const { showWarning } = useNotifier()
@@ -156,7 +156,7 @@ export default function useAreaOfInterest() {
 
           updateProcessingMode(area, areaValues)
 
-          if (!autoSceneSelection.value) {
+          if (!settings.value.autoSceneSelection) {
             // Check geometry containment if both tiles are selected
             checkBboxContainment(newExtent, drawnExtent)
           }
@@ -354,7 +354,7 @@ export default function useAreaOfInterest() {
         currentMgrsTileId.value = mgrsTileId
 
         // If the clicked feature is the same as the current tile, don't do anything
-        // todo: should this be currentMgrsTileId.value?
+        // todo: Does this actually work as intended?
         if (currentMgrsTileId === mgrsTileId) {
           return
         }
@@ -401,7 +401,7 @@ export default function useAreaOfInterest() {
           // Use 70% of the grid extent centered within the grid
           const gridWidth = extent[2] - extent[0]
           const gridHeight = extent[3] - extent[1]
-          const shrinkFactor = 0.15 // 15% shrink from each side (70% total)
+          const shrinkFactor = 0.4 // 40% shrink from each side (80% total)
 
           const bbox = [
             extent[0] + gridWidth * shrinkFactor, // minLon
@@ -551,32 +551,6 @@ export default function useAreaOfInterest() {
     return tile ?? null
   }
 
-  function getHemisphere(utmTile: string | null) {
-    if (!utmTile) {
-      return null
-    }
-    // Example input: "39UWA"
-    const match = utmTile.match(/^(\d+)([A-Z])/)
-    if (!match) throw new Error('Invalid UTM tile format')
-
-    const latitudeBand = match[2]
-
-    // 2. Letters N through X (except O) are in the Northern Hemisphere.
-    //    Letters C through M are in the Southern Hemisphere.
-    const northern = 'RSTUVWXY' // UTM uses C–X (skips I and O)
-    const southern = 'CDEFGHJ'
-    const equatorial = 'KLMNPQ'
-
-    if (northern.includes(latitudeBand)) {
-      return 'N'
-    } else if (southern.includes(latitudeBand)) {
-      return 'S'
-    } else if (equatorial.includes(latitudeBand)) {
-      return null
-    }
-    throw new Error('Invalid latitude band in UTM tile')
-  }
-
   return {
     maxArea,
     drawnExtent,
@@ -594,6 +568,5 @@ export default function useAreaOfInterest() {
     triggerTileSelection,
     calculateArea,
     getTileById,
-    getHemisphere,
   }
 }

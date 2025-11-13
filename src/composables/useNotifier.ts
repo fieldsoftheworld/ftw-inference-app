@@ -10,10 +10,7 @@ export default function useNotifier() {
   const notifier = useVuetifyNotifier()
 
   const showNotifier = (notification: NotifierMessage) => {
-    let { type, text, timeout = 10 } = notification
-    if (timeout > 0) {
-      timeout *= 1000 // convert to milliseconds
-    }
+    const { type, text } = notification
     notifier.toast({
       type,
       text,
@@ -22,31 +19,26 @@ export default function useNotifier() {
   }
 
   // todo: reimplement timeouts in toasts
-  const showWarning = (text: string, timeout: number = 10) => {
-    showNotifier({ type: 'warning', text, timeout })
+  const showWarning = (text: string) => {
+    showNotifier({ type: 'warning', text })
   }
 
-  const showError = (text: string, timeout: number = 15) => {
-    showNotifier({ type: 'error', text, timeout })
+  const showError = (text: string) => {
+    showNotifier({ type: 'error', text })
   }
 
-  const showCritical = (text: string, timeout: number = -1) => {
-    showNotifier({ type: 'error', text, timeout })
+  const showSuccess = (text: string) => {
+    showNotifier({ type: 'success', text })
   }
 
-  const showSuccess = (text: string, timeout: number = 5) => {
-    showNotifier({ type: 'success', text, timeout })
-  }
-
-  const showInfo = (text: string, timeout: number = 10) => {
-    showNotifier({ type: 'info', text, timeout })
+  const showInfo = (text: string) => {
+    showNotifier({ type: 'info', text })
   }
 
   return {
     showNotifier,
     showWarning,
     showError,
-    showCritical,
     showSuccess,
     showInfo,
   }

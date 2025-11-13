@@ -10,18 +10,18 @@ import VectorSource from 'ol/source/Vector'
 import VectorLayer from 'ol/layer/Vector'
 import GeoJSON from 'ol/format/GeoJSON'
 import { type FeatureCollection } from 'geojson'
+import useSettings from '../composables/useSettings'
 import useNotifier from '../composables/useNotifier'
 import useStacLayer from '../composables/useStacLayer'
 import useAreaOfInterest from '../composables/useAreaOfInterest'
 import useProcessingMode from '../composables/useProcessingMode'
 import useMap from '../composables/useMap'
 import { mdiHelpCircleOutline } from '@mdi/js'
-import useSettings from '../composables/useSettings'
 import TilePreview from './TilePreview.vue'
 
 const emit = defineEmits<{
   (e: 'updateGeoJSONResults', results: any[]): void
-  (e: 'processingChanged', isProcessing: boolean): void
+  (e: 'workStateChanged', isWorking: boolean): void
 }>()
 
 const { map, vectorLayer, handleMapClick, areaValues } = useMap()
@@ -32,19 +32,33 @@ const {
   removeDrawVectorLayer,
   drawnExtent,
   getTileById,
-  getHemisphere,
   triggerTileSelection,
 } = useAreaOfInterest()
 const { showInfo, showWarning, showError, showSuccess } = useNotifier()
 const { isBatchProcessing, updateProcessingMode } = useProcessingMode()
-
 const { currentBbox, hasMore, isLoading, searchResults, searchStatus, handleSearchResults } =
   useSearch()
-
 const { activeTileId, secondActiveTileId, currentMgrsTileId } = useAreaOfInterest()
+const { settings, collections, availableCollections, availableModels, modelIsSingleShot } =
+  useSettings()
+
+const months = [
+  { value: 1, title: '1 - January' },
+  { value: 2, title: '2 - February' },
+  { value: 3, title: '3 - March' },
+  { value: 4, title: '4 - April' },
+  { value: 5, title: '5 - May' },
+  { value: 6, title: '6 - June' },
+  { value: 7, title: '7 - July' },
+  { value: 8, title: '8 - August' },
+  { value: 9, title: '9 - September' },
+  { value: 10, title: '10 - October' },
+  { value: 11, title: '11 - November' },
+  { value: 12, title: '12 - December' },
+]
 
 watch(drawnExtent, (newValue) => {
-  if (!autoSceneSelection.value && newValue) {
+  if (activePanel.value !== 'location' && !settings.value.autoSceneSelection && newValue) {
     activePanel.value = 'win-a'
   }
 })
@@ -64,22 +78,15 @@ const activePanel = ref<string | null>(null)
 const hasLoadedMore = ref(false)
 const retryTimeout = ref<number | null>(null)
 const sceneSelectionStatus = ref<boolean | null>(null)
-
 const sceneYears = Array.from({ length: 10 }, (_, i) => new Date().getFullYear() - i)
 
-const {
-  settings,
-  collections,
-  availableCollections,
-  availableModels,
-  autoSceneSelection,
-  sceneYear,
-  modelIsSingleShot,
-} = useSettings()
+const isSelectingScenes = computed(
+  () => sceneSelectionStatus.value === null && settings.value.autoSceneSelection
+)
 
 let abortController: AbortController | null = null
-watch([drawnExtent, sceneYear, settings], async ([newExtent, newYear]) => {
-  if (!autoSceneSelection.value || !newExtent || !newYear) {
+watch([drawnExtent, settings], async ([newExtent, newSettings]) => {
+  if (!newSettings.autoSceneSelection || !newExtent || !newSettings.year) {
     return
   }
 
@@ -103,8 +110,8 @@ watch([drawnExtent, sceneYear, settings], async ([newExtent, newYear]) => {
       },
       body: JSON.stringify({
         bbox: transformExtent(newExtent, 'EPSG:3857', 'EPSG:4326'),
-        year: newYear,
-        cloud_cover_max: settings.value.cloudCover,
+        year: newSettings.year,
+        cloud_cover_max: newSettings.cloudCover,
       }),
       signal: abortController.signal,
     })
@@ -144,7 +151,7 @@ watch([drawnExtent, sceneYear, settings], async ([newExtent, newYear]) => {
 
 // todo: check whether we should only run on a subset of settings
 watch(
-  [settings, sceneYear, currentBbox],
+  [settings, currentBbox],
   () => {
     // If there's an active search area, refresh the search with new settings
     if (currentBbox.value && currentMgrsTileId.value) {
@@ -244,8 +251,8 @@ watch(activeTileId, async (id) => {
 watch(secondActiveTileId, async (id) => {
   secondTile.value = id ? await getTileById(id) : null
 })
-watch([isProcessing, isCreatingProject], () => {
-  emit('processingChanged', isProcessing.value || isCreatingProject.value)
+watch([isProcessing, isCreatingProject, isSelectingScenes], () => {
+  emit('workStateChanged', isProcessing.value || isCreatingProject.value || isSelectingScenes.value)
 })
 watch(sceneSelectionStatus, (newValue) => {
   if (newValue === false) {
@@ -255,12 +262,12 @@ watch(sceneSelectionStatus, (newValue) => {
 })
 
 const collectionTitle = computed(() => {
-  const collection = settings.value.selectedCollection[0]
+  const collection = settings.value.collection[0]
   return collection ? collections[collection] : null
 })
 
 const modelTitle = computed(() => {
-  const model = settings.value.selectedModel
+  const model = settings.value.model
   return model ? availableModels.value.find((m) => m.id === model)?.title || null : null
 })
 
@@ -280,22 +287,12 @@ const sortDesc = (a: SearchResult, b: SearchResult) => {
   return (b.isoDate || b.id).localeCompare(a.isoDate || a.id)
 }
 
-// Sorts based on hemisphere of currentMgrsTileId
-// Window A: Southern: Descending, Equatorial: Ascending, Northern: Ascending
-// Window B: Southern: Ascending, Equatorial: Ascending, Northern: Descending
 const resultsA = computed(() => {
-  const hemisphere = getHemisphere(currentMgrsTileId.value)
-  return filteredResults.value.sort(hemisphere === 'S' ? sortDesc : sortAsc)
+  return filteredResults.value.sort(sortAsc)
 })
 const resultsB = computed(() => {
-  const hemisphere = getHemisphere(currentMgrsTileId.value)
-  return filteredResults.value.sort(hemisphere === 'N' ? sortDesc : sortAsc)
+  return filteredResults.value.sort(sortDesc)
 })
-
-const clearDateFilters = () => {
-  settings.value.startDate = ''
-  settings.value.endDate = ''
-}
 
 // Function to load more results
 const loadMore = async () => {
@@ -476,7 +473,7 @@ const handleSmallAreaProcessingRequest = async () => {
       },
       body: JSON.stringify({
         inference: {
-          model: settings.value.selectedModel,
+          model: settings.value.model,
           images: modelIsSingleShot.value
             ? [firstTile.value.itemUrl]
             : [firstTile.value.itemUrl, secondTile.value?.itemUrl],
@@ -490,7 +487,7 @@ const handleSmallAreaProcessingRequest = async () => {
 
     if (response.status === 503) {
       // Server is busy, schedule retry
-      showInfo('Server is busy. Retrying in 15 seconds...', 15)
+      showInfo('Server is busy. Retrying in 15 seconds...')
       isProcessing.value = false
 
       // Clear any existing timeout
@@ -605,7 +602,7 @@ const handleCompareTiles = async () => {
 
     if (createResponse.status === 503) {
       // Server is busy, schedule retry
-      showInfo('Server is busy. Retrying in 15 seconds...', 15)
+      showInfo('Server is busy. Retrying in 15 seconds...')
       isCreatingProject.value = false
 
       // Clear any existing timeout
@@ -644,7 +641,7 @@ const handleCompareTiles = async () => {
         Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify({
-        model: settings.value.selectedModel,
+        model: settings.value.model,
         bbox: transformExtent(drawnExtent.value, 'EPSG:3857', 'EPSG:4326'),
         images: modelIsSingleShot.value
           ? [firstTile.value.itemUrl]
@@ -654,7 +651,7 @@ const handleCompareTiles = async () => {
 
     if (batchProcessingResponse.status === 503) {
       // Server is busy, schedule retry
-      showInfo('Server is busy. Retrying in 15 seconds...', 15)
+      showInfo('Server is busy. Retrying in 15 seconds...')
       isProcessing.value = false
 
       // Clear any existing timeout
@@ -814,8 +811,7 @@ onUnmounted(() => {
     </v-row>
 
     <v-expansion-panels v-model="activePanel">
-      <!-- Project, disabled until in use -->
-      <v-expansion-panel v-if="isBatchProcessing" value="project" disabled>
+      <v-expansion-panel v-if="isBatchProcessing" value="project">
         <v-expansion-panel-title>
           <span class="header-text">
             Project
@@ -842,7 +838,7 @@ onUnmounted(() => {
           </span>
         </v-expansion-panel-title>
         <v-expansion-panel-text>
-          <v-radio-group v-model="settings.selectedModel" inline hide-details>
+          <v-radio-group v-model="settings.model" inline hide-details>
             <v-radio v-for="model in availableModels" :key="model.id" :value="model.id" color="teal"
               ><template v-slot:label>
                 {{ model.title }}
@@ -892,7 +888,7 @@ onUnmounted(() => {
           </span>
         </v-expansion-panel-title>
         <v-expansion-panel-text>
-          <v-radio-group v-model="settings.selectedCollection" inline hide-details>
+          <v-radio-group v-model="settings.collection" inline hide-details>
             <v-radio
               v-for="collection in availableCollections"
               :key="collection[0]"
@@ -1023,7 +1019,7 @@ onUnmounted(() => {
         <v-expansion-panel-title>
           <span class="header-text">
             Time
-            <v-badge v-if="sceneYear" inline color="teal" :content="sceneYear"></v-badge>
+            <v-badge v-if="settings.year" inline color="teal" :content="settings.year"></v-badge>
             <v-badge v-else inline color="error" content="Missing"></v-badge>
           </span>
         </v-expansion-panel-title>
@@ -1032,9 +1028,9 @@ onUnmounted(() => {
             <v-col>
               <v-select
                 type="number"
-                v-model.number="sceneYear"
+                v-model.number="settings.year"
                 :items="sceneYears"
-                label="Year for scene selection"
+                label="Year of planting"
                 hide-details
                 variant="outlined"
               />
@@ -1042,47 +1038,41 @@ onUnmounted(() => {
           </v-row>
 
           <v-row>
-            <v-col cols="5">
-              <v-text-field
-                v-model="settings.startDate"
-                type="date"
-                label="Start Date"
+            <v-col cols="6">
+              <v-select
+                v-model="settings.startMonth"
+                :items="months"
+                label=" Start Month"
                 variant="outlined"
                 density="compact"
                 hide-details
-                :disabled="autoSceneSelection"
+                :disabled="settings.autoSceneSelection"
               />
             </v-col>
-            <v-col cols="5">
-              <v-text-field
-                v-model="settings.endDate"
-                type="date"
-                label="End Date"
+            <v-col cols="6">
+              <v-select
+                v-model="settings.endMonth"
+                :items="months"
+                label="End Month"
                 variant="outlined"
                 density="compact"
                 hide-details
-                :disabled="autoSceneSelection"
+                :disabled="settings.autoSceneSelection"
               />
-            </v-col>
-            <v-col cols="2">
-              <v-btn
-                variant="outlined"
-                color="grey"
-                @click="clearDateFilters"
-                :disabled="autoSceneSelection"
-              >
-                Clear
-              </v-btn>
             </v-col>
           </v-row>
           <v-row>
             <v-col>
-              <v-alert color="gray" type="info" density="compact">
+              <v-alert color="gray" type="info" variant="tonal" density="compact">
                 Select a year for the scene selection. Automatic scene selection will automatically
                 choose start and end dates based on crop calendars. Thus, start and end date
                 selection will only be available for manual scene selection.
-                <v-btn @click="autoSceneSelection = !autoSceneSelection" size="small" class="mt-2">
-                  <template v-if="autoSceneSelection">Disable</template>
+                <v-btn
+                  @click="settings.autoSceneSelection = !settings.autoSceneSelection"
+                  size="small"
+                  class="mt-2"
+                >
+                  <template v-if="settings.autoSceneSelection">Disable</template>
                   <template v-else>Enable</template>
                   automatic scene selection
                 </v-btn>
@@ -1097,7 +1087,12 @@ onUnmounted(() => {
           <span class="header-text">
             Coverage
             <v-badge inline color="blue" :content="`Cloud ${settings.cloudCover}%`"></v-badge>
-            <v-badge inline color="brown" :content="`Area ${settings.areaCoverage}%`"></v-badge>
+            <v-badge
+              v-if="!settings.autoSceneSelection"
+              inline
+              color="brown"
+              :content="`Area ${settings.areaCoverage}%`"
+            ></v-badge>
           </span>
         </v-expansion-panel-title>
         <v-expansion-panel-text>
@@ -1106,18 +1101,20 @@ onUnmounted(() => {
             <v-col cols="6">
               <v-label class="text-subtitle-2">Cloud Cover (%)</v-label>
             </v-col>
-            <v-col cols="6" align="right">
-              <v-text-field
+            <v-col cols="6" class="d-flex justify-end">
+              <v-number-input
                 v-model="settings.cloudCover"
-                type="number"
-                min="1"
-                max="100"
-                variant="outlined"
-                density="compact"
-                hide-details
-                style="width: 80px"
                 @update:model-value="updateCloudCoverInput"
-              />
+                :min="1"
+                :max="100"
+                :step="1"
+                :precision="0"
+                density="compact"
+                variant="outlined"
+                control-variant="stacked"
+                hide-details
+                class="coverage-input"
+              ></v-number-input>
             </v-col>
           </v-row>
           <v-row>
@@ -1153,18 +1150,22 @@ onUnmounted(() => {
             <v-col cols="6">
               <v-label class="text-subtitle-2">Area Coverage (%)</v-label>
             </v-col>
-            <v-col cols="6" align="right">
-              <v-text-field
+
+            <v-col cols="6" class="d-flex justify-end">
+              <v-number-input
                 v-model="settings.areaCoverage"
-                type="number"
-                min="1"
-                max="100"
-                variant="outlined"
-                density="compact"
-                hide-details
-                style="width: 80px"
                 @update:model-value="updateAreaCoverageInput"
-              />
+                :min="0"
+                :max="100"
+                :step="1"
+                :precision="0"
+                :disabled="settings.autoSceneSelection"
+                density="compact"
+                variant="outlined"
+                control-variant="stacked"
+                hide-details
+                class="coverage-input"
+              ></v-number-input>
             </v-col>
           </v-row>
           <v-row>
@@ -1174,6 +1175,7 @@ onUnmounted(() => {
                 min="1"
                 max="100"
                 step="1"
+                :disabled="settings.autoSceneSelection"
                 color="teal"
                 track-color="grey-darken-2"
                 thumb-color="teal"
@@ -1182,16 +1184,28 @@ onUnmounted(() => {
               />
             </v-col>
           </v-row>
+          <v-row v-if="settings.autoSceneSelection">
+            <v-col>
+              <v-alert color="gray" type="info" variant="tonal" density="compact">
+                Area coverage is not relevant when automatic scene selection is enabled.
+              </v-alert>
+            </v-col>
+          </v-row>
         </v-expansion-panel-text>
       </v-expansion-panel>
       <!-- Scene Selection -->
       <v-expansion-panel value="scene-selection">
         <v-expansion-panel-title>
           <span class="header-text">
-            Scene Selection
-            <v-badge v-if="autoSceneSelection" inline color="teal" content="Automatic"></v-badge>
+            Scene Selection Mode
+            <v-badge
+              v-if="settings.autoSceneSelection"
+              inline
+              color="teal"
+              content="Automatic"
+            ></v-badge>
             <v-badge v-else inline color="warning" content="Manual"></v-badge>
-            <template v-if="autoSceneSelection">
+            <template v-if="settings.autoSceneSelection">
               <v-badge
                 v-if="sceneSelectionStatus === true"
                 inline
@@ -1210,7 +1224,7 @@ onUnmounted(() => {
         <v-expansion-panel-text>
           <v-row>
             <v-col>
-              <v-checkbox v-model="autoSceneSelection" density="compact" hide-details
+              <v-checkbox v-model="settings.autoSceneSelection" density="compact" hide-details
                 ><template v-slot:label>Automatic Scene Selection </template>
               </v-checkbox>
             </v-col>
@@ -1371,20 +1385,6 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
-.results-container {
-  margin-top: 1rem;
-  display: flex;
-  flex-direction: column;
-}
-
-.results-container {
-  flex: 1;
-  min-height: 0;
-  overflow: hidden;
-  position: relative;
-  height: 100%;
-}
-
 .results {
   flex: 1;
   overflow-y: auto;
@@ -1409,6 +1409,10 @@ onUnmounted(() => {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.coverage-input {
+  width: 100px;
 }
 
 .action-buttons {
@@ -1439,18 +1443,5 @@ onUnmounted(() => {
 .action-button:disabled {
   background-color: rgba(0, 136, 136, 0.4);
   cursor: not-allowed;
-}
-
-.selected-results-section {
-  margin-top: auto;
-  position: sticky;
-  bottom: 0;
-  background-color: rgba(0, 0, 0, 0.8);
-  padding-top: 0.5rem;
-}
-
-.selected-results-section.disabled {
-  opacity: 0.5;
-  pointer-events: none;
 }
 </style>

@@ -16,16 +16,16 @@ export interface PermalinkState {
   secondActiveTileId: string | null
   bbox?: Extent
   // Search settings - only included when currentMgrsTileId is present
-  startDate?: string
-  endDate?: string
+  year?: number
+  startMonth?: number
+  endMonth?: number
   cloudCover?: number
   areaCoverage?: number
-  sceneYear?: number
 }
 
 export default function usePermalink() {
   const { handleSearchResults } = useSearch()
-  const { autoSceneSelection, sceneYear } = useSettings()
+  const { settings } = useSettings()
   const { activeTileId, currentMgrsTileId, drawnExtent, secondActiveTileId, triggerTileSelection } =
     useAreaOfInterest()
   const { areaValues } = useMap()
@@ -62,31 +62,49 @@ export default function usePermalink() {
         }
 
         // Parse additional parts as tile IDs (only if they exist and are not null)
-        if (parts.length >= 4 && parts[3] !== 'null') {
+        if (parts.length >= 4 && parts[3]) {
           result.currentMgrsTileId = parts[3]
         }
-        if (parts.length >= 5 && parts[4] !== 'null') {
+        if (parts.length >= 5 && parts[4]) {
           result.activeTileId = parts[4]
         }
-        if (parts.length >= 6 && parts[5] !== 'null') {
+        if (parts.length >= 6 && parts[5]) {
           result.secondActiveTileId = parts[5]
         }
 
         // Parse search settings
         for (let i = 6; i < parts.length; i++) {
           const part = parts[i]
-          if (part.startsWith('start_date:')) {
-            result.startDate = part.substring(11)
-          } else if (part.startsWith('end_date:')) {
-            result.endDate = part.substring(9)
+          if (part.startsWith('start_month:')) {
+            const startMonth = parseInt(part.substring(12), 10)
+            if (!isNaN(startMonth)) {
+              result.startMonth = startMonth
+            }
+          } else if (part.startsWith('end_month:')) {
+            const endMonth = parseInt(part.substring(10), 10)
+            if (!isNaN(endMonth)) {
+              result.endMonth = endMonth
+            }
           } else if (part.startsWith('cloud_cover:')) {
-            result.cloudCover = Number(part.substring(12))
+            const cloudCover = parseInt(part.substring(12), 10)
+            if (!isNaN(cloudCover)) {
+              result.cloudCover = cloudCover
+            }
           } else if (part.startsWith('area_coverage:')) {
-            result.areaCoverage = Number(part.substring(14))
+            const areaCoverage = parseInt(part.substring(14), 10)
+            if (!isNaN(areaCoverage)) {
+              result.areaCoverage = areaCoverage
+            }
           } else if (part.startsWith('bbox:')) {
-            result.bbox = part.substring(5).split(',').map(Number)
-          } else if (part.startsWith('scene_year:')) {
-            result.sceneYear = Number(part.substring(11))
+            const bbox = part.substring(5).split(',').map(Number)
+            if (bbox.length === 4 && bbox.every((num) => !isNaN(num))) {
+              result.bbox = bbox
+            }
+          } else if (part.startsWith('year:')) {
+            const year = parseInt(part.substring(5), 10)
+            if (!isNaN(year)) {
+              result.year = year
+            }
           }
         }
 
@@ -131,15 +149,15 @@ export default function usePermalink() {
     if (currentMgrsTileId) {
       // Add tile IDs
       hashParts.push(currentMgrsTileId)
-      hashParts.push(String(autoSceneSelection.value ? null : activeTileId))
-      hashParts.push(String(autoSceneSelection.value ? null : secondActiveTileId))
+      hashParts.push(String(settings.value.autoSceneSelection ? '' : activeTileId))
+      hashParts.push(String(settings.value.autoSceneSelection ? '' : secondActiveTileId))
 
       if (extent) {
         hashParts.push(`bbox:${extent.join(',')}`)
       }
 
-      if (autoSceneSelection.value && sceneYear.value) {
-        hashParts.push(`scene_year:${sceneYear.value}`)
+      if (settings.value.year) {
+        hashParts.push(`year:${settings.value.year}`)
       }
 
       // If we have a currentMgrsTileId, include search settings
@@ -148,8 +166,8 @@ export default function usePermalink() {
         try {
           const parsed = JSON.parse(stored)
           // Add search settings to the hash
-          if (parsed.startDate) hashParts.push(`start_date:${parsed.startDate}`)
-          if (parsed.endDate) hashParts.push(`end_date:${parsed.endDate}`)
+          if (parsed.startMonth) hashParts.push(`start_month:${parsed.startMonth}`)
+          if (parsed.endMonth) hashParts.push(`end_month:${parsed.endMonth}`)
           if (parsed.cloudCover !== undefined) hashParts.push(`cloud_cover:${parsed.cloudCover}`)
           if (parsed.areaCoverage !== undefined)
             hashParts.push(`area_coverage:${parsed.areaCoverage}`)
@@ -186,14 +204,14 @@ export default function usePermalink() {
 
   function restoreAutoSceneState(state: PermalinkState) {
     let newAutoSceneSelectionValue = true
-    if (state.sceneYear) {
-      sceneYear.value = state.sceneYear
+    if (state.year) {
+      settings.value.year = state.year
       newAutoSceneSelectionValue = true
     }
     if (state.activeTileId || state.secondActiveTileId) {
       newAutoSceneSelectionValue = false
     }
-    autoSceneSelection.value = newAutoSceneSelectionValue
+    settings.value.autoSceneSelection = newAutoSceneSelectionValue
   }
 
   // Setup permalink functionality
@@ -213,8 +231,8 @@ export default function usePermalink() {
         currentMgrsTileId.value,
         activeTileId.value,
         secondActiveTileId.value,
-        autoSceneSelection.value,
-        sceneYear.value,
+        settings.value.autoSceneSelection,
+        settings.value.year,
       ],
       () => {
         if (!map.value) {

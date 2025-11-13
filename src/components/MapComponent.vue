@@ -27,7 +27,6 @@ const {
 
 const { addMapClickHandler } = useAreaOfInterest()
 const { handleSearchResults } = useSearch()
-const { showCritical } = useNotifier()
 const { setAvailableModels } = useSettings()
 
 const dataCabinetRef = ref<InstanceType<typeof DataCabinet> | null>(null)

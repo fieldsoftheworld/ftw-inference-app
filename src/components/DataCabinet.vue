@@ -13,7 +13,7 @@ const { searchStatus } = useSearch()
 const { currentMgrsTileId } = useAreaOfInterest()
 
 // Sidebar state
-const isProcessing = ref(false)
+const isWorking = ref(false)
 const isOpen = ref(true)
 const toggleCollapsible = () => {
   isOpen.value = !isOpen.value
@@ -22,7 +22,7 @@ const toggleCollapsible = () => {
 
 <template>
   <v-card
-    :loading="isProcessing || searchStatus === true"
+    :loading="isWorking || searchStatus === true"
     elevation="8"
     :class="{ closed: !isOpen, 'data-cabinet': true, sidebar: true }"
   >
@@ -49,7 +49,7 @@ const toggleCollapsible = () => {
     <div v-show="isOpen" class="content">
       <ProcessingPanel
         v-if="currentMgrsTileId"
-        @processing-changed="(v) => (isProcessing = v)"
+        @work-state-changed="(v) => (isWorking = v)"
         @updateGeoJSONResults="
           (results) => {
             emit('updateGeoJSONResults', results)

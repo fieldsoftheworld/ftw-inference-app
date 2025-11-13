@@ -2,7 +2,7 @@ import type { Polygon } from 'geojson'
 import type { SearchResult } from '../composables/useSearch'
 import useSettings from '../composables/useSettings'
 
-const { sceneYear } = useSettings()
+const { defaultSettings } = useSettings()
 
 // Store the currently selected feature
 let nextPageToken: string | null = null
@@ -62,26 +62,12 @@ interface StacResponse {
 }
 
 export interface SearchSettings {
-  startDate: string
-  endDate: string
+  startMonth: number
+  endMonth: number
+  year: number
   cloudCover: number
   areaCoverage: number
-  selectedCollection?: string[]
-}
-
-// Function to convert date string to RFC3339 format
-const convertToRFC3339 = (dateString: string, isEndDate: boolean = false): string => {
-  if (typeof dateString !== 'string' || dateString.length != 10) {
-    return ''
-  }
-  dateString += 'T'
-  if (isEndDate) {
-    dateString += '23:59:59'
-  } else {
-    dateString += '00:00:00Z'
-  }
-  dateString += 'Z'
-  return dateString
+  collection?: string[]
 }
 
 export const tileDataFromStacFeature = (item: StacFeature): SearchResult => {
@@ -112,7 +98,7 @@ export const tileDataFromStacFeature = (item: StacFeature): SearchResult => {
 export default async function searchStacApi(
   bbox?: number[],
   resetSearch = true,
-  settings?: SearchSettings,
+  params?: SearchSettings,
 ): Promise<SearchResponse | undefined> {
   // Reset counters for new search
   if (resetSearch) {
@@ -121,19 +107,19 @@ export default async function searchStacApi(
   }
 
   // Use provided settings or fall back to DOM elements
-  const startDate = settings?.startDate
-    ? convertToRFC3339(settings.startDate)
-    : `${sceneYear.value}-01-01T00:00:00Z`
-  const endDate = settings?.endDate
-    ? convertToRFC3339(settings.endDate, true)
-    : `${sceneYear.value}-12-31T23:59:59Z`
-  const cloudCover = settings?.cloudCover || 10
-  const areaCoverage = settings?.areaCoverage || 60
+  const startMonth = String(params?.startMonth || defaultSettings.startMonth).padStart(2, '0')
+  const endMonth = String(params?.endMonth || defaultSettings.endMonth).padStart(2, '0')
+  const startYear = params?.year || defaultSettings.year
+  const endYear = endMonth < startMonth ? startYear + 1 : startYear
+  const startDate = `${startYear}-${startMonth}-01T00:00:00Z`
+  const endDate = `${endYear}-${endMonth}-31T23:59:59Z`
+  const cloudCover = params?.cloudCover || defaultSettings.cloudCover
+  const areaCoverage = params?.areaCoverage || defaultSettings.areaCoverage
 
   try {
     // Build request body for POST
     const requestBody: any = {
-      collections: settings?.selectedCollection || ['sentinel-2-c1-l2a'],
+      collections: params?.collection || ['sentinel-2-c1-l2a'],
       limit: 20,
       query: {
         ['eo:cloud_cover']: {

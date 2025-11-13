@@ -170,13 +170,12 @@ const fitMapToResult = (result: any) => {
   const screenHeight = window.innerHeight
   // Use a percentage of screen dimensions for padding
   // This ensures the geometry fits regardless of screen size
-  const paddingX = Math.max(100, screenWidth * 0.1) // At least 100px or 15% of screen width
-  const paddingY = Math.max(100, screenHeight * 0.1) // At least 100px or 10% of screen height
-
+  const paddingY = Math.max(100, screenHeight * 0.2) // At least 100px or 30% of screen height
   // Fit the map to the result's extent with dynamic padding
   props.map.getView().fit(transformedExtent, {
     duration: 1000,
-    padding: [paddingY, paddingX + 200, paddingY, paddingX + 500], // [top, right, bottom, left]
+    padding: [paddingY, screenWidth * 0.25, paddingY, screenWidth * 0.35], // [top, right, bottom, left]
+    maxZoom: 17,
   })
 }
 
