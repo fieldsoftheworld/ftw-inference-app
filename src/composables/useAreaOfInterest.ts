@@ -346,10 +346,16 @@ export default function useAreaOfInterest() {
       for (const feature of features) {
         // Get the MGRS Tile ID from the feature properties
         const mgrsTileId = feature.get('Name')
+        if (!mgrsTileId) {
+          continue
+        }
+
+        // Set the current MGRS tile ID
         currentMgrsTileId.value = mgrsTileId
 
         // If the clicked feature is the same as the current tile, don't do anything
-        if (!mgrsTileId || currentMgrsTileId === mgrsTileId) {
+        // todo: should this be currentMgrsTileId.value?
+        if (currentMgrsTileId === mgrsTileId) {
           return
         }
 
@@ -407,8 +413,6 @@ export default function useAreaOfInterest() {
           // Call the search function through the ref and open the Batch Processing accordion
           if (currentMgrsTileId.value) {
             handleSearchResults(bbox, settings.value)
-          } else {
-            console.error('S2 Grid Layer: Current MGRS Tile ID is null')
           }
 
           // Add the layer and interactions
