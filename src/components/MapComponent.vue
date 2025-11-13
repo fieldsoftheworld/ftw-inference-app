@@ -12,7 +12,6 @@ import useAreaOfInterest from '../composables/useAreaOfInterest'
 import useSearch from '../composables/useSearch'
 import usePermalink from '../composables/usePermalink'
 import useMap from '../composables/useMap'
-import useNotifier from '../composables/useNotifier'
 import useSettings from '../composables/useSettings'
 
 const {

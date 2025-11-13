@@ -5,7 +5,6 @@ import { generateJWT } from '../functions/generate-jwt'
 import { transformExtent } from 'ol/proj'
 import searchStacApi from '../functions/search-stac-api'
 import useSearch, { type SearchResult } from '../composables/useSearch'
-import { fromExtent } from 'ol/geom/Polygon'
 import VectorSource from 'ol/source/Vector'
 import VectorLayer from 'ol/layer/Vector'
 import GeoJSON from 'ol/format/GeoJSON'
@@ -26,21 +25,15 @@ const emit = defineEmits<{
 
 const { map, vectorLayer, handleMapClick, areaValues } = useMap()
 const { removeStacLayer } = useStacLayer()
-const {
-  calculateArea,
-  removeExtentInteraction,
-  removeDrawVectorLayer,
-  drawnExtent,
-  getTileById,
-  triggerTileSelection,
-} = useAreaOfInterest()
+const { drawnExtent, validateBBox, removeExtentInteraction, getTileById, triggerTileSelection } =
+  useAreaOfInterest()
 const { showInfo, showWarning, showError, showSuccess } = useNotifier()
-const { isBatchProcessing, updateProcessingMode } = useProcessingMode()
-const { currentBbox, hasMore, isLoading, searchResults, searchStatus, handleSearchResults } =
-  useSearch()
-const { activeTileId, secondActiveTileId, currentMgrsTileId } = useAreaOfInterest()
+const { hasMore, isLoading, searchResults, searchStatus, handleSearchResults } = useSearch()
+const { activeTileId, currentBBox, currentBBoxValid, secondActiveTileId, currentMgrsTileId } =
+  useAreaOfInterest()
 const { settings, collections, availableCollections, availableModels, modelIsSingleShot } =
   useSettings()
+const { isBatchProcessing } = useProcessingMode()
 
 const months = [
   { value: 1, title: '1 - January' },
@@ -57,8 +50,8 @@ const months = [
   { value: 12, title: '12 - December' },
 ]
 
-watch(drawnExtent, (newValue) => {
-  if (activePanel.value !== 'location' && !settings.value.autoSceneSelection && newValue) {
+watch(currentBBox, (newValue) => {
+  if (activePanel.value !== 'aoi' && !settings.value.autoSceneSelection && newValue) {
     activePanel.value = 'win-a'
   }
 })
@@ -85,8 +78,8 @@ const isSelectingScenes = computed(
 )
 
 let abortController: AbortController | null = null
-watch([drawnExtent, settings], async ([newExtent, newSettings]) => {
-  if (!newSettings.autoSceneSelection || !newExtent || !newSettings.year) {
+watch([currentBBox, settings], async ([currentBBox, newSettings]) => {
+  if (!newSettings.autoSceneSelection || !currentBBox || !newSettings.year) {
     return
   }
 
@@ -109,7 +102,7 @@ watch([drawnExtent, settings], async ([newExtent, newSettings]) => {
         Authorization: `Bearer ${generateJWT()}`,
       },
       body: JSON.stringify({
-        bbox: transformExtent(newExtent, 'EPSG:3857', 'EPSG:4326'),
+        bbox: currentBBox,
         year: newSettings.year,
         cloud_cover_max: newSettings.cloudCover,
       }),
@@ -151,12 +144,12 @@ watch([drawnExtent, settings], async ([newExtent, newSettings]) => {
 
 // todo: check whether we should only run on a subset of settings
 watch(
-  [settings, currentBbox],
+  [settings, currentBBox],
   () => {
     // If there's an active search area, refresh the search with new settings
-    if (currentBbox.value && currentMgrsTileId.value) {
+    if (currentBBox.value && currentMgrsTileId.value) {
       // Trigger a new search with the updated settings
-      handleSearchResults(currentBbox.value, settings.value)
+      handleSearchResults(currentBBox.value, settings.value)
     }
   },
   { deep: true }
@@ -194,52 +187,35 @@ const loadAvailableTiles = () => {
 }
 
 // Bounding box selection
-const bbox = ref<number[]>(currentBbox.value || [-180.0, -90.0, 180.0, 90.0])
+const bbox = ref<number[]>(currentBBox.value || [-180.0, -90.0, 180.0, 90.0])
 
-const bboxValid = computed(() => {
-  if (bbox.value.length !== 4) {
-    return false
+const syncBBox = (newValue?: Extent) => {
+  if (!newValue) {
+    return
   }
-  const [minX, minY, maxX, maxY] = bbox.value
-  return (
-    typeof minX === 'number' &&
-    typeof minY === 'number' &&
-    typeof maxX === 'number' &&
-    typeof maxY === 'number' &&
-    minX >= -180 &&
-    maxX <= 180 &&
-    minY >= -90 &&
-    maxY <= 90 &&
-    minX < maxX &&
-    minY < maxY
-  )
-})
-
-watch(bboxValid, (newValue) => {
-  if (newValue) {
-    const transformedBbox = transformExtent(bbox.value, 'EPSG:4326', 'EPSG:3857')
-    handleBboxSelected(transformedBbox)
+  const newExtent = transformExtent(newValue, 'EPSG:3857', 'EPSG:4326')
+  if (Array.isArray(newExtent) && newExtent.length === bbox.value.length) {
+    for (let i = 0; i < bbox.value.length; i++) {
+      if (newExtent[i] !== bbox.value[i]) {
+        bbox.value[i] = newExtent[i]
+      }
+    }
   }
-})
+}
+watch(drawnExtent, syncBBox, { immediate: true, deep: 1 })
 
 const updateBBox = (index: number, value: number) => {
-  const newBbox = [...bbox.value]
-  newBbox[index] = value
-  bbox.value = newBbox
-}
-
-const syncBBox = (newValue?: number[]) => {
-  // todo: Sync doesn't work properly when only chancing in a single tile
-  if (Array.isArray(newValue)) {
-    bbox.value = transformExtent(newValue, 'EPSG:3857', 'EPSG:4326')
+  bbox.value[index] = value
+  if (validateBBox(bbox.value)) {
+    currentBBox.value = bbox.value.slice(0)
+    const extent = transformExtent(bbox.value, 'EPSG:4326', 'EPSG:3857')
+    drawnExtent.value = extent
   }
 }
-
-watch(currentBbox, syncBBox, { immediate: true, deep: 1 })
 
 onMounted(() => {
   loadAvailableTiles()
-  syncBBox(currentBbox.value)
+  syncBBox(currentBBox.value)
 })
 
 // Window A and B input fields
@@ -301,7 +277,7 @@ const loadMore = async () => {
 
   searchStatus.value = true
   try {
-    const response = await searchStacApi(currentBbox.value, false, settings.value)
+    const response = await searchStacApi(currentBBox.value, false, settings.value)
     if (response) {
       // Store the first item ID before adding results
       firstNewItemId = response.results.length > 0 ? response.results[0].id : null
@@ -452,8 +428,8 @@ const displayGeoJSON = (geojson: FeatureCollection & { crs: { properties: { name
 }
 
 const handleSmallAreaProcessingRequest = async () => {
-  if (!drawnExtent.value) {
-    showWarning('Please draw an extent on the map before processing.')
+  if (!currentBBox.value) {
+    showWarning('Please provide an area of interest before processing.')
     return
   }
 
@@ -477,7 +453,7 @@ const handleSmallAreaProcessingRequest = async () => {
           images: modelIsSingleShot.value
             ? [firstTile.value.itemUrl]
             : [firstTile.value.itemUrl, secondTile.value?.itemUrl],
-          bbox: transformExtent(drawnExtent.value, 'EPSG:3857', 'EPSG:4326'),
+          bbox: currentBBox.value,
         },
         polygons: {
           close_interiors: true,
@@ -516,8 +492,7 @@ const handleSmallAreaProcessingRequest = async () => {
       if (extent) {
         fitMapToBbox(extent)
         showSuccess('Finished processing, results will be shown on the map.')
-        // Remove the editable bbox since we have results
-        removeDrawVectorLayer(map.value!)
+        removeExtentInteraction()
       } else {
         // displayGeoJSON returned null, which means no valid features or invalid extent
         showWarning(
@@ -532,7 +507,6 @@ const handleSmallAreaProcessingRequest = async () => {
 
     removeStacLayer(map.value!)
     removeStacLayer(map.value!, true)
-    removeExtentInteraction()
   } catch (error) {
     console.error('Error processing:', error)
     showError(
@@ -562,18 +536,6 @@ const handleTileSelected = (tileName: string) => {
       triggerTileSelection(map.value!, tileName, areaValues.value!, handleSearchResults)
     }
   }
-}
-
-const handleBboxSelected = (bbox: number[]) => {
-  // Set the drawn extent for the area of interest
-  drawnExtent.value = bbox
-
-  const geometry = fromExtent(bbox)
-  const area = calculateArea(geometry)
-  updateProcessingMode(area, areaValues.value)
-
-  // Trigger the search with the custom bbox
-  handleSearchResults(bbox, settings.value)
 }
 
 const handleCompareTiles = async () => {
@@ -629,8 +591,8 @@ const handleCompareTiles = async () => {
     isCreatingProject.value = false
     isProcessing.value = true
 
-    if (!drawnExtent.value) {
-      throw new Error('Drawn extent is not set')
+    if (!currentBBox.value) {
+      throw new Error('Area of interest is not set')
     }
 
     // Batch Processing
@@ -642,7 +604,7 @@ const handleCompareTiles = async () => {
       },
       body: JSON.stringify({
         model: settings.value.model,
-        bbox: transformExtent(drawnExtent.value, 'EPSG:3857', 'EPSG:4326'),
+        bbox: currentBBox.value,
         images: modelIsSingleShot.value
           ? [firstTile.value.itemUrl]
           : [firstTile.value.itemUrl, secondTile.value?.itemUrl],
@@ -734,12 +696,11 @@ const handleCompareTiles = async () => {
           }
           removeStacLayer(map.value!)
           removeStacLayer(map.value!, true)
-          removeExtentInteraction()
 
           isProcessing.value = false
           showSuccess('Finished batch processing, results will be shown on the map.')
           // Remove the editable bbox since batch processing completed successfully
-          removeDrawVectorLayer(map.value!)
+          removeExtentInteraction()
         } else if (projectStatus.status === 'failed') {
           clearInterval(pollInterval)
           showError('Batch processing failed')
@@ -899,11 +860,11 @@ onUnmounted(() => {
           </v-radio-group>
         </v-expansion-panel-text>
       </v-expansion-panel>
-      <!-- Location -->
-      <v-expansion-panel v-if="settings.expertMode" value="location">
+      <!-- Area of Interest -->
+      <v-expansion-panel v-if="settings.expertMode" value="aoi">
         <v-expansion-panel-title>
           <span class="header-text">
-            Location
+            Area of Interest
             <v-badge
               v-if="currentMgrsTileId"
               inline
@@ -911,6 +872,12 @@ onUnmounted(() => {
               :content="currentMgrsTileId"
             ></v-badge>
             <v-badge v-else inline color="error" content="Missing"></v-badge>
+            <v-badge
+              v-if="currentMgrsTileId && !currentBBoxValid"
+              inline
+              color="error"
+              content="Invalid"
+            ></v-badge>
           </span>
         </v-expansion-panel-title>
         <v-expansion-panel-text>
@@ -936,7 +903,7 @@ onUnmounted(() => {
             <v-col>
               <v-label>
                 Bounding Box
-                <v-badge v-if="bboxValid" inline color="success" content="OK"></v-badge>
+                <v-badge v-if="currentBBoxValid" inline color="success" content="OK"></v-badge>
                 <v-badge v-else inline color="error" content="Invalid"></v-badge>
               </v-label>
             </v-col>
@@ -1360,7 +1327,12 @@ onUnmounted(() => {
     <v-btn
       v-if="isBatchProcessing"
       class="action-button"
-      :disabled="!activeTileId || (!modelIsSingleShot && !secondActiveTileId) || isCreatingProject"
+      :disabled="
+        !activeTileId ||
+        (!modelIsSingleShot && !secondActiveTileId) ||
+        isCreatingProject ||
+        !currentBBoxValid
+      "
       @click="handleCompareTiles"
     >
       <span v-if="isCreatingProject || isProcessing"
@@ -1373,7 +1345,12 @@ onUnmounted(() => {
     <v-btn
       v-if="!isBatchProcessing"
       class="action-button"
-      :disabled="!activeTileId || (!modelIsSingleShot && !secondActiveTileId) || isProcessing"
+      :disabled="
+        !activeTileId ||
+        (!modelIsSingleShot && !secondActiveTileId) ||
+        isProcessing ||
+        !currentBBoxValid
+      "
       @click="handleSmallAreaProcessingRequest"
     >
       <span v-if="isProcessing"

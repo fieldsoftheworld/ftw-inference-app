@@ -19,8 +19,6 @@ export interface SearchResult {
 export type SearchResults = Ref<SearchResult[]>
 
 const searchResults = ref<SearchResult[]>([])
-/** Grid extent, reduced by shrink factor (70% of grid extent) */
-const currentBbox = ref<number[] | undefined>(undefined)
 
 const hasMore = ref(false)
 const isLoading = ref(false)
@@ -31,13 +29,11 @@ export default function useSearch() {
   const { showError } = useNotifier()
 
   // Function to handle search results
-  const handleSearchResults = async (
+  async function handleSearchResults(
     bbox?: number[],
     settings: SearchSettings = {} as SearchSettings,
-  ) => {
+  ) {
     isLoading.value = true
-
-    currentBbox.value = bbox
 
     const performSearch = async () => {
       searchStatus.value = true
@@ -61,21 +57,11 @@ export default function useSearch() {
     await performSearch()
   }
 
-  const clearSearchResults = () => {
-    searchResults.value = []
-    hasMore.value = false
-    isLoading.value = false
-    searchStatus.value = null
-    currentBbox.value = undefined
-  }
-
   return {
     isLoading,
     searchStatus,
-    currentBbox,
     searchResults,
     hasMore,
     handleSearchResults,
-    clearSearchResults,
   }
 }

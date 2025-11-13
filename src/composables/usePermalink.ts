@@ -187,7 +187,11 @@ export default function usePermalink() {
       secondActiveTileId,
       bbox: extent || undefined,
     }
-    window.history.pushState(state, 'map', hash)
+    try {
+      window.history.pushState(state, 'map', hash)
+    } catch (error) {
+      console.error('Error updating permalink:', error)
+    }
   }
 
   // Restore map state from permalink

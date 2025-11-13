@@ -6,16 +6,22 @@ export interface NotifierMessage {
   timeout?: number
 }
 
+const lastMessages: Record<string, string> = {}
+
 export default function useNotifier() {
   const notifier = useVuetifyNotifier()
 
   const showNotifier = (notification: NotifierMessage) => {
     const { type, text } = notification
+    if (lastMessages[type] === text) {
+      return
+    }
     notifier.toast({
       type,
       text,
       color: type,
     })
+    lastMessages[type] = text
   }
 
   // todo: reimplement timeouts in toasts
