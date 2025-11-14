@@ -1,56 +1,27 @@
 <template>
-  <v-card
-    v-if="geoJSONResults.length > 0"
-    elevation="8"
-    :class="{ closed: !isOpen, 'processing-results': true, sidebar: true }"
-  >
+  <v-card v-if="geoJSONResults.length > 0" elevation="8"
+    :class="{ closed: !isOpen, 'processing-results': true, sidebar: true }">
     <v-card-title class="d-flex align-center justify-space-between pa-2">
       <div class="collapse-action" @click="toggleCollapsible">
-        <v-icon
-          :class="{ 'rotate-180': isOpen }"
-          class="mr-1 text-white transition-transform"
-          :icon="mdiChevronDown"
-        >
+        <v-icon :class="{ 'rotate-180': isOpen }" class="mr-1 text-white transition-transform" :icon="mdiChevronDown">
         </v-icon>
         <span class="text-white title">Results ({{ geoJSONResults.length }})</span>
       </div>
       <div class="d-flex align-right gap-2 ms-4">
-        <v-btn
-          @click="downloadResults"
-          variant="plain"
-          color="teal"
-          class="pa-0 action-btn"
-          title="Download Results"
-          :icon="mdiDownloadBoxOutline"
-        ></v-btn>
-        <v-btn
-          @click="clearResults"
-          variant="plain"
-          color="error"
-          class="pa-0 action-btn"
-          title="Clear Results"
-          :icon="mdiDelete"
-        ></v-btn>
+        <v-btn @click="downloadResults" variant="plain" color="teal" class="pa-0 action-btn" title="Download Results"
+          :icon="mdiDownloadBoxOutline"></v-btn>
+        <v-btn @click="clearResults" variant="plain" color="error" class="pa-0 action-btn" title="Clear Results"
+          :icon="mdiDelete"></v-btn>
       </div>
     </v-card-title>
 
     <div v-show="isOpen" class="content">
       <v-list density="compact" color="transparent" class="pa-0">
-        <v-list-item
-          v-for="result in processedResults"
-          :key="result.id"
-          class="result-item"
-          @click.stop="fitMapToResult(result)"
-        >
-          <v-list-item-subtitle class="mt-2">
-            <div class="result-properties">
-              <PropertyDisplay
-                v-for="property in result.filteredProperties"
-                :key="property.key"
-                :property="property"
-              />
-            </div>
-          </v-list-item-subtitle>
+        <v-list-item v-for="result in processedResults" :key="result.id" class="result-item"
+          @click.stop="fitMapToResult(result)">
+          <div class="result-properties">
+            <PropertyDisplay v-for="property in result.filteredProperties" :key="property.key" :property="property" />
+          </div>
         </v-list-item>
       </v-list>
     </div>
