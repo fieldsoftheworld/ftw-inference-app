@@ -1,26 +1,49 @@
 <template>
-  <v-card v-if="geoJSONResults.length > 0" elevation="8"
-    :class="{ closed: !isOpen, 'processing-results': true, sidebar: true }">
+  <v-card elevation="8" :class="{ closed: !isOpen, 'processing-results': true, sidebar: true }">
     <v-card-title class="d-flex align-center justify-space-between pa-2">
       <div class="collapse-action" @click="toggleCollapsible">
-        <v-icon :class="{ 'rotate-180': isOpen }" class="mr-1 text-white transition-transform" :icon="mdiChevronDown">
+        <v-icon
+          :class="{ 'rotate-180': isOpen }"
+          class="mr-1 text-white transition-transform"
+          :icon="mdiChevronDown"
+        >
         </v-icon>
-        <span class="text-white title">Results ({{ geoJSONResults.length }})</span>
+        <span class="text-white title">Results ({{ geoJsonResults.length }})</span>
       </div>
       <div class="d-flex align-right gap-2 ms-4">
-        <v-btn @click="downloadResults" variant="plain" color="teal" class="pa-0 action-btn" title="Download Results"
-          :icon="mdiDownloadBoxOutline"></v-btn>
-        <v-btn @click="clearResults" variant="plain" color="error" class="pa-0 action-btn" title="Clear Results"
-          :icon="mdiDelete"></v-btn>
+        <v-btn
+          @click="downloadResults"
+          variant="plain"
+          color="teal"
+          class="pa-0 action-btn"
+          title="Download Results"
+          :icon="mdiDownloadBoxOutline"
+        ></v-btn>
+        <v-btn
+          @click="clearResults"
+          variant="plain"
+          color="error"
+          class="pa-0 action-btn"
+          title="Clear Results"
+          :icon="mdiDelete"
+        ></v-btn>
       </div>
     </v-card-title>
 
     <div v-show="isOpen" class="content">
       <v-list density="compact" color="transparent" class="pa-0">
-        <v-list-item v-for="result in processedResults" :key="result.id" class="result-item"
-          @click.stop="fitMapToResult(result)">
+        <v-list-item
+          v-for="result in processedResults"
+          :key="result.id"
+          class="result-item"
+          @click.stop="fitMapToResult(result)"
+        >
           <div class="result-properties">
-            <PropertyDisplay v-for="property in result.filteredProperties" :key="property.key" :property="property" />
+            <PropertyDisplay
+              v-for="property in result.filteredProperties"
+              :key="property.key"
+              :property="property"
+            />
           </div>
         </v-list-item>
       </v-list>
@@ -30,7 +53,7 @@
 
 <script setup lang="ts">
 import type Map from 'ol/Map'
-import { computed, ref, watch, onMounted, onUnmounted } from 'vue'
+import { computed, ref, onMounted, onUnmounted } from 'vue'
 import useMap from '../composables/useMap'
 import useNotifier from '../composables/useNotifier'
 import useAreaOfInterest from '../composables/useAreaOfInterest'
@@ -40,7 +63,7 @@ import { formatMeasurementDisplay } from '../functions/format-measurement-displa
 
 const props = defineProps<{
   map: Map
-  geoJSONResults: any[]
+  geoJsonResults: any[]
 }>()
 
 const emit = defineEmits<{
@@ -48,16 +71,16 @@ const emit = defineEmits<{
 }>()
 
 const { map, handleMapClick } = useMap()
-const { setBlockMapClicks, clearResultsAndZoomToGrid } = useAreaOfInterest()
+const { clearResultsAndZoomToGrid } = useAreaOfInterest()
 const { showInfo, showError } = useNotifier()
 
 const processedResults = computed(() => {
-  const formattedResults = new Array(props.geoJSONResults.length)
+  const formattedResults = new Array(props.geoJsonResults.length)
   for (const {
     properties: { geometry, id, ...rest },
     id: featureId,
     ...feature
-  } of props.geoJSONResults) {
+  } of props.geoJsonResults) {
     formattedResults[parseInt(id) - 1] = {
       id,
       ...feature,
@@ -81,7 +104,7 @@ const toggleCollapsible = () => {
 }
 
 const downloadResults = () => {
-  if (!props.geoJSONResults || props.geoJSONResults.length === 0) {
+  if (!props.geoJsonResults || props.geoJsonResults.length === 0) {
     showInfo('No results to download.')
     return
   }
@@ -90,7 +113,7 @@ const downloadResults = () => {
     // Create a GeoJSON FeatureCollection from the results
     const geojson = {
       type: 'FeatureCollection',
-      features: props.geoJSONResults,
+      features: props.geoJsonResults,
     }
 
     // Convert to JSON string
@@ -151,23 +174,6 @@ const fitMapToResult = (result: any) => {
     maxZoom: 17,
   })
 }
-
-// Watch for changes in geoJSONResults to auto-open the list when new results arrive
-watch(
-  () => props.geoJSONResults,
-  (newResults) => {
-    if (newResults.length > 0 && !isOpen.value) {
-      isOpen.value = true
-      // Block map clicks when results are displayed
-      setBlockMapClicks(true)
-    } else if (newResults.length === 0) {
-      // Unblock map clicks when results are cleared
-      setBlockMapClicks(false)
-      isOpen.value = false
-    }
-  },
-  { immediate: true }
-)
 
 onMounted(() => {
   // Add map click handler to detect feature clicks and show properties

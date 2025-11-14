@@ -21,20 +21,16 @@ const {
   propertiesBoxPosition,
   originalClickPosition,
   hidePropertiesBox,
+  geoJsonResults,
 } = useMap()
 
 const { addMapClickHandler } = useAreaOfInterest()
 const { setAvailableModels } = useSettings()
 
 const dataCabinetRef = ref<InstanceType<typeof DataCabinet> | null>(null)
-const geoJSONResults = ref<any[]>([])
-
-const updateGeoJSONResults = (results: any[]) => {
-  geoJSONResults.value = results
-}
 
 const clearResults = () => {
-  geoJSONResults.value = []
+  geoJsonResults.value = []
   hidePropertiesBox()
 }
 
@@ -98,7 +94,6 @@ onMounted(async () => {
 // Expose methods to parent components
 defineExpose({
   areaValues,
-  updateGeoJSONResults,
 })
 </script>
 
@@ -112,13 +107,12 @@ defineExpose({
       :areaValues="areaValues"
       :dataCabinetRef="dataCabinetRef"
       ref="dataCabinetRef"
-      @updateGeoJSONResults="updateGeoJSONResults"
     />
 
     <ProcessingResults
-      v-if="map"
+      v-if="geoJsonResults.length > 0"
       :map="map as Map"
-      :geoJSONResults="geoJSONResults"
+      :geoJsonResults="geoJsonResults"
       @clearResults="clearResults"
     />
   </div>

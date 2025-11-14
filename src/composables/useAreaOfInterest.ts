@@ -63,7 +63,7 @@ const validStyle = new Style({
 export default function useAreaOfInterest() {
   const { searchResults } = useSearch()
   const { settings } = useSettings()
-  const { maxArea, vectorLayer, areaValues } = useMap()
+  const { maxArea, vectorLayer, areaValues, geoJsonResults, map } = useMap()
   const { updateProcessingMode } = useProcessingMode()
   const { showWarning, showError } = useNotifier()
 
@@ -97,6 +97,9 @@ export default function useAreaOfInterest() {
   })
 
   function addExtentInteraction(map: Map, areaValues: AreaValues) {
+    if (extentInteraction.value) {
+      return
+    }
     extentInteraction.value = new ExtentInteraction({
       extent: drawnExtent.value || undefined,
       createCondition: never,
@@ -152,13 +155,8 @@ export default function useAreaOfInterest() {
     extentInteraction.value = null
   }
 
-  function setBlockMapClicks(block: boolean) {
-    blockMapClicks.value = block
-  }
-
   function clearResultsAndZoomToGrid(map: Map) {
-    // Clear the results by setting blockMapClicks to false
-    blockMapClicks.value = false
+    geoJsonResults.value = []
 
     // Remove the GeoJSON results layer from the map
     if (vectorLayer.value) {
@@ -168,8 +166,6 @@ export default function useAreaOfInterest() {
         vectorLayer.value.getSource()!.dispose()
       }
     }
-
-    addExtentInteraction(map, areaValues.value)
 
     // Zoom back to the stored grid extent if available
     if (currentGridExtent.value) {
@@ -182,6 +178,16 @@ export default function useAreaOfInterest() {
       })
     }
   }
+
+  watch(geoJsonResults, (newResults) => {
+    if (newResults.length > 0) {
+      blockMapClicks.value = true
+      removeExtentInteraction()
+    } else {
+      blockMapClicks.value = false
+      addExtentInteraction(map.value!, areaValues.value)
+    }
+  })
 
   // Function to calculate area in square kilometers
   function calculateArea(bbox: Extent): number {
@@ -517,7 +523,6 @@ export default function useAreaOfInterest() {
     currentGridExtent,
     activeTileId,
     secondActiveTileId,
-    setBlockMapClicks,
     clearResultsAndZoomToGrid,
     triggerTileSelection,
     calculateArea,

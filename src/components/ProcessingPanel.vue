@@ -1,17 +1,13 @@
 <script setup lang="ts">
-import { ref, onUnmounted, watch, nextTick, computed, onMounted } from 'vue'
+import { ref, watch, nextTick, computed, onMounted } from 'vue'
 import { type Extent } from 'ol/extent'
 import { generateJWT } from '../functions/generate-jwt'
 import { transformExtent } from 'ol/proj'
 import searchStacApi from '../functions/search-stac-api'
 import useSearch, { type SearchResult } from '../composables/useSearch'
-import VectorSource from 'ol/source/Vector'
-import VectorLayer from 'ol/layer/Vector'
-import GeoJSON from 'ol/format/GeoJSON'
-import { type FeatureCollection } from 'geojson'
+import useBatchProcessing from '../composables/useProcessing'
 import useSettings from '../composables/useSettings'
 import useNotifier from '../composables/useNotifier'
-import useStacLayer from '../composables/useStacLayer'
 import useAreaOfInterest from '../composables/useAreaOfInterest'
 import useProcessingMode from '../composables/useProcessingMode'
 import useGeocoding from '../composables/useGeocoding'
@@ -20,15 +16,12 @@ import { mdiHelpCircleOutline } from '@mdi/js'
 import TilePreview from './TilePreview.vue'
 
 const emit = defineEmits<{
-  (e: 'updateGeoJSONResults', results: any[]): void
   (e: 'workStateChanged', isWorking: boolean): void
 }>()
 
-const { map, vectorLayer, areaValues } = useMap()
-const { removeStacLayer } = useStacLayer()
-const { drawnExtent, validateBBox, removeExtentInteraction, getTileById, triggerTileSelection } =
-  useAreaOfInterest()
-const { showInfo, showWarning, showError, showSuccess } = useNotifier()
+const { map, areaValues } = useMap()
+const { drawnExtent, validateBBox, getTileById, triggerTileSelection } = useAreaOfInterest()
+const { showError, showSuccess } = useNotifier()
 const { hasMore, isLoading, searchResults, searchStatus, handleSearchResults } = useSearch()
 const { activeTileId, currentBBox, currentBBoxValid, secondActiveTileId, currentMgrsTileId } =
   useAreaOfInterest()
@@ -36,6 +29,7 @@ const { settings, collections, availableCollections, availableModels, modelIsSin
   useSettings()
 const { isBatchProcessing } = useProcessingMode()
 const { placeSearch, isLoadingPlaces, suggestedPlaces, handleLocationSelected } = useGeocoding()
+const { processBatch, processSmallArea, isProcessing } = useBatchProcessing()
 
 const months = [
   { value: 1, title: '1 - January' },
@@ -66,12 +60,9 @@ watch(activeTileId, (newValue) => {
   }
 })
 
-const isCreatingProject = ref(false)
-const isProcessing = ref(false)
 const projectTitle = ref(new Date().toISOString())
 const activePanel = ref<string | null>(null)
 const hasLoadedMore = ref(false)
-const retryTimeout = ref<number | null>(null)
 const sceneSelectionStatus = ref<boolean | null>(null)
 const sceneYears = Array.from({ length: 10 }, (_, i) => new Date().getFullYear() - i)
 
@@ -242,8 +233,8 @@ watch(activeTileId, async (id) => {
 watch(secondActiveTileId, async (id) => {
   secondTile.value = id ? await getTileById(id) : null
 })
-watch([isProcessing, isCreatingProject, isSelectingScenes], () => {
-  emit('workStateChanged', isProcessing.value || isCreatingProject.value || isSelectingScenes.value)
+watch([isProcessing, isSelectingScenes], () => {
+  emit('workStateChanged', isProcessing.value || isSelectingScenes.value)
 })
 watch(sceneSelectionStatus, (newValue) => {
   if (newValue === false) {
@@ -362,175 +353,6 @@ const updateAreaCoverageSlider = () => {
   settings.value.areaCoverage = Math.max(1, value)
 }
 
-const fitMapToBbox = (bbox: number[]) => {
-  // Validate bbox before processing
-  if (!bbox || bbox.length !== 4 || bbox.some((coord) => isNaN(coord) || coord === 0)) {
-    console.warn('Invalid bbox provided to fitMapToBbox:', bbox)
-    return
-  }
-
-  const extent: Extent = transformExtent(bbox, 'EPSG:4326', 'EPSG:3857')
-
-  // Validate transformed extent
-  if (!extent || extent.some((coord) => isNaN(coord))) {
-    console.warn('Invalid transformed extent:', extent)
-    return
-  }
-
-  // TODO: FIX ISSUE WITH SCROLLING AND CHANGE LAYER COLOR
-  map.value!.getView().fit(extent, {
-    padding: [50, 50, 50, 50],
-    duration: 500,
-  })
-}
-
-const displayGeoJSON = (geojson: FeatureCollection & { crs: { properties: { name: string } } }) => {
-  // Remove existing vector layer if it exists
-  if (vectorLayer.value) {
-    map.value!.removeLayer(vectorLayer.value)
-  }
-
-  // Create new vector source and layer
-  const source = new VectorSource({
-    features: new GeoJSON({
-      dataProjection: geojson.crs.properties.name,
-      featureProjection: 'EPSG:3857',
-    }).readFeatures(geojson),
-  })
-
-  // Check if we have valid features
-  if (source.getFeatures().length === 0) {
-    showWarning(
-      'No valid features found in the processing results. Please try again with a different area or settings.'
-    )
-    return null
-  }
-
-  vectorLayer.value = new VectorLayer({
-    source: source,
-    style: {
-      'fill-color': 'rgba(255, 255, 0, 0.1)',
-      'stroke-color': 'rgba(255, 255, 0, 1)',
-      'stroke-width': 2,
-    },
-    zIndex: 1001, // Higher than S2-grid-layer (1000)
-  })
-
-  // Ensure the results layer is on top by setting a high z-index
-  map.value!.addLayer(vectorLayer.value)
-
-  // Emit the GeoJSON results to the parent component
-  const results = source.getFeatures().map((feature) => ({
-    id: feature.getId() || `feature-${Date.now()}-${Math.random()}`,
-    geometry: feature.getGeometry(),
-    properties: feature.getProperties(),
-  }))
-  emit('updateGeoJSONResults', results)
-
-  // Get the extent and validate it
-  const extent = source.getExtent()
-  if (!extent || extent.every((coord) => coord === 0) || extent.some((coord) => isNaN(coord))) {
-    showWarning(
-      'Invalid extent generated from processing results. Please try again with a different area or settings.'
-    )
-    return null
-  }
-
-  return transformExtent(extent, 'EPSG:3857', 'EPSG:4326')
-}
-
-const handleSmallAreaProcessingRequest = async () => {
-  if (!currentBBox.value) {
-    showWarning('Please provide an area of interest before processing.')
-    return
-  }
-
-  if (!firstTile.value || (!modelIsSingleShot.value && !secondTile.value)) {
-    throw new Error('Could not find selected tiles')
-  }
-
-  isProcessing.value = true
-  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL
-  try {
-    const token = generateJWT()
-    const response = await fetch(`${apiBaseUrl}example`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({
-        inference: {
-          model: settings.value.model,
-          images: modelIsSingleShot.value
-            ? [firstTile.value.itemUrl]
-            : [firstTile.value.itemUrl, secondTile.value?.itemUrl],
-          bbox: currentBBox.value,
-        },
-        polygons: {
-          close_interiors: true,
-        },
-      }),
-    })
-
-    if (response.status === 503) {
-      // Server is busy, schedule retry
-      showInfo('Server is busy. Retrying in 15 seconds...')
-      isProcessing.value = false
-
-      // Clear any existing timeout
-      if (retryTimeout.value) {
-        clearTimeout(retryTimeout.value)
-      }
-
-      // Schedule retry after 15 seconds
-      retryTimeout.value = window.setTimeout(() => {
-        handleSmallAreaProcessingRequest()
-      }, 15000)
-      return
-    }
-
-    const data = await response.json()
-
-    if (!response.ok) {
-      const error = data?.detail || response.statusText
-      throw new Error(`Failed to process: ${error}`)
-    }
-
-    // Display GeoJSON if available
-    if (data && data.features && Array.isArray(data.features) && data.features.length > 0) {
-      const extent = displayGeoJSON(data)
-      // Fit map to bbox only if we have a valid extent
-      if (extent) {
-        fitMapToBbox(extent)
-        if (!settings.value.expertMode) {
-          showSuccess('Finished processing, results will be shown on the map.')
-        }
-        removeExtentInteraction()
-      } else {
-        // displayGeoJSON returned null, which means no valid features or invalid extent
-        showWarning(
-          'Processing completed but the extent of the results is empty. Please try again with a different settings.'
-        )
-      }
-    } else {
-      showWarning(
-        'Processing completed but no valid results were generated. Please try again with a different settings.'
-      )
-    }
-
-    removeStacLayer(map.value!)
-    removeStacLayer(map.value!, true)
-  } catch (error) {
-    console.error('Error processing:', error)
-    showError(
-      'Failed to process: ' + (error instanceof Error ? error.message : 'An unknown error occurred')
-    )
-  } finally {
-    isProcessing.value = false
-  }
-}
-
 // Handle tile selection from search modal
 const handleTileSelected = (tileName: string) => {
   // Find the tile feature on the map and trigger the tile selection
@@ -552,198 +374,21 @@ const handleTileSelected = (tileName: string) => {
   }
 }
 
-const handleCompareTiles = async () => {
-  if (!firstTile.value || (!modelIsSingleShot.value && !secondTile.value)) {
-    throw new Error('Could not find selected tiles')
-  }
+const processingDisabled = computed(() => {
+  return (
+    !activeTileId.value ||
+    (!modelIsSingleShot.value && !secondActiveTileId.value) ||
+    isProcessing.value ||
+    (settings.value.autoSceneSelection && isSelectingScenes.value) ||
+    currentBBoxValid.value !== true
+  )
+})
 
-  isCreatingProject.value = true
-
-  try {
-    const token = generateJWT()
-
-    // Create project
-    const apiBaseUrl = import.meta.env.VITE_API_BASE_URL
-
-    const createResponse = await fetch(`${apiBaseUrl}projects`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({
-        title: projectTitle.value,
-      }),
-    })
-
-    if (createResponse.status === 503) {
-      // Server is busy, schedule retry
-      showInfo('Server is busy. Retrying in 15 seconds...')
-      isCreatingProject.value = false
-
-      // Clear any existing timeout
-      if (retryTimeout.value) {
-        clearTimeout(retryTimeout.value)
-      }
-
-      // Schedule retry after 15 seconds
-      retryTimeout.value = window.setTimeout(() => {
-        handleCompareTiles()
-      }, 15000)
-      return
-    }
-
-    const projectData = await createResponse.json()
-    if (!createResponse.ok) {
-      const error = projectData?.detail || createResponse.statusText
-      isCreatingProject.value = false
-      throw new Error(`Failed to create project: ${error}`)
-    }
-
-    const projectId = projectData.id
-
-    isCreatingProject.value = false
-    isProcessing.value = true
-
-    if (!currentBBox.value) {
-      throw new Error('Area of interest is not set')
-    }
-
-    // Batch Processing
-    const batchProcessingResponse = await fetch(`${apiBaseUrl}projects/${projectId}/inference`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({
-        model: settings.value.model,
-        bbox: currentBBox.value,
-        images: modelIsSingleShot.value
-          ? [firstTile.value.itemUrl]
-          : [firstTile.value.itemUrl, secondTile.value?.itemUrl],
-      }),
-    })
-
-    if (batchProcessingResponse.status === 503) {
-      // Server is busy, schedule retry
-      showInfo('Server is busy. Retrying in 15 seconds...')
-      isProcessing.value = false
-
-      // Clear any existing timeout
-      if (retryTimeout.value) {
-        clearTimeout(retryTimeout.value)
-      }
-
-      // Schedule retry after 15 seconds
-      retryTimeout.value = window.setTimeout(() => {
-        handleCompareTiles()
-      }, 15000)
-      return
-    }
-
-    if (!batchProcessingResponse.ok) {
-      throw new Error(`Failed to process batch: ${batchProcessingResponse.statusText}`)
-    }
-
-    // Start polling for project status
-    const pollInterval = setInterval(async () => {
-      try {
-        const statusResponse = await fetch(`${apiBaseUrl}projects/${projectId}`, {
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-        })
-        if (!statusResponse.ok) {
-          throw new Error(`Failed to fetch project status: ${statusResponse.statusText}`)
-        }
-
-        const projectStatus = await statusResponse.json()
-
-        if (projectStatus.status === 'completed') {
-          if (!projectStatus.results.polygons) {
-            // Create polygonize task
-            const polygonsResponse = await fetch(`${apiBaseUrl}projects/${projectId}/polygons`, {
-              method: 'PUT',
-              headers: {
-                'Content-Type': 'application/json',
-                Authorization: `Bearer ${token}`,
-              },
-              body: JSON.stringify({
-                close_interiors: true,
-              }),
-            })
-            if (!polygonsResponse.ok) {
-              throw new Error(`Failed to process polygons: ${polygonsResponse.statusText}`)
-            }
-            return
-          }
-          clearInterval(pollInterval)
-
-          // Fetch batch processing results
-          const resultPolygons = projectStatus.results.polygons
-          const url = resultPolygons.startsWith('http')
-            ? resultPolygons
-            : `${import.meta.env.VITE_FTW_INFERENCE_OUTPUT_URL || ''}${resultPolygons}`
-          const resultsResponse = await fetch(url, {
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: `Bearer ${token}`,
-            },
-          })
-          if (!resultsResponse.ok) {
-            throw new Error(
-              `Failed to fetch batch processing results: ${resultsResponse.statusText}`
-            )
-          }
-
-          const data = await resultsResponse.json()
-
-          // Display GeoJSON if available
-          if (data && data.features) {
-            const extent = displayGeoJSON(data)
-            // Fit map to bbox
-            if (extent) {
-              fitMapToBbox(extent)
-            }
-          }
-          removeStacLayer(map.value!)
-          removeStacLayer(map.value!, true)
-
-          isProcessing.value = false
-          showSuccess('Finished batch processing, results will be shown on the map.')
-          // Remove the editable bbox since batch processing completed successfully
-          removeExtentInteraction()
-        } else if (projectStatus.status === 'failed') {
-          clearInterval(pollInterval)
-          showError('Batch processing failed')
-          throw new Error('Batch processing failed')
-        }
-      } catch (error) {
-        clearInterval(pollInterval)
-        isProcessing.value = false
-        throw error
-      } finally {
-        isCreatingProject.value = false
-        isProcessing.value = false
-      }
-    }, 10000) // Poll every 10 seconds
-
-    // Clean up interval if component is unmounted
-    onUnmounted(() => {
-      clearInterval(pollInterval)
-      // Clean up retry timeout
-      if (retryTimeout.value) {
-        clearTimeout(retryTimeout.value)
-      }
-    })
-  } catch (error) {
-    console.error('Error:', error)
-    showError(error instanceof Error ? error.message : 'Failed to create project or upload images')
-  } finally {
-    isCreatingProject.value = false
-    // Clear message after 3 seconds (only for non-retry cases)
+const process = () => {
+  if (isBatchProcessing.value) {
+    processBatch(projectTitle.value, firstTile.value, secondTile.value)
+  } else {
+    processSmallArea(firstTile.value, secondTile.value)
   }
 }
 </script>
@@ -1360,38 +1005,12 @@ const handleCompareTiles = async () => {
   </div>
 
   <div class="action-buttons">
-    <v-btn
-      v-if="isBatchProcessing"
-      class="action-button"
-      :disabled="
-        !activeTileId ||
-        (!modelIsSingleShot && !secondActiveTileId) ||
-        isCreatingProject ||
-        currentBBoxValid !== true
-      "
-      @click="handleCompareTiles"
-    >
-      <span v-if="isCreatingProject || isProcessing"
-        ><v-progress-circular indeterminate size="16" width="2" class="me-1" />
-        <template v-if="isCreatingProject">Creating Project...</template>
-        <template v-else>Processing...</template>
+    <v-btn class="action-button" :disabled="processingDisabled" @click="process">
+      <span v-if="isProcessing">
+        <v-progress-circular indeterminate size="16" width="2" class="me-1" />
+        Processing...
       </span>
-      <span v-else>Create project and start processing</span>
-    </v-btn>
-    <v-btn
-      v-if="!isBatchProcessing"
-      class="action-button"
-      :disabled="
-        !activeTileId ||
-        (!modelIsSingleShot && !secondActiveTileId) ||
-        isProcessing ||
-        currentBBoxValid !== true
-      "
-      @click="handleSmallAreaProcessingRequest"
-    >
-      <span v-if="isProcessing"
-        ><v-progress-circular indeterminate size="16" width="2" class="me-1" /> Processing...</span
-      >
+      <span v-else-if="isBatchProcessing">Create project and start processing</span>
       <span v-else>Start processing</span>
     </v-btn>
   </div>
