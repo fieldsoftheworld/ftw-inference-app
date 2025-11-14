@@ -14,8 +14,8 @@ createApp(App)
   .use(VuetifyNotifier, {
     toast: {
       location: 'bottom',
-      timeout: 10000,
-      max: 3,
+      timeout: 20000,
+      max: 2,
       width: 500,
     },
   })

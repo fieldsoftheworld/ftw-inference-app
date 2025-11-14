@@ -33,7 +33,7 @@ const secondActiveTileId = ref<string | null>(null)
 const currentGridExtent = shallowRef<Extent | null>(null)
 /** User bbox */
 const currentBBox = ref<number[] | undefined>(undefined) // bbox in EPSG:4326
-const currentBBoxValid = ref<boolean>(false)
+const currentBBoxValid = ref<string | boolean>(false)
 const drawnExtent = shallowRef<Extent | null>(null) // bbox in EPSG:3857
 /** Flag to block map clicks when results are displayed */
 const blockMapClicks = ref(false)
@@ -278,42 +278,41 @@ export default function useAreaOfInterest() {
 
   function validateBBox(bbox: Extent, silent: boolean = false, checkBBox: boolean = true): boolean {
     if (checkBBox && !isBBox(bbox)) {
-      if (!silent) {
-        showWarning('The provided area of interest is invalid. Please check the coordinates.')
+      if (!silent && !settings.value.expertMode) {
+        const message = 'The provided area of interest is invalid. Please check the coordinates.'
+        showError(message)
       }
-      currentBBoxValid.value = false
+      currentBBoxValid.value = message
       return false
     }
 
     const area = calculateArea(bbox)
 
     if (area < areaValues.value.min_area_km2) {
+      const message = `The selected area of interest is below the minimum threshold of ${areaValues.value.min_area_km2} km². Please select a larger area.`
       if (!silent) {
-        showWarning(
-          `The selected area of interest is below the minimum threshold of ${areaValues.value.min_area_km2} km². Please select a larger area.`,
-        )
+        showError(message)
       }
-      currentBBoxValid.value = false
+      currentBBoxValid.value = message
       return false
     }
     if (area > maxArea) {
+      const message = `The selected area of interest exceeds the maximum limit of ${maxArea} km². Please select a smaller area.`
       if (!silent) {
-        showError(
-          `The selected area of interest exceeds the maximum limit of ${maxArea} km². Please select a smaller area.`,
-        )
+        showError(message)
       }
-      currentBBoxValid.value = false
+      currentBBoxValid.value = message
       return false
     }
 
     const extent = transformExtent(bbox, 'EPSG:4326', 'EPSG:3857')
     if (currentGridExtent.value && !containsExtent(currentGridExtent.value, extent)) {
+      const message =
+        'Running inference across Sentinel 2 tile boundaries is not yet supported. Move your area of interest to the selected tile, or select a different tile.'
       if (!silent) {
-        showWarning(
-          'Running inference across Sentinel 2 tile boundaries is not yet supported. Move your area of interest to the selected tile, or select a different tile.',
-        )
+        showWarning(message)
       }
-      currentBBoxValid.value = false
+      currentBBoxValid.value = message
       return false
     }
 

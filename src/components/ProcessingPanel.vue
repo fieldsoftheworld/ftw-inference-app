@@ -17,6 +17,7 @@ import useProcessingMode from '../composables/useProcessingMode'
 import useMap from '../composables/useMap'
 import { mdiHelpCircleOutline } from '@mdi/js'
 import TilePreview from './TilePreview.vue'
+import { cpuUsage } from 'process'
 
 const emit = defineEmits<{
   (e: 'updateGeoJSONResults', results: any[]): void
@@ -78,69 +79,81 @@ const isSelectingScenes = computed(
 )
 
 let abortController: AbortController | null = null
-watch([currentBBox, settings], async ([currentBBox, newSettings]) => {
-  if (!newSettings.autoSceneSelection || !currentBBox || !newSettings.year) {
-    return
-  }
-
-  sceneSelectionStatus.value = null
-
-  // Auto scene selection is enabled, perform search
-  try {
-    // Abort previous fetch if exists
-    if (abortController) {
-      abortController.abort('obsolete request')
+watch(
+  [currentBBox, settings],
+  async ([currentBBox, newSettings]) => {
+    if (!newSettings.autoSceneSelection || !currentBBox || !newSettings.year) {
+      return
     }
 
-    // Create new AbortController for this fetch
-    abortController = new AbortController()
+    sceneSelectionStatus.value = null
 
-    const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}scene-selection`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${generateJWT()}`,
-      },
-      body: JSON.stringify({
-        bbox: currentBBox,
-        year: newSettings.year,
-        cloud_cover_max: newSettings.cloudCover,
-      }),
-      signal: abortController.signal,
-    })
-    abortController = null // Clear abortController on successful fetch
-    const data = await response.json()
-    if (response.status !== 200) {
-      if (data.detail) {
-        sceneSelectionStatus.value = false
-        showError(data.detail)
-        return
+    // Auto scene selection is enabled, perform search
+    try {
+      // Abort previous fetch if exists
+      if (abortController) {
+        abortController.abort('obsolete request')
       }
-      throw new Error(data.detail || 'Scene selection failed')
-    }
-    // Expecting data to have window_a and window_b properties with STAC item URLs:
-    // const data = {
-    //   window_a:
-    //     'https://earth-search.aws.element84.com/v1/collections/sentinel-2-c1-l2a/items/S2B_T34UEA_20250319T094246_L2A',
-    //   window_b:
-    //     'https://earth-search.aws.element84.com/v1/collections/sentinel-2-c1-l2a/items/S2C_T34UEA_20250920T094522_L2A',
-    // }
-    const { window_a: windowA, window_b: windowB } = data
-    activeTileId.value = new URL(windowA).pathname.split('/').pop() || null
-    secondActiveTileId.value = new URL(windowB).pathname.split('/').pop() || null
 
-    sceneSelectionStatus.value = true
-  } catch (error) {
-    if (error !== 'obsolete request') {
-      sceneSelectionStatus.value = false
-      console.error('Error during auto scene selection:', error)
-      showError(
-        'Failed to perform auto scene selection: ' +
-          (error instanceof Error ? error.message : 'Unknown error')
-      )
+      // Create new AbortController for this fetch
+      abortController = new AbortController()
+
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}scene-selection`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${generateJWT()}`,
+        },
+        body: JSON.stringify({
+          bbox: currentBBox,
+          year: newSettings.year,
+          cloud_cover_max: newSettings.cloudCover,
+        }),
+        signal: abortController.signal,
+      })
+      abortController = null // Clear abortController on successful fetch
+      const data = await response.json()
+      if (response.status !== 200) {
+        if (data.detail) {
+          if (data.detail.toLowerCase().includes('no sentinel scenes within')) {
+            data.detail += ' Please adjust the year or select the scenes manually.'
+          }
+          sceneSelectionStatus.value = false
+          showError(data.detail)
+          return
+        }
+        throw new Error(data.detail || 'Scene selection failed')
+      }
+      // Expecting data to have window_a and window_b properties with STAC item URLs:
+      // const data = {
+      //   window_a:
+      //     'https://earth-search.aws.element84.com/v1/collections/sentinel-2-c1-l2a/items/S2B_T34UEA_20250319T094246_L2A',
+      //   window_b:
+      //     'https://earth-search.aws.element84.com/v1/collections/sentinel-2-c1-l2a/items/S2C_T34UEA_20250920T094522_L2A',
+      // }
+      const { window_a: windowA, window_b: windowB } = data
+      activeTileId.value = new URL(windowA).pathname.split('/').pop() || null
+      secondActiveTileId.value = new URL(windowB).pathname.split('/').pop() || null
+
+      sceneSelectionStatus.value = true
+      if (!settings.value.expertMode) {
+        showSuccess(
+          'Scenes have been selected automatically. You can start processing or adjust the scenes or your settings.'
+        )
+      }
+    } catch (error) {
+      if (error !== 'obsolete request') {
+        sceneSelectionStatus.value = false
+        console.error('Error during auto scene selection:', error)
+        showError(
+          'Failed to perform auto scene selection: ' +
+            (error instanceof Error ? error.message : 'Unknown error')
+        )
+      }
     }
-  }
-})
+  },
+  { deep: true }
+)
 
 // todo: check whether we should only run on a subset of settings
 watch(
@@ -492,7 +505,9 @@ const handleSmallAreaProcessingRequest = async () => {
       // Fit map to bbox only if we have a valid extent
       if (extent) {
         fitMapToBbox(extent)
-        showSuccess('Finished processing, results will be shown on the map.')
+        if (!settings.value.expertMode) {
+          showSuccess('Finished processing, results will be shown on the map.')
+        }
         removeExtentInteraction()
       } else {
         // displayGeoJSON returned null, which means no valid features or invalid extent
@@ -862,7 +877,7 @@ onUnmounted(() => {
         </v-expansion-panel-text>
       </v-expansion-panel>
       <!-- Area of Interest -->
-      <v-expansion-panel v-if="settings.expertMode" value="aoi">
+      <v-expansion-panel value="aoi">
         <v-expansion-panel-title>
           <span class="header-text">
             Area of Interest
@@ -874,7 +889,7 @@ onUnmounted(() => {
             ></v-badge>
             <v-badge v-else inline color="error" content="Missing"></v-badge>
             <v-badge
-              v-if="currentMgrsTileId && !currentBBoxValid"
+              v-if="currentMgrsTileId && currentBBoxValid !== true"
               inline
               color="error"
               content="Invalid"
@@ -883,7 +898,7 @@ onUnmounted(() => {
         </v-expansion-panel-title>
         <v-expansion-panel-text>
           <!-- S2 Grid Selection Dropdown -->
-          <v-row>
+          <v-row v-if="settings.expertMode">
             <v-col>
               <v-autocomplete
                 v-model="currentMgrsTileId"
@@ -902,83 +917,96 @@ onUnmounted(() => {
           <!-- Bbox Input Section -->
           <v-row>
             <v-col>
-              <v-label>
-                Bounding Box
-                <v-badge v-if="currentBBoxValid" inline color="success" content="OK"></v-badge>
-                <v-badge v-else inline color="error" content="Invalid"></v-badge>
-              </v-label>
+              <v-label> Bounding Box </v-label>
             </v-col>
           </v-row>
-          <v-row>
-            <v-col cols="3"> </v-col>
-            <v-col cols="6">
-              <v-number-input
-                :model-value="bbox[3]"
-                @update:model-value="(value) => updateBBox(3, value)"
-                label="max. Latitude"
-                :min="-180.0"
-                :max="180.0"
-                :step="0.0001"
-                :precision="4"
-                density="compact"
-                variant="outlined"
-                control-variant="stacked"
-                hide-details
-              ></v-number-input>
+          <template v-if="settings.expertMode">
+            <v-row>
+              <v-col cols="3"> </v-col>
+              <v-col cols="6">
+                <v-number-input
+                  :model-value="bbox[3]"
+                  @update:model-value="(value) => updateBBox(3, value)"
+                  label="max. Latitude"
+                  :min="-180.0"
+                  :max="180.0"
+                  :step="0.0001"
+                  :precision="4"
+                  density="compact"
+                  variant="outlined"
+                  control-variant="stacked"
+                  hide-details
+                ></v-number-input>
+              </v-col>
+              <v-col cols="3"> </v-col>
+            </v-row>
+            <v-row>
+              <v-col cols="5">
+                <v-number-input
+                  :model-value="bbox[0]"
+                  @update:model-value="(value) => updateBBox(0, value)"
+                  label="min. Longitude"
+                  :min="-180.0"
+                  :max="180.0"
+                  :step="0.0001"
+                  :precision="4"
+                  density="compact"
+                  variant="outlined"
+                  control-variant="stacked"
+                  hide-details
+                ></v-number-input
+              ></v-col>
+              <v-col cols="2"> </v-col>
+              <v-col cols="5">
+                <v-number-input
+                  :model-value="bbox[2]"
+                  @update:model-value="(value) => updateBBox(2, value)"
+                  label="max. Longitude"
+                  :min="-180.0"
+                  :max="180.0"
+                  :step="0.0001"
+                  :precision="4"
+                  density="compact"
+                  variant="outlined"
+                  control-variant="stacked"
+                  hide-details
+                ></v-number-input
+              ></v-col>
+            </v-row>
+            <v-row>
+              <v-col cols="3"> </v-col>
+              <v-col cols="6">
+                <v-number-input
+                  :model-value="bbox[1]"
+                  @update:model-value="(value) => updateBBox(1, value)"
+                  label="min. Latitude"
+                  :min="-180.0"
+                  :max="180.0"
+                  :step="0.0001"
+                  :precision="4"
+                  density="compact"
+                  variant="outlined"
+                  control-variant="stacked"
+                  hide-details
+                ></v-number-input>
+              </v-col>
+              <v-col cols="3"></v-col>
+            </v-row>
+          </template>
+          <v-row v-if="typeof currentBBoxValid === 'string'">
+            <v-col>
+              <v-alert color="error" type="error" variant="tonal" density="compact">
+                {{ currentBBoxValid }}
+              </v-alert>
             </v-col>
-            <v-col cols="3"> </v-col>
           </v-row>
-          <v-row>
-            <v-col cols="5">
-              <v-number-input
-                :model-value="bbox[0]"
-                @update:model-value="(value) => updateBBox(0, value)"
-                label="min. Longitude"
-                :min="-180.0"
-                :max="180.0"
-                :step="0.0001"
-                :precision="4"
-                density="compact"
-                variant="outlined"
-                control-variant="stacked"
-                hide-details
-              ></v-number-input
-            ></v-col>
-            <v-col cols="2"> </v-col>
-            <v-col cols="5">
-              <v-number-input
-                :model-value="bbox[2]"
-                @update:model-value="(value) => updateBBox(2, value)"
-                label="max. Longitude"
-                :min="-180.0"
-                :max="180.0"
-                :step="0.0001"
-                :precision="4"
-                density="compact"
-                variant="outlined"
-                control-variant="stacked"
-                hide-details
-              ></v-number-input
-            ></v-col>
-          </v-row>
-          <v-row>
-            <v-col cols="3"> </v-col>
-            <v-col cols="6">
-              <v-number-input
-                :model-value="bbox[1]"
-                @update:model-value="(value) => updateBBox(1, value)"
-                label="min. Latitude"
-                :min="-180.0"
-                :max="180.0"
-                :step="0.0001"
-                :precision="4"
-                density="compact"
-                variant="outlined"
-                control-variant="stacked"
-                hide-details
-              ></v-number-input>
+          <v-row v-else-if="!settings.expertMode">
+            <v-col>
+              <v-alert color="gray" type="info" variant="tonal" density="compact"
+                >Please select an area of interest on the map by clicking on the map. Then adjusting
+                the bounding box.</v-alert
+              >
             </v-col>
-            <v-col cols="3"></v-col>
           </v-row>
         </v-expansion-panel-text>
       </v-expansion-panel>
@@ -1332,7 +1360,7 @@ onUnmounted(() => {
         !activeTileId ||
         (!modelIsSingleShot && !secondActiveTileId) ||
         isCreatingProject ||
-        !currentBBoxValid
+        currentBBoxValid !== true
       "
       @click="handleCompareTiles"
     >
@@ -1350,7 +1378,7 @@ onUnmounted(() => {
         !activeTileId ||
         (!modelIsSingleShot && !secondActiveTileId) ||
         isProcessing ||
-        !currentBBoxValid
+        currentBBoxValid !== true
       "
       @click="handleSmallAreaProcessingRequest"
     >

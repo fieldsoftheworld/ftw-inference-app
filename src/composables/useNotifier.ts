@@ -12,10 +12,12 @@ export default function useNotifier() {
   const notifier = useVuetifyNotifier()
 
   const showNotifier = (notification: NotifierMessage) => {
-    const { type, text } = notification
+    let { type, text } = notification
     if (lastMessages[type] === text) {
       return
     }
+    // Remove common Python error prefix if returned by the server
+    text = text.replace('ValueError: ', '')
     notifier.toast({
       type,
       text,
