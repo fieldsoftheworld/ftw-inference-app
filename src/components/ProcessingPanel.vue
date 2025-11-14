@@ -14,17 +14,17 @@ import useNotifier from '../composables/useNotifier'
 import useStacLayer from '../composables/useStacLayer'
 import useAreaOfInterest from '../composables/useAreaOfInterest'
 import useProcessingMode from '../composables/useProcessingMode'
+import useGeocoding from '../composables/useGeocoding'
 import useMap from '../composables/useMap'
 import { mdiHelpCircleOutline } from '@mdi/js'
 import TilePreview from './TilePreview.vue'
-import { cpuUsage } from 'process'
 
 const emit = defineEmits<{
   (e: 'updateGeoJSONResults', results: any[]): void
   (e: 'workStateChanged', isWorking: boolean): void
 }>()
 
-const { map, vectorLayer, handleMapClick, areaValues } = useMap()
+const { map, vectorLayer, areaValues } = useMap()
 const { removeStacLayer } = useStacLayer()
 const { drawnExtent, validateBBox, removeExtentInteraction, getTileById, triggerTileSelection } =
   useAreaOfInterest()
@@ -35,6 +35,7 @@ const { activeTileId, currentBBox, currentBBoxValid, secondActiveTileId, current
 const { settings, collections, availableCollections, availableModels, modelIsSingleShot } =
   useSettings()
 const { isBatchProcessing } = useProcessingMode()
+const { placeSearch, isLoadingPlaces, suggestedPlaces, handleLocationSelected } = useGeocoding()
 
 const months = [
   { value: 1, title: '1 - January' },
@@ -426,9 +427,6 @@ const displayGeoJSON = (geojson: FeatureCollection & { crs: { properties: { name
   }))
   emit('updateGeoJSONResults', results)
 
-  // Add map click handler to detect feature clicks and show properties
-  map.value!.on('click', handleMapClick)
-
   // Get the extent and validate it
   const extent = source.getExtent()
   if (!extent || extent.every((coord) => coord === 0) || extent.some((coord) => isNaN(coord))) {
@@ -748,13 +746,6 @@ const handleCompareTiles = async () => {
     // Clear message after 3 seconds (only for non-retry cases)
   }
 }
-
-// Clean up map click handler when component is unmounted
-onUnmounted(() => {
-  if (map.value) {
-    map.value.un('click', handleMapClick)
-  }
-})
 </script>
 
 <template>
@@ -897,13 +888,29 @@ onUnmounted(() => {
           </span>
         </v-expansion-panel-title>
         <v-expansion-panel-text>
-          <!-- S2 Grid Selection Dropdown -->
+          <!-- Geocoding -->
+          <v-row>
+            <v-col>
+              <v-autocomplete
+                @update:model-value="handleLocationSelected"
+                v-model:search="placeSearch"
+                :loading="isLoadingPlaces"
+                :items="suggestedPlaces"
+                label="Search for a place"
+                hide-details
+                dense
+                variant="outlined"
+              ></v-autocomplete>
+            </v-col>
+          </v-row>
+
+          <!-- Grid Selection Dropdown -->
           <v-row v-if="settings.expertMode">
             <v-col>
               <v-autocomplete
                 v-model="currentMgrsTileId"
                 @update:model-value="handleTileSelected"
-                label="S2 Grid Selection"
+                label="MGRS Grid Selection"
                 hide-details
                 dense
                 variant="outlined"

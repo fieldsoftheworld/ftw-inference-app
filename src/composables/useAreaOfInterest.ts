@@ -278,8 +278,8 @@ export default function useAreaOfInterest() {
 
   function validateBBox(bbox: Extent, silent: boolean = false, checkBBox: boolean = true): boolean {
     if (checkBBox && !isBBox(bbox)) {
+      const message = 'The provided area of interest is invalid. Please check the coordinates.'
       if (!silent && !settings.value.expertMode) {
-        const message = 'The provided area of interest is invalid. Please check the coordinates.'
         showError(message)
       }
       currentBBoxValid.value = message
@@ -320,6 +320,70 @@ export default function useAreaOfInterest() {
     return true
   }
 
+  function addBBoxAtPixel(pixel: number[], map: Map, areaValues: AreaValues) {
+    removeExtentInteraction()
+
+    const features = map.getFeaturesAtPixel(pixel)
+    const coordinate = map.getCoordinateFromPixel(pixel)
+
+    let extentFound = false
+    for (const feature of features) {
+      // Get the MGRS Tile ID from the feature properties
+      const mgrsTileId = feature.get('Name')
+      if (!mgrsTileId) {
+        continue
+      }
+
+      // Set the current MGRS tile ID
+      currentMgrsTileId.value = mgrsTileId
+
+      // Get the feature's extent (i.e. the MGRS grid tile extent)
+      const geometry = feature.getGeometry()
+      if (geometry) {
+        const extent = geometry.getExtent()
+        currentGridExtent.value = extent // Store the current grid extent
+        // Calculate the bounding box based on area values
+        const extentAtClickedPosition = [
+          coordinate[0] - getWidth(extent) / 2,
+          coordinate[1] - getHeight(extent) / 2,
+          coordinate[0] + getWidth(extent) / 2,
+          coordinate[1] + getHeight(extent) / 2,
+        ]
+        const bboxExtent = getIntersection(
+          extent,
+          calculateBoundingBox(extentAtClickedPosition, areaValues),
+        )
+        if (isEmpty(bboxExtent)) {
+          continue
+        }
+
+        // Set initial bounding box
+        const bboxPolygon = fromExtent(bboxExtent)
+        extentFeature.setGeometry(bboxPolygon)
+        drawnExtent.value = bboxExtent
+        currentBBox.value = transformExtent(bboxExtent, 'EPSG:3857', 'EPSG:4326')
+
+        // Add padding to the extent for view fitting
+        const padding = 50
+
+        // Fit the view to the extent
+        map.getView().fit(extentAtClickedPosition, {
+          padding: [padding, padding, padding, padding],
+          duration: 1000,
+          maxZoom: 13,
+        })
+
+        // Create and add Modify interaction with size restriction
+        addExtentInteraction(map, areaValues)
+        extentFound = true
+        break
+      }
+    }
+    if (!extentFound) {
+      currentGridExtent.value = null
+    }
+  }
+
   function addMapClickHandler(map: Map, areaValues: AreaValues) {
     // Add click handler
     map.on('click', (event) => {
@@ -328,66 +392,7 @@ export default function useAreaOfInterest() {
         return
       }
 
-      removeExtentInteraction()
-
-      const features = map.getFeaturesAtPixel(event.pixel)
-
-      let extentFound = false
-      for (const feature of features) {
-        // Get the MGRS Tile ID from the feature properties
-        const mgrsTileId = feature.get('Name')
-        if (!mgrsTileId) {
-          continue
-        }
-
-        // Set the current MGRS tile ID
-        currentMgrsTileId.value = mgrsTileId
-
-        // Get the feature's extent (i.e. the MGRS grid tile extent)
-        const geometry = feature.getGeometry()
-        if (geometry) {
-          const extent = geometry.getExtent()
-          currentGridExtent.value = extent // Store the current grid extent
-          // Calculate the bounding box based on area values
-          const extentAtClickedPosition = [
-            event.coordinate[0] - getWidth(extent) / 2,
-            event.coordinate[1] - getHeight(extent) / 2,
-            event.coordinate[0] + getWidth(extent) / 2,
-            event.coordinate[1] + getHeight(extent) / 2,
-          ]
-          const bboxExtent = getIntersection(
-            extent,
-            calculateBoundingBox(extentAtClickedPosition, areaValues),
-          )
-          if (isEmpty(bboxExtent)) {
-            continue
-          }
-
-          // Set initial bounding box
-          const bboxPolygon = fromExtent(bboxExtent)
-          extentFeature.setGeometry(bboxPolygon)
-          drawnExtent.value = bboxExtent
-          currentBBox.value = transformExtent(bboxExtent, 'EPSG:3857', 'EPSG:4326')
-
-          // Add padding to the extent for view fitting
-          const padding = 50
-
-          // Fit the view to the extent
-          map.getView().fit(extentAtClickedPosition, {
-            padding: [padding, padding, padding, padding],
-            duration: 1000,
-            maxZoom: 13,
-          })
-
-          // Create and add Modify interaction with size restriction
-          addExtentInteraction(map, areaValues)
-          extentFound = true
-          break
-        }
-      }
-      if (!extentFound) {
-        currentGridExtent.value = null
-      }
+      addBBoxAtPixel(event.pixel, map, areaValues)
     })
   }
 
@@ -504,6 +509,7 @@ export default function useAreaOfInterest() {
     currentBBox,
     currentBBoxValid,
     extentFeature,
+    addBBoxAtPixel,
     addExtentInteraction,
     removeExtentInteraction,
     addMapClickHandler,

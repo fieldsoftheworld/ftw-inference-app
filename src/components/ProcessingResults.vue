@@ -30,7 +30,8 @@
 
 <script setup lang="ts">
 import type Map from 'ol/Map'
-import { computed, ref, watch } from 'vue'
+import { computed, ref, watch, onMounted, onUnmounted } from 'vue'
+import useMap from '../composables/useMap'
 import useNotifier from '../composables/useNotifier'
 import useAreaOfInterest from '../composables/useAreaOfInterest'
 import PropertyDisplay from './PropertyDisplay.vue'
@@ -46,6 +47,7 @@ const emit = defineEmits<{
   (e: 'clearResults'): void
 }>()
 
+const { map, handleMapClick } = useMap()
 const { setBlockMapClicks, clearResultsAndZoomToGrid } = useAreaOfInterest()
 const { showInfo, showError } = useNotifier()
 
@@ -166,6 +168,20 @@ watch(
   },
   { immediate: true }
 )
+
+onMounted(() => {
+  // Add map click handler to detect feature clicks and show properties
+  if (map.value) {
+    map.value.on('click', handleMapClick)
+  }
+})
+
+// Clean up map click handler when component is unmounted
+onUnmounted(() => {
+  if (map.value) {
+    map.value.un('click', handleMapClick)
+  }
+})
 
 const clearResults = () => {
   // Clear results and zoom back to S2 grid
