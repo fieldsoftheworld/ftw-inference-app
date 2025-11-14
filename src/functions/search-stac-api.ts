@@ -79,7 +79,7 @@ export const tileDataFromStacFeature = (item: StacFeature): SearchResult => {
     id: item.id,
     date: new Date(item.properties.datetime).toLocaleDateString(),
     isoDate: item.properties.datetime,
-    cloudCover: item.properties['eo:cloud_cover'] || 'N/A',
+    cloudCover: item.properties['eo:cloud_cover'],
     areaCoverage: areaCoverage,
     thumbnailUrl: item.assets?.thumbnail?.href || item.assets?.visual?.href || '#',
     tiffUrl: item.assets?.visual?.href || '#',
@@ -142,17 +142,7 @@ export default async function searchStacApi(
 
     // Add bbox parameter if provided
     if (bbox && bbox.length === 4) {
-      // Convert from EPSG:3857 to EPSG:4326 (WGS84) if needed
-      const [minX, minY, maxX, maxY] = bbox
-
-      // Import the transform function from OpenLayers
-      const { transform } = await import('ol/proj')
-
-      // Transform coordinates from EPSG:3857 to EPSG:4326
-      const [minLon, minLat] = transform([minX, minY], 'EPSG:3857', 'EPSG:4326')
-      const [maxLon, maxLat] = transform([maxX, maxY], 'EPSG:3857', 'EPSG:4326')
-
-      requestBody.bbox = [minLon, minLat, maxLon, maxLat]
+      requestBody.bbox = bbox
     }
 
     // Add the pagination token if we're loading more results

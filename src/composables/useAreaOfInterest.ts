@@ -251,7 +251,6 @@ export default function useAreaOfInterest() {
     )
 
     if (!isContained) {
-      const { showWarning } = useNotifier()
       showWarning(
         'The selected area is not fully contained within the selected tiles. Please try a different area.',
       )
@@ -322,11 +321,7 @@ export default function useAreaOfInterest() {
     return true
   }
 
-  function addMapClickHandler(
-    map: Map,
-    areaValues: AreaValues,
-    handleSearchResults: (bbox?: number[], settings?: any) => Promise<void>,
-  ) {
+  function addMapClickHandler(map: Map, areaValues: AreaValues) {
     // Add click handler
     map.on('click', (event) => {
       // Block map clicks if results are displayed
@@ -349,13 +344,7 @@ export default function useAreaOfInterest() {
         // Set the current MGRS tile ID
         currentMgrsTileId.value = mgrsTileId
 
-        // If the clicked feature is the same as the current tile, don't do anything
-        // todo: Does this actually work as intended?
-        if (currentMgrsTileId === mgrsTileId) {
-          return
-        }
-
-        // Get the feature's extent
+        // Get the feature's extent (i.e. the MGRS grid tile extent)
         const geometry = feature.getGeometry()
         if (geometry) {
           const extent = geometry.getExtent()
@@ -378,6 +367,8 @@ export default function useAreaOfInterest() {
           // Set initial bounding box
           const bboxPolygon = fromExtent(bboxExtent)
           extentFeature.setGeometry(bboxPolygon)
+          drawnExtent.value = bboxExtent
+          currentBBox.value = transformExtent(bboxExtent, 'EPSG:3857', 'EPSG:4326')
 
           // Add padding to the extent for view fitting
           const padding = 50
@@ -388,24 +379,6 @@ export default function useAreaOfInterest() {
             duration: 1000,
             maxZoom: 13,
           })
-
-          // Create a smaller bbox within the grid to avoid overlap with adjacent grids
-          // Use 70% of the grid extent centered within the grid
-          const gridWidth = extent[2] - extent[0]
-          const gridHeight = extent[3] - extent[1]
-          const shrinkFactor = 0.4 // 40% shrink from each side (80% total)
-
-          const bbox = [
-            extent[0] + gridWidth * shrinkFactor, // minLon
-            extent[1] + gridHeight * shrinkFactor, // minLat
-            extent[2] - gridWidth * shrinkFactor, // maxLon
-            extent[3] - gridHeight * shrinkFactor, // maxLat
-          ]
-
-          // Call the search function through the ref and open the Batch Processing accordion
-          if (currentMgrsTileId.value) {
-            handleSearchResults(bbox, settings.value)
-          }
 
           // Create and add Modify interaction with size restriction
           addExtentInteraction(map, areaValues)

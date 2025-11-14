@@ -9,7 +9,6 @@ import createS2GridLayer from '../layers/S2-Grid-Layer'
 import createCloudlessLayer from '../layers/S2-Cloudless-Layer'
 import { generateJWT } from '../functions/generate-jwt'
 import useAreaOfInterest from '../composables/useAreaOfInterest'
-import useSearch from '../composables/useSearch'
 import usePermalink from '../composables/usePermalink'
 import useMap from '../composables/useMap'
 import useSettings from '../composables/useSettings'
@@ -25,7 +24,6 @@ const {
 } = useMap()
 
 const { addMapClickHandler } = useAreaOfInterest()
-const { handleSearchResults } = useSearch()
 const { setAvailableModels } = useSettings()
 
 const dataCabinetRef = ref<InstanceType<typeof DataCabinet> | null>(null)
@@ -89,7 +87,7 @@ onMounted(async () => {
   // Add S2 Grid layer after map is initialized
   if (map.value) {
     const s2GridLayer = createS2GridLayer()
-    addMapClickHandler(map.value as Map, areaValues.value, handleSearchResults)
+    addMapClickHandler(map.value as Map, areaValues.value)
     map.value.addLayer(s2GridLayer)
 
     // Setup permalink functionality

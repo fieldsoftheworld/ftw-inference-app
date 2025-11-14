@@ -106,12 +106,11 @@ const handleViewOnMap = async () => {
     </div>
     <div class="result-details">
       <div>Date: {{ tile.date }}</div>
-      <div>Cloud Cover: {{ tile.cloudCover }}%</div>
-      <div v-if="tile.areaCoverage !== undefined">
-        Area Coverage:
-        {{
-          typeof tile.areaCoverage === 'number' ? tile.areaCoverage.toFixed(1) : tile.areaCoverage
-        }}%
+      <div v-if="typeof tile.cloudCover === 'number'">
+        Cloud Cover: {{ tile.cloudCover.toFixed(1) }}%
+      </div>
+      <div v-if="typeof tile.areaCoverage === 'number'">
+        Area Coverage: {{ tile.areaCoverage.toFixed(1) }}%
       </div>
     </div>
   </div>
