@@ -2,7 +2,7 @@ import { Feature, type Map } from 'ol'
 import { never } from 'ol/events/condition'
 import {
   buffer,
-  containsCoordinate,
+  containsExtent,
   getHeight,
   getIntersection,
   getWidth,
@@ -12,28 +12,41 @@ import {
 import ExtentInteraction from 'ol/interaction/Extent'
 import { Fill, Stroke, Style } from 'ol/style'
 import { nextTick, ref, type Ref, shallowRef, watch } from 'vue'
-import VectorLayer from 'ol/layer/Vector'
-import VectorSource from 'ol/source/Vector'
 import Polygon, { fromExtent } from 'ol/geom/Polygon'
 import { transformExtent } from 'ol/proj'
 import { getArea } from 'ol/sphere'
-import { showWarning } from '../functions/snackbar'
 import { booleanWithin as turfBooleanWithin } from '@turf/boolean-within'
-import { clearSearchResults, SearchResult, searchResults } from './useSearch'
-import { Feature as GeoJSONFeature, Polygon as GeoJSONPolygon } from 'geojson'
-import { areaValues, map } from './useMap'
-import { autoSceneSelection, useSettings } from './useSettings'
+import type { Feature as GeoJSONFeature, Polygon as GeoJSONPolygon } from 'geojson'
+import useMap, { type AreaValues } from './useMap'
+import useNotifier from './useNotifier'
+import useProcessingMode from './useProcessingMode'
+import useSearch, { type SearchResult } from './useSearch'
+import useSettings from './useSettings'
 import { tileDataFromStacFeature } from '../functions/search-stac-api'
-import { processingMode } from './useProcessingMode'
 import { debounce } from 'vuetify/lib/util/helpers.mjs'
+
+const extentInteraction = shallowRef<ExtentInteraction | null>(null)
+const currentMgrsTileId = ref<string | null>(null)
+const activeTileId = ref<string | null>(null)
+const secondActiveTileId = ref<string | null>(null)
+/** Full grid extent */
+const currentGridExtent = shallowRef<Extent | null>(null)
+/** User bbox */
+const currentBBox = ref<number[] | undefined>(undefined) // bbox in EPSG:4326
+const currentBBoxValid = ref<string | boolean>(false)
+const drawnExtent = shallowRef<Extent | null>(null) // bbox in EPSG:3857
+/** Flag to block map clicks when results are displayed */
+const blockMapClicks = ref(false)
+
+const extentFeature: Feature<Polygon> = new Feature()
 
 const invalidStyle = new Style({
   stroke: new Stroke({
-    color: 'rgba(255, 255, 0, 1)',
+    color: 'rgba(255, 0, 0, 1)',
     width: 2,
   }),
   fill: new Fill({
-    color: 'rgba(255, 255, 0, 0.1)',
+    color: 'rgba(0, 136, 136, 0.1)',
   }),
 })
 
@@ -47,376 +60,300 @@ const validStyle = new Style({
   }),
 })
 
-const extentInteraction = shallowRef<ExtentInteraction | null>(null)
-export const currentMgrsTileId = ref<string | null>(null)
-export const activeTileId = ref<string | null>(null)
-export const secondActiveTileId = ref<string | null>(null)
-/** Full grid extent */
-const currentGridExtent = shallowRef<Extent | null>(null)
-/** User bbox */
-export const drawnExtent = shallowRef<Extent | null>(null)
-const currentDrawnExtent = shallowRef<Polygon | undefined>(undefined)
-/** Flag to block map clicks when results are displayed */
-const blockMapClicks = ref(false)
-const { settings } = useSettings()
+export default function useAreaOfInterest() {
+  const { searchResults } = useSearch()
+  const { settings } = useSettings()
+  const { maxArea, vectorLayer, areaValues, geoJsonResults, map } = useMap()
+  const { updateProcessingMode } = useProcessingMode()
+  const { showWarning, showError } = useNotifier()
 
-const extentFeature: Feature<Polygon> = new Feature()
+  let updatingDrawnExtent = false
+  watch(
+    drawnExtent,
+    (newValue) => {
+      if (updatingDrawnExtent) {
+        return
+      }
+      updatingDrawnExtent = true
+      extentFeature.setGeometry(newValue ? fromExtent(newValue) : undefined)
+      if (newValue) {
+        extentInteraction.value?.setExtent(newValue)
+      }
+      updatingDrawnExtent = false
+    },
+    { immediate: true },
+  )
 
-let updatingDrawnExtent = false
-watch(
-  drawnExtent,
-  (newValue) => {
+  extentFeature.on('change', () => {
     if (updatingDrawnExtent) {
       return
     }
+    const bbox = extentFeature?.getGeometry()?.getExtent() || null
     updatingDrawnExtent = true
-    extentFeature.setGeometry(newValue ? fromExtent(newValue) : undefined)
-    if (newValue) {
-      extentInteraction.value?.setExtent(newValue)
-    }
-    updatingDrawnExtent = false
-  },
-  { immediate: true },
-)
-
-// Watch for processing mode changes to re-validate current drawn extent
-watch(processingMode, (newMode, oldMode) => {
-  // Only re-validate if we have a drawn extent and we're switching modes
-  if (drawnExtent.value && newMode !== oldMode) {
-    validateCurrentExtent()
-  }
-})
-extentFeature.on('change', () => {
-  if (updatingDrawnExtent) {
-    return
-  }
-  const bbox = extentFeature?.getGeometry()?.getExtent() || null
-  updatingDrawnExtent = true
-  drawnExtent.value = bbox // Update the drawn extent in the composable
-  nextTick(() => {
-    updatingDrawnExtent = false
-  })
-})
-
-const drawVectorLayer: VectorLayer<VectorSource> = new VectorLayer({
-  source: new VectorSource({
-    features: [extentFeature],
-  }),
-  zIndex: 1001,
-})
-
-function addExtentInteraction() {
-  extentInteraction.value = new ExtentInteraction({
-    extent: drawnExtent.value || undefined,
-    createCondition: never,
-    drag: true,
-    boxStyle: [
-      new Style({
-        stroke: new Stroke({
-          color: 'white',
-          width: 2.5,
-        }),
-      }),
-      new Style({
-        stroke: new Stroke({
-          color: 'rgba(0, 136, 136, 1)',
-          width: 2,
-        }),
-      }),
-    ],
-  })
-  map.value!.addInteraction(extentInteraction.value)
-
-  let warningShown = false
-
-  extentInteraction.value.on(
-    'extentchanged',
-    debounce((event) => {
-      const newExtent = event.extent
-      const geometry = fromExtent(newExtent)
-      currentDrawnExtent.value = geometry
-
-      const area = calculateArea(geometry)
-      const isWithinExtent = currentGridExtent.value
-        ? isPolygonWithinExtent(geometry, currentGridExtent.value)
-        : false
-
-      // Define area limits based on processing mode
-      const maxArea =
-        processingMode.value === 'batchProcessing' ? 3000 : areaValues.value!.max_area_km2
-      const minArea =
-        processingMode.value === 'batchProcessing' ? 0 : areaValues.value!.min_area_km2
-
-      // Check if the polygon is within the grid extent and within size limits
-      if (area > maxArea || area < minArea || !isWithinExtent) {
-        if (!warningShown) {
-          // Show notification for each validation error
-          if (area > maxArea) {
-            const maxAreaText =
-              processingMode.value === 'batchProcessing'
-                ? '3000 square kilometers'
-                : `${areaValues.value?.max_area_km2} square kilometers`
-            const switchToBatchProcessing =
-              processingMode.value === 'smallAreaProcessing'
-                ? 'To run a larger area, switch to Batch Processing.'
-                : ''
-            showWarning(
-              `Bounding box area exceeds ${maxAreaText}. Using last valid state. ${switchToBatchProcessing}`,
-            )
-          }
-          if (area < minArea) {
-            showWarning(
-              `Bounding box area is less than ${areaValues.value?.min_area_km2} square kilometers. Using last valid state.`,
-            )
-          }
-          if (!isWithinExtent) {
-            showWarning(
-              'Running inference across Sentinel 2 tile boundaries is not yet supported. Move your bbox to the selected tile, or select a different tile.',
-            )
-          }
-          warningShown = true
-          drawVectorLayer?.setStyle(invalidStyle)
-        }
-      } else {
-        warningShown = false
-        extentFeature.setGeometry(geometry)
-        drawVectorLayer.setStyle(validStyle)
-
-        if (!autoSceneSelection.value) {
-          // Check geometry containment if both tiles are selected
-          checkBboxContainment(newExtent, drawnExtent)
-        }
-      }
-    }, 500),
-  )
-
-  return extentInteraction.value
-}
-
-function removeExtentInteraction() {
-  if (!extentInteraction.value) {
-    return
-  }
-  // Clean up interaction
-  const map = extentInteraction.value.getMap()
-  // @ts-ignore
-  extentInteraction.value.setMap(null)
-  if (map) {
-    map.removeInteraction(extentInteraction.value)
-  }
-  extentInteraction.value.dispose()
-  extentInteraction.value = null
-}
-
-function removeDrawVectorLayer(map: Map) {
-  if (drawVectorLayer && map.getLayers().getArray().includes(drawVectorLayer)) {
-    map.removeLayer(drawVectorLayer)
-    drawVectorLayer.getSource()?.dispose()
-  }
-}
-
-function setBlockMapClicks(block: boolean) {
-  blockMapClicks.value = block
-}
-
-function clearResultsAndZoomToGrid(map: Map) {
-  // Clear the results by setting blockMapClicks to false
-  blockMapClicks.value = false
-
-  // Remove the GeoJSON results layer from the map
-  const layers = map.getLayers().getArray()
-  const resultsLayer = layers.find(
-    (layer) =>
-      // Look for the layer with zIndex 1001 (our GeoJSON results layer)
-      (layer as any).getZIndex &&
-      (layer as any).getZIndex() === 1001 &&
-      (layer as any).getSource &&
-      (layer as any).getSource() &&
-      typeof (layer as any).getSource().getFeatures === 'function',
-  )
-
-  if (resultsLayer) {
-    map.removeLayer(resultsLayer)
-    // Dispose of the layer source to free memory
-    if ((resultsLayer as any).getSource) {
-      ;(resultsLayer as any).getSource().dispose()
-    }
-  }
-
-  // Store the current grid extent before clearing it
-  const gridExtent = currentGridExtent.value
-
-  // Clear search results
-  clearSearchResults()
-
-  // Reset S2 grid selection state
-  currentMgrsTileId.value = null
-  activeTileId.value = null
-  secondActiveTileId.value = null
-  currentGridExtent.value = null
-  drawnExtent.value = null
-
-  // Remove the draw vector layer if it exists
-  removeDrawVectorLayer(map)
-
-  // Zoom back to the stored grid extent if available
-  if (gridExtent) {
-    const padding = 50
-    const paddedExtent = buffer(gridExtent, padding)
-
-    map.getView().fit(paddedExtent, {
-      duration: 1000,
-      maxZoom: 13,
+    drawnExtent.value = bbox // Update the drawn extent in the composable
+    nextTick(() => {
+      updatingDrawnExtent = false
     })
-  }
-}
+  })
 
-// Function to check if all coordinates of a polygon are within an extent
-function isPolygonWithinExtent(polygon: Polygon, extent: Extent): boolean {
-  const coordinates = polygon.getCoordinates()[0]
-  return coordinates.every((coord) => containsCoordinate(extent, coord))
-}
+  function addExtentInteraction(map: Map, areaValues: AreaValues) {
+    if (extentInteraction.value) {
+      return
+    }
+    extentInteraction.value = new ExtentInteraction({
+      extent: drawnExtent.value || undefined,
+      createCondition: never,
+      drag: true,
+      boxStyle: validStyle,
+    })
+    map.addInteraction(extentInteraction.value)
 
-// Function to calculate area in square kilometers
-function calculateArea(geometry: Polygon, convertProjection: boolean = true): number {
-  // Transform to EPSG:4326 for accurate area calculation
-  const area = getArea(geometry, { projection: convertProjection ? 'EPSG:3857' : 'EPSG:4326' })
-  return area / 1000000 // Convert to square kilometers
-}
+    extentInteraction.value.on('extentchanged', (event: any) => {
+      const layer = event.target.extentOverlay_
+      const bbox = transformExtent(event.extent, 'EPSG:3857', 'EPSG:4326')
+      if (validateBBox(bbox, true, false)) {
+        layer.setStyle(validStyle)
+      } else {
+        layer.setStyle(invalidStyle)
+      }
+    })
 
-// Function to validate the current drawn extent and update styling
-function validateCurrentExtent() {
-  if (!drawnExtent.value || !areaValues.value) {
-    return
-  }
+    extentInteraction.value.on(
+      'extentchanged',
+      debounce((event: any) => {
+        drawnExtent.value = event.extent
+        const bbox = transformExtent(event.extent, 'EPSG:3857', 'EPSG:4326')
+        if (validateBBox(bbox)) {
+          currentBBox.value = bbox
+          if (!settings.value.autoSceneSelection) {
+            // Check geometry containment if both tiles are selected
+            // todo: What is this used for?
+            checkBboxContainment(event.extent, drawnExtent)
+          }
+        }
 
-  const geometry = fromExtent(drawnExtent.value)
-  const area = calculateArea(geometry)
-  const isWithinExtent = currentGridExtent.value
-    ? isPolygonWithinExtent(geometry, currentGridExtent.value)
-    : false
-
-  // Define area limits based on processing mode
-  const maxArea = processingMode.value === 'batchProcessing' ? 3000 : areaValues.value.max_area_km2
-  const minArea = processingMode.value === 'batchProcessing' ? 0 : areaValues.value.min_area_km2
-
-  // Check if the polygon is within the grid extent and within size limits
-  if (area > maxArea || area < minArea || !isWithinExtent) {
-    drawVectorLayer?.setStyle(invalidStyle)
-  } else {
-    drawVectorLayer.setStyle(validStyle)
-    extentFeature.setGeometry(currentDrawnExtent.value)
-  }
-}
-
-// Function to calculate a bounding box within the selected grid based on area values
-function calculateBoundingBox(
-  extent: Extent,
-  areaValues: { min_area_km2: number; max_area_km2: number },
-): Extent {
-  // Convert extent to EPSG:4326 for area calculation
-  const wgs84Extent = transformExtent(extent, 'EPSG:3857', 'EPSG:4326')
-
-  // Calculate center point
-  const centerX = (wgs84Extent[0] + wgs84Extent[2]) / 2
-  const centerY = (wgs84Extent[1] + wgs84Extent[3]) / 2
-
-  // Calculate the size of the box in degrees
-  // At the equator, 1 degree is approximately 111.32 km
-  // Use the min area value if available, otherwise use 200 sq km
-  const targetArea = (areaValues?.min_area_km2 + areaValues?.max_area_km2) / 2
-  const sideLengthKm = Math.sqrt(targetArea)
-  const sideLengthDegrees = sideLengthKm / 111.32
-
-  // Create the new extent
-  const newExtent: Extent = [
-    centerX - sideLengthDegrees / 2,
-    centerY - sideLengthDegrees / 2,
-    centerX + sideLengthDegrees / 2,
-    centerY + sideLengthDegrees / 2,
-  ]
-
-  // Transform back to EPSG:3857
-  return transformExtent(newExtent, 'EPSG:4326', 'EPSG:3857')
-}
-
-const checkBboxContainment = async (extent: Extent, drawnExtent: Ref<Extent | null>) => {
-  const currentExtent = extent || drawnExtent.value
-  if (!activeTileId.value || !secondActiveTileId.value || !currentExtent) {
-    return
-  }
-
-  const firstTile = await getTileById(activeTileId.value)
-  const secondTile = await getTileById(secondActiveTileId.value)
-
-  if (!firstTile?.geometry || !secondTile?.geometry) {
-    return
-  }
-
-  // Create the intersection from the geometries to see if the bbox is contained within
-  const tilePolygons: GeoJSONFeature<GeoJSONPolygon>[] = [firstTile, secondTile].map((f) => ({
-    type: 'Feature',
-    properties: null,
-    geometry: f.geometry as GeoJSONPolygon, // c'mon, TypeScript, you know the geometry is not null, we checked it above
-  }))
-
-  // Convert drawn extent to GeoJSON bbox format [minX, minY, maxX, maxY]
-  const bbox = transformExtent(currentExtent, 'EPSG:3857', 'EPSG:4326')
-  const bboxPolygon: GeoJSONFeature<GeoJSONPolygon> = {
-    type: 'Feature',
-    properties: null,
-    geometry: { type: 'Polygon', coordinates: fromExtent(bbox).getCoordinates() },
-  }
-  // Check if the bbox is contained within both tile polygons
-  const isContained = tilePolygons.every((tilePolygon) =>
-    turfBooleanWithin(bboxPolygon, tilePolygon),
-  )
-
-  if (!isContained) {
-    showWarning(
-      'The selected area (bbox) is not fully contained within the selected tiles. Please try a different area.',
+        const area = calculateArea(bbox)
+        updateProcessingMode(area, areaValues)
+      }, 500),
     )
-  }
-}
 
-function addMapClickHandler(
-  map: Map,
-  areaValues: { min_area_km2: number; max_area_km2: number },
-  handleSearchResults: (mgrsTileId: string, bbox?: number[], settings?: any) => Promise<void>,
-) {
-  // Add click handler
-  map?.on('click', (event) => {
-    // Block map clicks if results are displayed
-    if (blockMapClicks.value) {
+    return extentInteraction.value
+  }
+
+  function removeExtentInteraction() {
+    if (!extentInteraction.value) {
+      return
+    }
+    // Clean up interaction
+    const map = extentInteraction.value.getMap()
+    // @ts-ignore
+    extentInteraction.value.setMap(null)
+    if (map) {
+      map.removeInteraction(extentInteraction.value)
+    }
+    extentInteraction.value.dispose()
+    extentInteraction.value = null
+  }
+
+  function clearResultsAndZoomToGrid(map: Map) {
+    geoJsonResults.value = []
+
+    // Remove the GeoJSON results layer from the map
+    if (vectorLayer.value) {
+      map.removeLayer(vectorLayer.value)
+      // Dispose of the layer source to free memory
+      if (vectorLayer.value.getSource) {
+        vectorLayer.value.getSource()!.dispose()
+      }
+    }
+
+    // Zoom back to the stored grid extent if available
+    if (currentGridExtent.value) {
+      const padding = 50
+      const paddedExtent = buffer(currentGridExtent.value, padding)
+
+      map.getView().fit(paddedExtent, {
+        duration: 1000,
+        maxZoom: 13,
+      })
+    }
+  }
+
+  watch(geoJsonResults, (newResults) => {
+    if (newResults.length > 0) {
+      blockMapClicks.value = true
+      removeExtentInteraction()
+    } else {
+      blockMapClicks.value = false
+      addExtentInteraction(map.value!, areaValues.value)
+    }
+  })
+
+  // Function to calculate area in square kilometers
+  function calculateArea(bbox: Extent): number {
+    const geometry = fromExtent(bbox)
+    const area = getArea(geometry, { projection: 'EPSG:4326' })
+    return area / 1000000 // Convert to square kilometers
+  }
+
+  // Function to calculate a bounding box within the selected grid based on area values
+  function calculateBoundingBox(extent: Extent, areaValues: AreaValues): Extent {
+    // Convert extent to EPSG:4326 for area calculation
+    const wgs84Extent = transformExtent(extent, 'EPSG:3857', 'EPSG:4326')
+
+    // Calculate center point
+    const centerX = (wgs84Extent[0] + wgs84Extent[2]) / 2
+    const centerY = (wgs84Extent[1] + wgs84Extent[3]) / 2
+
+    // Calculate the size of the box in degrees
+    // At the equator, 1 degree is approximately 111.32 km
+    // Use the min area value if available, otherwise use 200 sq km
+    const targetArea = (areaValues.min_area_km2 + areaValues.max_area_km2) / 2
+    const sideLengthKm = Math.sqrt(targetArea)
+    const sideLengthDegrees = sideLengthKm / 111.32
+
+    // Create the new extent
+    const newExtent: Extent = [
+      centerX - sideLengthDegrees / 2,
+      centerY - sideLengthDegrees / 2,
+      centerX + sideLengthDegrees / 2,
+      centerY + sideLengthDegrees / 2,
+    ]
+
+    // Transform back to EPSG:3857
+    return transformExtent(newExtent, 'EPSG:4326', 'EPSG:3857')
+  }
+
+  const checkBboxContainment = async (extent: Extent, drawnExtent: Ref<Extent | null>) => {
+    const currentExtent = extent || drawnExtent.value
+    if (!activeTileId.value || !secondActiveTileId.value || !currentExtent) {
       return
     }
 
+    const firstTile = await getTileById(activeTileId.value)
+    const secondTile = await getTileById(secondActiveTileId.value)
+
+    if (!firstTile?.geometry || !secondTile?.geometry) {
+      return
+    }
+
+    // Create the intersection from the geometries to see if the bbox is contained within
+    const tilePolygons: GeoJSONFeature<GeoJSONPolygon>[] = [firstTile, secondTile].map((f) => ({
+      type: 'Feature',
+      properties: null,
+      geometry: f.geometry as GeoJSONPolygon, // c'mon, TypeScript, you know the geometry is not null, we checked it above
+    }))
+
+    // Convert drawn extent to GeoJSON bbox format [minX, minY, maxX, maxY]
+    const bbox = transformExtent(currentExtent, 'EPSG:3857', 'EPSG:4326')
+    const bboxPolygon: GeoJSONFeature<GeoJSONPolygon> = {
+      type: 'Feature',
+      properties: null,
+      geometry: { type: 'Polygon', coordinates: fromExtent(bbox).getCoordinates() },
+    }
+    // Check if the bbox is contained within both tile polygons
+    const isContained = tilePolygons.every((tilePolygon) =>
+      turfBooleanWithin(bboxPolygon, tilePolygon),
+    )
+
+    if (!isContained) {
+      showWarning(
+        'The selected area is not fully contained within the selected tiles. Please try a different area.',
+      )
+    }
+  }
+
+  function isBBox(bbox: any): boolean {
+    if (!Array.isArray(bbox) || bbox.length !== 4) {
+      return false
+    }
+    const [minX, minY, maxX, maxY] = bbox
+    return (
+      typeof minX === 'number' &&
+      typeof minY === 'number' &&
+      typeof maxX === 'number' &&
+      typeof maxY === 'number' &&
+      minX >= -180 &&
+      maxX <= 180 &&
+      minY >= -90 &&
+      maxY <= 90 &&
+      minX < maxX &&
+      minY < maxY
+    )
+  }
+
+  function validateBBox(bbox: Extent, silent: boolean = false, checkBBox: boolean = true): boolean {
+    if (checkBBox && !isBBox(bbox)) {
+      const message = 'The provided area of interest is invalid. Please check the coordinates.'
+      if (!silent && !settings.value.expertMode) {
+        showError(message)
+      }
+      currentBBoxValid.value = message
+      return false
+    }
+
+    const area = calculateArea(bbox)
+
+    if (area < areaValues.value.min_area_km2) {
+      const message = `The selected area of interest is below the minimum threshold of ${areaValues.value.min_area_km2} km². Please select a larger area.`
+      if (!silent) {
+        showError(message)
+      }
+      currentBBoxValid.value = message
+      return false
+    }
+    if (area > maxArea) {
+      const message = `The selected area of interest exceeds the maximum limit of ${maxArea} km². Please select a smaller area.`
+      if (!silent) {
+        showError(message)
+      }
+      currentBBoxValid.value = message
+      return false
+    }
+
+    const extent = transformExtent(bbox, 'EPSG:4326', 'EPSG:3857')
+    if (currentGridExtent.value && !containsExtent(currentGridExtent.value, extent)) {
+      const message =
+        'Running inference across Sentinel 2 tile boundaries is not yet supported. Move your area of interest to the selected tile, or select a different tile.'
+      if (!silent) {
+        showWarning(message)
+      }
+      currentBBoxValid.value = message
+      return false
+    }
+
+    currentBBoxValid.value = true
+    return true
+  }
+
+  function addBBoxAtPixel(pixel: number[], map: Map, areaValues: AreaValues) {
     removeExtentInteraction()
 
-    const features = map.getFeaturesAtPixel(event.pixel)
+    const features = map.getFeaturesAtPixel(pixel)
+    const coordinate = map.getCoordinateFromPixel(pixel)
 
     let extentFound = false
     for (const feature of features) {
       // Get the MGRS Tile ID from the feature properties
       const mgrsTileId = feature.get('Name')
-      currentMgrsTileId.value = mgrsTileId
-
-      // If the clicked feature is the same as the current tile, don't do anything
-      if (!mgrsTileId || currentMgrsTileId === mgrsTileId) {
-        return
+      if (!mgrsTileId) {
+        continue
       }
 
-      // Get the feature's extent
+      // Set the current MGRS tile ID
+      currentMgrsTileId.value = mgrsTileId
+
+      // Get the feature's extent (i.e. the MGRS grid tile extent)
       const geometry = feature.getGeometry()
       if (geometry) {
         const extent = geometry.getExtent()
         currentGridExtent.value = extent // Store the current grid extent
         // Calculate the bounding box based on area values
         const extentAtClickedPosition = [
-          event.coordinate[0] - getWidth(extent) / 2,
-          event.coordinate[1] - getHeight(extent) / 2,
-          event.coordinate[0] + getWidth(extent) / 2,
-          event.coordinate[1] + getHeight(extent) / 2,
+          coordinate[0] - getWidth(extent) / 2,
+          coordinate[1] - getHeight(extent) / 2,
+          coordinate[0] + getWidth(extent) / 2,
+          coordinate[1] + getHeight(extent) / 2,
         ]
         const bboxExtent = getIntersection(
           extent,
@@ -429,10 +366,8 @@ function addMapClickHandler(
         // Set initial bounding box
         const bboxPolygon = fromExtent(bboxExtent)
         extentFeature.setGeometry(bboxPolygon)
-
-        // Adjust draw vector layer extent and style
-        drawVectorLayer.setExtent(currentGridExtent.value)
-        drawVectorLayer.setStyle(validStyle)
+        drawnExtent.value = bboxExtent
+        currentBBox.value = transformExtent(bboxExtent, 'EPSG:3857', 'EPSG:4326')
 
         // Add padding to the extent for view fitting
         const padding = 50
@@ -444,178 +379,155 @@ function addMapClickHandler(
           maxZoom: 13,
         })
 
-        // Create a smaller bbox within the grid to avoid overlap with adjacent grids
-        // Use 70% of the grid extent centered within the grid
-        const gridWidth = extent[2] - extent[0]
-        const gridHeight = extent[3] - extent[1]
-        const shrinkFactor = 0.15 // 15% shrink from each side (70% total)
-
-        const bbox = [
-          extent[0] + gridWidth * shrinkFactor, // minLon
-          extent[1] + gridHeight * shrinkFactor, // minLat
-          extent[2] - gridWidth * shrinkFactor, // maxLon
-          extent[3] - gridHeight * shrinkFactor, // maxLat
-        ]
-
-        // Call the search function through the ref and open the Batch Processing accordion
-        if (currentMgrsTileId.value) {
-          handleSearchResults(currentMgrsTileId.value, bbox, settings.value)
-        } else {
-          console.error('S2 Grid Layer: Current MGRS Tile ID is null')
-        }
-
-        // Add the layer and interactions
-        if (!map.getLayers().getArray().includes(drawVectorLayer)) {
-          map.addLayer(drawVectorLayer)
-        }
-
         // Create and add Modify interaction with size restriction
-        addExtentInteraction()
+        addExtentInteraction(map, areaValues)
         extentFound = true
         break
       }
     }
     if (!extentFound) {
-      // If clicked outside a feature, clear the selection
-      if (drawVectorLayer) {
-        map.removeLayer(drawVectorLayer)
-        drawVectorLayer.getSource()?.dispose()
-      }
       currentGridExtent.value = null
     }
-  })
-}
+  }
 
-// Function to programmatically trigger tile selection and search
-export async function triggerTileSelection(
-  map: Map,
-  mgrsTileId: string,
-  areaValues: { min_area_km2: number; max_area_km2: number },
-  handleSearchResults: (mgrsTileId: string, bbox?: number[], settings?: any) => Promise<void>,
-  bbox?: number[],
-  fit: boolean = true,
-) {
-  // Set the current MGRS tile ID
-  currentMgrsTileId.value = mgrsTileId
-  removeExtentInteraction()
+  function addMapClickHandler(map: Map, areaValues: AreaValues) {
+    // Add click handler
+    map.on('click', (event) => {
+      // Block map clicks if results are displayed
+      if (blockMapClicks.value) {
+        return
+      }
 
-  // Find the feature on the map with this MGRS tile ID
-  const layers = map.getLayers().getArray()
-  let targetFeature: any = null
+      addBBoxAtPixel(event.pixel, map, areaValues)
+    })
+  }
 
-  for (const layer of layers) {
-    // Check if this is a vector layer with features
-    if ('getSource' in layer && typeof (layer as any).getSource === 'function') {
-      const source = (layer as any).getSource()
-      if (source && typeof source.getFeatures === 'function') {
-        const features = source.getFeatures()
-        targetFeature = features.find((f: any) => f.get('Name') === mgrsTileId)
-        if (targetFeature) break
+  // Function to programmatically trigger tile selection and search
+  async function triggerTileSelection(
+    map: Map,
+    mgrsTileId: string,
+    areaValues: AreaValues,
+    handleSearchResults: (bbox?: number[], settings?: any) => Promise<void>,
+    bbox?: number[],
+    fit: boolean = true,
+  ) {
+    // Set the current MGRS tile ID
+    currentMgrsTileId.value = mgrsTileId
+    removeExtentInteraction()
+
+    // Find the feature on the map with this MGRS tile ID
+    const layers = map.getLayers().getArray()
+    let targetFeature: any = null
+
+    for (const layer of layers) {
+      // Check if this is a vector layer with features
+      if ('getSource' in layer && typeof (layer as any).getSource === 'function') {
+        const source = (layer as any).getSource()
+        if (source && typeof source.getFeatures === 'function') {
+          const features = source.getFeatures()
+          targetFeature = features.find((f: any) => f.get('Name') === mgrsTileId)
+          if (targetFeature) break
+        }
+      }
+    }
+
+    if (targetFeature) {
+      // Get the feature's extent
+      const geometry = targetFeature.getGeometry()
+      if (geometry) {
+        const extent = geometry.getExtent()
+        currentGridExtent.value = extent
+
+        // Calculate the bounding box based on area values
+        let bboxExtent: Extent
+        if (bbox) {
+          // Convert bbox from WGS84 (EPSG:4326) to Web Mercator (EPSG:3857)
+          bboxExtent = transformExtent(bbox, 'EPSG:4326', 'EPSG:3857')
+        } else {
+          bboxExtent = calculateBoundingBox(extent, areaValues)
+        }
+        // Set initial bounding box
+        const bboxPolygon = fromExtent(bboxExtent)
+        extentFeature.setGeometry(bboxPolygon)
+
+        // Add padding to the extent for view fitting
+        const padding = 50
+        const paddedExtent = buffer(extent, padding)
+
+        // Fit the view to the extent
+        if (fit) {
+          map.getView().fit(paddedExtent, {
+            duration: 1000,
+            maxZoom: 13,
+          })
+        }
+
+        // Use provided bbox or create a smaller bbox within the grid to avoid overlap with adjacent grids
+        let finalBbox: number[]
+
+        if (bbox) {
+          // Use the provided bbox
+          finalBbox = bbox
+        } else {
+          // Create a smaller bbox within the grid to avoid overlap with adjacent grids
+          const gridWidth = extent[2] - extent[0]
+          const gridHeight = extent[3] - extent[1]
+          const shrinkFactor = 0.15 // 15% shrink from each side (70% total)
+
+          finalBbox = [
+            extent[0] + gridWidth * shrinkFactor, // minLon
+            extent[1] + gridHeight * shrinkFactor, // minLat
+            extent[2] - gridWidth * shrinkFactor, // maxLon
+            extent[3] - gridHeight * shrinkFactor, // maxLat
+          ]
+        }
+
+        // Call the search function
+        if (currentMgrsTileId.value) {
+          await handleSearchResults(finalBbox, settings.value)
+        }
+        addExtentInteraction(map, areaValues)
       }
     }
   }
 
-  if (targetFeature) {
-    // Get the feature's extent
-    const geometry = targetFeature.getGeometry()
-    if (geometry) {
-      const extent = geometry.getExtent()
-      currentGridExtent.value = extent
-
-      // Calculate the bounding box based on area values
-      let bboxExtent: Extent
-      if (bbox) {
-        // Convert bbox from WGS84 (EPSG:4326) to Web Mercator (EPSG:3857)
-        bboxExtent = transformExtent(bbox, 'EPSG:4326', 'EPSG:3857')
-      } else {
-        bboxExtent = calculateBoundingBox(extent, areaValues)
-      }
-      // Set initial bounding box
-      const bboxPolygon = fromExtent(bboxExtent)
-      extentFeature.setGeometry(bboxPolygon)
-      // Adjust draw vector layer extent and style
-      drawVectorLayer.setExtent(currentGridExtent.value!)
-      drawVectorLayer.setStyle(validStyle)
-
-      // Add padding to the extent for view fitting
-      const padding = 50
-      const paddedExtent = buffer(extent, padding)
-
-      // Fit the view to the extent
-      if (fit) {
-        map.getView().fit(paddedExtent, {
-          duration: 1000,
-          maxZoom: 13,
-        })
-      }
-
-      // Use provided bbox or create a smaller bbox within the grid to avoid overlap with adjacent grids
-      let finalBbox: number[]
-
-      if (bbox) {
-        // Use the provided bbox
-        finalBbox = bbox
-      } else {
-        // Create a smaller bbox within the grid to avoid overlap with adjacent grids
-        const gridWidth = extent[2] - extent[0]
-        const gridHeight = extent[3] - extent[1]
-        const shrinkFactor = 0.15 // 15% shrink from each side (70% total)
-
-        finalBbox = [
-          extent[0] + gridWidth * shrinkFactor, // minLon
-          extent[1] + gridHeight * shrinkFactor, // minLat
-          extent[2] - gridWidth * shrinkFactor, // maxLon
-          extent[3] - gridHeight * shrinkFactor, // maxLat
-        ]
-      }
-
-      // Call the search function
-      if (currentMgrsTileId.value) {
-        await handleSearchResults(currentMgrsTileId.value, finalBbox, settings.value)
-      }
-      // Add the layer and interactions
-      if (!layers.includes(drawVectorLayer)) {
-        map.addLayer(drawVectorLayer)
-      }
-      addExtentInteraction()
-    }
-  }
-}
-
-export const getTileById = async (tileId: string): Promise<SearchResult | null> => {
-  let tile = searchResults.value.find((result) => result.id === tileId)
-  if (!tile) {
-    const base = 'https://earth-search.aws.element84.com/v1/collections/sentinel-2-c1-l2a/items/'
-    const url = base + tileId
-    try {
-      const response = await fetch(url)
-      const json = await response.json()
-      tile = tileDataFromStacFeature(json)
-    } catch (error) {
-      if (error instanceof Error) {
-        console.error(`Error fetching tile with id ${tileId}: ${error.message}`)
+  const getTileById = async (tileId: string): Promise<SearchResult | null> => {
+    let tile = searchResults.value.find((result) => result.id === tileId)
+    if (!tile) {
+      const base = 'https://earth-search.aws.element84.com/v1/collections/sentinel-2-c1-l2a/items/'
+      const url = base + tileId
+      try {
+        const response = await fetch(url)
+        const json = await response.json()
+        tile = tileDataFromStacFeature(json)
+      } catch (error) {
+        if (error instanceof Error) {
+          console.error(`Error fetching tile with id ${tileId}: ${error.message}`)
+        }
       }
     }
+    return tile ?? null
   }
-  return tile ?? null
-}
 
-export function useAreaOfInterest() {
   return {
+    maxArea,
     drawnExtent,
+    currentBBox,
+    currentBBoxValid,
     extentFeature,
+    addBBoxAtPixel,
     addExtentInteraction,
     removeExtentInteraction,
-    removeDrawVectorLayer,
     addMapClickHandler,
     currentMgrsTileId,
     currentGridExtent,
     activeTileId,
     secondActiveTileId,
-    setBlockMapClicks,
     clearResultsAndZoomToGrid,
     triggerTileSelection,
     calculateArea,
     getTileById,
+    isBBox,
+    validateBBox,
   }
 }

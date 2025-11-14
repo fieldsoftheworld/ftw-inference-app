@@ -1,5 +1,8 @@
-import { Polygon } from 'geojson'
-import { SearchResult } from '../composables/useSearch'
+import type { Polygon } from 'geojson'
+import type { SearchResult } from '../composables/useSearch'
+import useSettings from '../composables/useSettings'
+
+const { defaultSettings } = useSettings()
 
 // Store the currently selected feature
 let nextPageToken: string | null = null
@@ -59,33 +62,12 @@ interface StacResponse {
 }
 
 export interface SearchSettings {
-  startDate: string
-  endDate: string
+  startMonth: number
+  endMonth: number
+  year: number
   cloudCover: number
   areaCoverage: number
-  selectedCollection?: string[]
-}
-
-// Function to convert date string to RFC3339 format
-const convertToRFC3339 = (dateString: string, isEndDate: boolean = false): string => {
-  if (!dateString) return ''
-
-  // Handle month input format (YYYY-MM) by appending appropriate day
-  let fullDateString = dateString
-  if (dateString.match(/^\d{4}-\d{2}$/)) {
-    if (isEndDate) {
-      // For end date, use the last day of the month
-      const [year, month] = dateString.split('-')
-      const lastDay = new Date(parseInt(year), parseInt(month), 0).getDate()
-      fullDateString = `${dateString}-${lastDay.toString().padStart(2, '0')}`
-    } else {
-      // For start date, use the first day of the month
-      fullDateString = dateString + '-01'
-    }
-  }
-
-  // Create a Date object and convert to ISO string (RFC3339 format)
-  return new Date(fullDateString).toISOString()
+  collection?: string[]
 }
 
 export const tileDataFromStacFeature = (item: StacFeature): SearchResult => {
@@ -96,8 +78,8 @@ export const tileDataFromStacFeature = (item: StacFeature): SearchResult => {
   const result = {
     id: item.id,
     date: new Date(item.properties.datetime).toLocaleDateString(),
-    formattedDate: new Date(item.properties.datetime).toLocaleDateString(),
-    cloudCover: item.properties['eo:cloud_cover'] || 'N/A',
+    isoDate: item.properties.datetime,
+    cloudCover: item.properties['eo:cloud_cover'],
     areaCoverage: areaCoverage,
     thumbnailUrl: item.assets?.thumbnail?.href || item.assets?.visual?.href || '#',
     tiffUrl: item.assets?.visual?.href || '#',
@@ -116,7 +98,7 @@ export const tileDataFromStacFeature = (item: StacFeature): SearchResult => {
 export default async function searchStacApi(
   bbox?: number[],
   resetSearch = true,
-  settings?: SearchSettings,
+  params?: SearchSettings,
 ): Promise<SearchResponse | undefined> {
   // Reset counters for new search
   if (resetSearch) {
@@ -125,15 +107,19 @@ export default async function searchStacApi(
   }
 
   // Use provided settings or fall back to DOM elements
-  const startDate = settings?.startDate ? convertToRFC3339(settings.startDate) : ''
-  const endDate = settings?.endDate ? convertToRFC3339(settings.endDate, true) : ''
-  const cloudCover = settings?.cloudCover || 10
-  const areaCoverage = settings?.areaCoverage || 60
+  const startMonth = String(params?.startMonth || defaultSettings.startMonth).padStart(2, '0')
+  const endMonth = String(params?.endMonth || defaultSettings.endMonth).padStart(2, '0')
+  const startYear = params?.year || defaultSettings.year
+  const endYear = endMonth < startMonth ? startYear + 1 : startYear
+  const startDate = `${startYear}-${startMonth}-01T00:00:00Z`
+  const endDate = `${endYear}-${endMonth}-31T23:59:59Z`
+  const cloudCover = params?.cloudCover || defaultSettings.cloudCover
+  const areaCoverage = params?.areaCoverage || defaultSettings.areaCoverage
 
   try {
     // Build request body for POST
     const requestBody: any = {
-      collections: settings?.selectedCollection || ['sentinel-2-c1-l2a'],
+      collections: params?.collection || ['sentinel-2-c1-l2a'],
       limit: 20,
       query: {
         ['eo:cloud_cover']: {
@@ -156,17 +142,7 @@ export default async function searchStacApi(
 
     // Add bbox parameter if provided
     if (bbox && bbox.length === 4) {
-      // Convert from EPSG:3857 to EPSG:4326 (WGS84) if needed
-      const [minX, minY, maxX, maxY] = bbox
-
-      // Import the transform function from OpenLayers
-      const { transform } = await import('ol/proj')
-
-      // Transform coordinates from EPSG:3857 to EPSG:4326
-      const [minLon, minLat] = transform([minX, minY], 'EPSG:3857', 'EPSG:4326')
-      const [maxLon, maxLat] = transform([maxX, maxY], 'EPSG:3857', 'EPSG:4326')
-
-      requestBody.bbox = [minLon, minLat, maxLon, maxLat]
+      requestBody.bbox = bbox
     }
 
     // Add the pagination token if we're loading more results

@@ -1,0 +1,58 @@
+.sidebar {
+  position: fixed;
+  top: 1rem;
+  z-index: 1000;
+  min-height: 50px;
+  max-height: calc(100vh - 2rem);
+  resize: both;
+  display: flex;
+  flex-direction: column;
+  background-color: rgba(0, 0, 0, 0.9);
+}
+
+@media (width <= 1400px) {
+  .sidebar {
+    top: 4rem !important;
+    max-height: calc(100vh - 5rem);
+  }
+}
+
+.sidebar.closed {
+  height: auto !important;
+  width: auto !important;
+  min-height: none;
+  resize: none;
+}
+
+.sidebar .content {
+  height: 100%;
+  flex-grow: 1;
+  background-color: transparent;
+}
+
+.sidebar .v-card-title {
+  background-color: rgba(0, 136, 136, 0.2);
+  border: 1px solid rgba(0, 136, 136, 0.8);
+}
+
+.sidebar .v-card-title .collapse-action {
+  display: flex;
+  cursor: pointer;
+  flex-grow: 1;
+}
+
+.sidebar .title {
+  font-weight: 600;
+  font-size: 1.15rem;
+}
+
+.sidebar .rotate-180 {
+  transform: rotate(180deg);
+}
+
+.sidebar .action-btn {
+  width: 30px !important;
+  min-width: 30px !important;
+  max-width: 30px !important;
+  height: 30px !important;
+}

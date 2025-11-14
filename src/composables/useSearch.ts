@@ -1,10 +1,12 @@
-import { Polygon } from 'geojson'
+import type { Polygon } from 'geojson'
 import { type Ref, ref } from 'vue'
-import searchStacApi, { SearchSettings } from '../functions/search-stac-api'
+import searchStacApi, { type SearchSettings } from '../functions/search-stac-api'
+import useNotifier from './useNotifier'
 
 export interface SearchResult {
   id: string
-  date: string
+  date: string // Formatted date string
+  isoDate: string // ISO date and time string
   cloudCover: number | string
   thumbnailUrl: string
   bounds: number[] | null
@@ -16,65 +18,50 @@ export interface SearchResult {
 
 export type SearchResults = Ref<SearchResult[]>
 
-export const searchResults = ref<SearchResult[]>([])
-/** Grid extent, reduced by shrink factor (70% of grid extent) */
-export const currentBbox = ref<number[] | undefined>(undefined)
+const searchResults = ref<SearchResult[]>([])
 
 const hasMore = ref(false)
 const isLoading = ref(false)
-const searchStatus = ref('')
+// true = searching, false = error, number = number of results, null = not started
+const searchStatus: Ref<number | null | boolean> = ref(null)
 
-// Function to handle search results
-export const handleSearchResults = async (
-  mgrsTileId: string,
-  bbox?: number[],
-  settings: SearchSettings = {} as SearchSettings,
-) => {
-  isLoading.value = true
-  searchStatus.value = `Searching for Sentinel-2 images in tile ${mgrsTileId}...`
+export default function useSearch() {
+  const { showError } = useNotifier()
 
-  currentBbox.value = bbox
+  // Function to handle search results
+  async function handleSearchResults(
+    bbox?: number[],
+    settings: SearchSettings = {} as SearchSettings,
+  ) {
+    isLoading.value = true
 
-  const performSearch = async () => {
-    try {
-      const response = await searchStacApi(bbox, true, settings)
-      if (response) {
-        // Clear existing results for new search (resetSearch = true)
-        searchResults.value = response.results
-        hasMore.value = response.hasMore
+    const performSearch = async () => {
+      searchStatus.value = true
+      try {
+        const response = await searchStacApi(bbox, true, settings)
+        if (response) {
+          // Clear existing results for new search (resetSearch = true)
+          searchResults.value = response.results
+          hasMore.value = response.hasMore
 
-        if (response.results.length === 0) {
-          searchStatus.value = `No images found. Try adjusting your filters (date range, cloud cover, area coverage) to increase the likelihood of finding results.`
-        } else {
-          searchStatus.value = `Found ${response.results.length} images`
+          searchStatus.value = response.results.length
         }
+      } catch (error: unknown) {
+        searchStatus.value = false
+        console.error('DataCabinet: Error searching:', error)
+        showError(`Error searching: ${error instanceof Error ? error.message : 'Unknown error'}`)
+      } finally {
+        isLoading.value = false
       }
-    } catch (error: unknown) {
-      console.error('DataCabinet: Error searching:', error)
-      searchStatus.value = `Error searching: ${error instanceof Error ? error.message : 'Unknown error'}`
-    } finally {
-      isLoading.value = false
     }
+    await performSearch()
   }
-  await performSearch()
-}
 
-export const clearSearchResults = () => {
-  searchResults.value = []
-  hasMore.value = false
-  isLoading.value = false
-  searchStatus.value = ''
-  currentBbox.value = undefined
-}
-
-export function useSearch() {
   return {
     isLoading,
     searchStatus,
-    currentBbox,
     searchResults,
     hasMore,
     handleSearchResults,
-    clearSearchResults,
   }
 }

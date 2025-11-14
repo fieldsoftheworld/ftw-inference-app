@@ -4,6 +4,11 @@ import { RouterView } from 'vue-router'
 
 <template>
   <RouterView />
+  <v-notifier-container />
 </template>
 
-<style scoped></style>
+<style>
+#notifier > div {
+  position: absolute;
+}
+</style>

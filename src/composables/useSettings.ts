@@ -1,14 +1,15 @@
 import { computed, ref, watch } from 'vue'
-import { currentMgrsTileId } from './useAreaOfInterest'
-import { currentBbox, handleSearchResults } from './useSearch'
 
 export interface Settings {
-  startDate: string
-  endDate: string
+  autoSceneSelection: boolean
+  year: number
+  startMonth: number
+  endMonth: number
   cloudCover: number
   areaCoverage: number
-  selectedCollection: string[]
-  selectedModel: string
+  collection: string[]
+  model: string
+  expertMode: boolean
 }
 
 export interface ModelInfo {
@@ -20,7 +21,7 @@ export interface ModelInfo {
   license?: string
 }
 
-const collections = {
+const collections: Record<string, string> = {
   'sentinel-2-c1-l2a': 'Sentinel-2 Level 2A, Collection 1',
   'sentinel-2-l2a': 'Sentinel-2 Level 2A, Legacy',
 }
@@ -33,16 +34,19 @@ const availableModels = ref<ModelInfo[]>([])
 const defaultModel: string = '3_Class_FULL_multiWindow_v2'
 
 // Default settings
-export const defaultSettings: Settings = {
-  startDate: '',
-  endDate: '',
+const defaultSettings: Settings = {
+  autoSceneSelection: true,
+  year: new Date().getFullYear() - 1,
+  startMonth: 1,
+  endMonth: 12,
   cloudCover: 20,
   areaCoverage: 60,
-  selectedCollection: availableCollections[0],
-  selectedModel: defaultModel,
+  collection: availableCollections[0],
+  model: defaultModel,
+  expertMode: false,
 }
 
-export const loadSettingsFromStorage = (): Settings => {
+const loadSettingsFromStorage = (): Settings => {
   const stored = localStorage.getItem('ftw-search-settings')
   if (stored) {
     const parsed = JSON.parse(stored)
@@ -53,11 +57,9 @@ export const loadSettingsFromStorage = (): Settings => {
 }
 
 const settings = ref<Settings>(loadSettingsFromStorage())
-export const autoSceneSelection = ref(true)
-export const sceneYear = ref<number>(new Date().getFullYear() - 1)
 
 // Function to set available models from API response
-export const setAvailableModels = (modelsData: ModelInfo[]) => {
+const setAvailableModels = (modelsData: ModelInfo[]) => {
   const modelsMap: ModelInfo[] = []
 
   modelsData.forEach((model) => {
@@ -74,41 +76,33 @@ export const setAvailableModels = (modelsData: ModelInfo[]) => {
   availableModels.value = modelsMap
 
   // If an old model is stored in localStorage, reset to default model
-  if (
-    settings.value.selectedModel &&
-    !modelsMap.find((m) => m.id === settings.value.selectedModel)
-  ) {
-    settings.value.selectedModel = defaultModel
+  if (settings.value.model && !modelsMap.find((m) => m.id === settings.value.model)) {
+    settings.value.model = defaultModel
   }
 
   // Set default model if none is selected and models are available
-  if (!settings.value.selectedModel && modelsMap.length > 0) {
-    settings.value.selectedModel = modelsMap[0].id
+  if (!settings.value.model && modelsMap.length > 0) {
+    settings.value.model = modelsMap[0].id
   }
 }
 
-// Watch for settings changes and trigger search refresh
+// Watch for settings changes and store locally
 watch(
   settings,
   (newSettings) => {
     localStorage.setItem('ftw-search-settings', JSON.stringify(newSettings))
-    if (currentBbox.value && currentMgrsTileId.value) {
-      handleSearchResults(currentMgrsTileId.value, currentBbox.value, newSettings)
-    }
   },
   { deep: true },
 )
 
 const modelIsSingleShot = computed(() => {
-  const model = availableModels.value.find((m) => m.id === settings.value.selectedModel)
+  const model = availableModels.value.find((m) => m.id === settings.value.model)
   return model?.requires_window === false
 })
 
-export function useSettings() {
+export default function useSettings() {
   return {
     settings,
-    autoSceneSelection,
-    sceneYear,
     collections,
     availableCollections,
     availableModels,
