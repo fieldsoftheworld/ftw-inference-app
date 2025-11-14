@@ -202,6 +202,7 @@ const syncBBox = (newValue?: Extent) => {
     }
   }
 }
+// @ts-ignore
 watch(drawnExtent, syncBBox, { immediate: true, deep: 1 })
 
 const updateBBox = (index: number, value: number) => {
@@ -510,7 +511,7 @@ const handleSmallAreaProcessingRequest = async () => {
   } catch (error) {
     console.error('Error processing:', error)
     showError(
-      'Failed to process: ' + (error instanceof Error ? error.message : 'An unknown error occured')
+      'Failed to process: ' + (error instanceof Error ? error.message : 'An unknown error occurred')
     )
   } finally {
     isProcessing.value = false

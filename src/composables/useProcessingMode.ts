@@ -1,4 +1,5 @@
 import { ref, computed } from 'vue'
+import type { AreaValues } from './useMap'
 
 const processingMode = ref<'smallAreaProcessing' | 'batchProcessing' | null>('smallAreaProcessing')
 
