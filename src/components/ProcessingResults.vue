@@ -33,17 +33,13 @@
     <div v-show="isOpen" class="content">
       <v-list density="compact" color="transparent" class="pa-0">
         <v-list-item
-          v-for="result in processedResults"
+          v-for="result in geoJsonResults"
           :key="result.id"
           class="result-item"
           @click.stop="fitMapToResult(result)"
         >
           <div class="result-properties">
-            <PropertyDisplay
-              v-for="property in result.filteredProperties"
-              :key="property.key"
-              :property="property"
-            />
+            <PropertiesDisplay :properties="result.properties" />
           </div>
         </v-list-item>
       </v-list>
@@ -53,13 +49,13 @@
 
 <script setup lang="ts">
 import type Map from 'ol/Map'
-import { computed, ref, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted, onBeforeUnmount } from 'vue'
 import useMap from '../composables/useMap'
 import useNotifier from '../composables/useNotifier'
 import useAreaOfInterest from '../composables/useAreaOfInterest'
-import PropertyDisplay from './PropertyDisplay.vue'
+import PropertiesDisplay from './PropertiesDisplay.vue'
 import { mdiDownloadBoxOutline, mdiDelete, mdiChevronDown } from '@mdi/js'
-import { formatMeasurementDisplay } from '../functions/format-measurement-display'
+import { Feature } from 'geojson'
 
 const props = defineProps<{
   map: Map
@@ -70,32 +66,9 @@ const emit = defineEmits<{
   (e: 'clearResults'): void
 }>()
 
-const { map, handleMapClick } = useMap()
+const { map, handleMapClick, vectorLayer, selectedFeature } = useMap()
 const { clearResultsAndZoomToGrid } = useAreaOfInterest()
 const { showInfo, showError } = useNotifier()
-
-const processedResults = computed(() => {
-  const formattedResults = new Array(props.geoJsonResults.length)
-  for (const {
-    properties: { geometry, id, ...rest },
-    id: featureId,
-    ...feature
-  } of props.geoJsonResults) {
-    formattedResults[parseInt(id) - 1] = {
-      id,
-      ...feature,
-      filteredProperties: Object.entries({ id, ...rest }).reduce((acc, [key, value]) => {
-        acc.push({
-          key,
-          value,
-          formattedValue: formatMeasurementDisplay(value as number, key),
-        })
-        return acc
-      }, [] as { key: string; value: any; formattedValue: string }[]),
-    }
-  }
-  return formattedResults
-})
 
 const isOpen = ref(true)
 
@@ -141,14 +114,25 @@ const downloadResults = () => {
   }
 }
 
-const fitMapToResult = (result: any) => {
-  if (!result || !result.geometry) {
+const fitMapToResult = (result: Feature) => {
+  if (!result || !result.id) {
+    console.log(result)
     showError('No valid geometry found for this result.')
     return
   }
 
+  const resultFeature = vectorLayer.value?.getSource()?.getFeatureById(result.id)
+  if (!resultFeature) {
+    showError('Feature not found on the map.')
+    return
+  }
+
+  // Highlight the result feature
+  selectedFeature.value = resultFeature
+
   // Get the extent of the feature
-  const extent = result.geometry.getExtent()
+  const extent = resultFeature.getGeometry()?.getExtent()
+
   if (
     !extent ||
     extent.every((coord: number) => coord === 0) ||
@@ -158,9 +142,6 @@ const fitMapToResult = (result: any) => {
     return
   }
 
-  // The extent is already in CRS84 (EPSG:4326), so no transformation needed
-  const transformedExtent = extent
-
   // Calculate dynamic padding based on screen dimensions
   const screenWidth = window.innerWidth
   const screenHeight = window.innerHeight
@@ -168,7 +149,7 @@ const fitMapToResult = (result: any) => {
   // This ensures the geometry fits regardless of screen size
   const paddingY = Math.max(100, screenHeight * 0.2) // At least 100px or 30% of screen height
   // Fit the map to the result's extent with dynamic padding
-  props.map.getView().fit(transformedExtent, {
+  props.map.getView().fit(extent, {
     duration: 1000,
     padding: [paddingY, screenWidth * 0.25, paddingY, screenWidth * 0.35], // [top, right, bottom, left]
     maxZoom: 17,
@@ -180,6 +161,10 @@ onMounted(() => {
   if (map.value) {
     map.value.on('click', handleMapClick)
   }
+})
+
+onBeforeUnmount(() => {
+  selectedFeature.value = null
 })
 
 // Clean up map click handler when component is unmounted

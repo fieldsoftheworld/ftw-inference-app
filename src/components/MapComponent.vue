@@ -3,7 +3,7 @@ import { ref, onMounted } from 'vue'
 import { Map, View } from 'ol'
 import DataCabinet from './DataCabinet.vue'
 import ProcessingResults from './ProcessingResults.vue'
-import PropertyDisplay from './PropertyDisplay.vue'
+import PropertiesDisplay from './PropertiesDisplay.vue'
 import createLabelLayer from '../layers/Label-Layer'
 import createS2GridLayer from '../layers/S2-Grid-Layer'
 import createCloudlessLayer from '../layers/S2-Cloudless-Layer'
@@ -152,11 +152,7 @@ defineExpose({
       </div>
     </div>
     <div class="properties-content">
-      <PropertyDisplay
-        v-for="property in selectedFeature.cleanProperties"
-        :key="property.key"
-        :property="property"
-      />
+      <PropertiesDisplay :properties="selectedFeature.getProperties()" />
     </div>
   </div>
 
