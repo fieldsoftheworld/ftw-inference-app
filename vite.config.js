@@ -27,7 +27,7 @@ export default defineConfig(({ mode }) => {
     },
     base: '/ftw-inference-app/',
     build: {
-      sourcemap: false,
+      sourcemap: true,
       outDir: 'ftw-inference-app',
       emptyOutDir: true,
     },
