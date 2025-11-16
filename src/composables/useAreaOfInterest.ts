@@ -499,7 +499,9 @@ export default function useAreaOfInterest() {
       try {
         const response = await fetch(url)
         const json = await response.json()
-        tile = tileDataFromStacFeature(json)
+        if (response.ok && json) {
+          tile = tileDataFromStacFeature(json)
+        }
       } catch (error) {
         if (error instanceof Error) {
           console.error(`Error fetching tile with id ${tileId}: ${error.message}`)
