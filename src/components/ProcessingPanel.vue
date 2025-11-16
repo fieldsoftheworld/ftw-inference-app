@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch, nextTick, computed, onMounted } from 'vue'
+import { ref, watch, nextTick, computed, onMounted, shallowRef } from 'vue'
 import { type Extent } from 'ol/extent'
 import { generateJWT } from '../functions/generate-jwt'
 import { transformExtent } from 'ol/proj'
@@ -160,7 +160,7 @@ watch(
   { deep: true }
 )
 
-const availableTiles = ref<any[]>([])
+const availableTiles = shallowRef<any[]>([])
 
 // Load available S2 tiles from the map layer
 const loadAvailableTiles = () => {

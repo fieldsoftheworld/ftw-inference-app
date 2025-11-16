@@ -29,7 +29,7 @@ const propertiesBoxPosition = ref<{ x: number; y: number } | null>(null)
 const originalClickPosition = ref<{ x: number; y: number } | null>(null)
 const showPropertiesBox = ref(false)
 
-const geoJsonResults = ref<any[]>([])
+const geoJsonResults = shallowRef<any[]>([])
 
 export default function useMap() {
   const { showWarning } = useNotifier()
