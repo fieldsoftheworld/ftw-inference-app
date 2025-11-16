@@ -16,10 +16,11 @@ import { mdiHelpCircleOutline } from '@mdi/js'
 import TilePreview from './TilePreview.vue'
 
 const emit = defineEmits<{
-  (e: 'workStateChanged', isWorking: boolean): void
+  (e: 'workStateChanged', isWorking: boolean): void,
+  (e: 'clearResults'): void
 }>()
 
-const { map, areaValues } = useMap()
+const { map, areaValues, geoJsonResults } = useMap()
 const { drawnExtent, validateBBox, getTileById, triggerTileSelection } = useAreaOfInterest()
 const { showError, showSuccess } = useNotifier()
 const { hasMore, isLoading, searchResults, searchStatus, handleSearchResults } = useSearch()
@@ -384,7 +385,10 @@ const processingDisabled = computed(() => {
   )
 })
 
+const clearResults = () => emit('clearResults')
+
 const process = () => {
+  clearResults()
   if (isBatchProcessing.value) {
     processBatch(projectTitle.value, firstTile.value, secondTile.value)
   } else {
@@ -513,9 +517,9 @@ const process = () => {
         </v-expansion-panel-text>
       </v-expansion-panel>
       <!-- Area of Interest -->
-      <v-expansion-panel value="aoi">
+      <v-expansion-panel value="aoi" :disabled="geoJsonResults.length > 0">
         <v-expansion-panel-title>
-          <span class="header-text">
+          <span class="header-text" :title="geoJsonResults.length > 0 ? 'Clear results to change area' : ''">
             Area of Interest
             <v-badge
               v-if="currentMgrsTileId"
@@ -936,7 +940,8 @@ const process = () => {
             <v-btn
               v-if="hasMore"
               @click="loadMore"
-              class="action-button mt-4"
+              color="teal"
+              class="action-button mt-4 w-100"
               :disabled="isLoading"
             >
               <template v-if="isLoading">Loading...</template>
@@ -992,7 +997,8 @@ const process = () => {
             <v-btn
               v-if="hasMore"
               @click="loadMore"
-              class="action-button mt-4"
+              color="teal"
+              class="action-button mt-4 w-100"
               :disabled="isLoading"
             >
               <template v-if="isLoading">Loading...</template>
@@ -1005,13 +1011,16 @@ const process = () => {
   </div>
 
   <div class="action-buttons">
-    <v-btn class="action-button" :disabled="processingDisabled" @click="process">
+    <v-btn class="action-button" color="teal" :disabled="processingDisabled" @click="process">
       <span v-if="isProcessing">
         <v-progress-circular indeterminate size="16" width="2" class="me-1" />
         Processing...
       </span>
       <span v-else-if="isBatchProcessing">Create project and start processing</span>
       <span v-else>Start processing</span>
+    </v-btn>
+    <v-btn v-if="geoJsonResults.length > 0" class="action-button danger" color="error" @click="$emit('clearResults')">
+      Clear Results
     </v-btn>
   </div>
 </template>
@@ -1050,30 +1059,39 @@ const process = () => {
 .action-buttons {
   flex: 0;
   padding: 0.5rem 1rem 1rem 1rem;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.5rem;
 }
 
 .action-button {
-  width: 100%;
-  background-color: rgba(0, 136, 136, 0.8);
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
+  flex: 1;
   font-size: 0.875rem;
-  transition: all 0.2s ease;
   display: flex;
   justify-content: center;
   align-items: center;
   min-height: 2.5rem;
   padding: 0.25rem;
+  background-color: rgba(0, 150, 136, 1.0) !important;
+  transition: all 0.2s ease;
 }
 
-.action-button:hover:not(:disabled) {
-  background-color: rgba(0, 136, 136, 1);
+.action-button:hover {
+  background-color: rgba(0, 150, 136, 0.8) !important;
+}
+
+.action-button.danger {
+  background-color: rgba(207, 102, 121, 1.0) !important;
+}
+
+.action-button.danger:hover {
+  background-color: rgba(207, 102, 121, 0.8) !important;
 }
 
 .action-button:disabled {
-  background-color: rgba(0, 136, 136, 0.4);
+  background-color: rgba(0, 150, 136, 0.2) !important;
+  color: rgba(255, 255, 255, 0.7) !important;
   cursor: not-allowed;
 }
 </style>

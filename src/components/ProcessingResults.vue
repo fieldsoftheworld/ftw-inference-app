@@ -71,7 +71,6 @@ const emit = defineEmits<{
 }>()
 
 const { map, handleMapClick } = useMap()
-const { clearResultsAndZoomToGrid } = useAreaOfInterest()
 const { showInfo, showError } = useNotifier()
 
 const processedResults = computed(() => {
@@ -189,12 +188,7 @@ onUnmounted(() => {
   }
 })
 
-const clearResults = () => {
-  // Clear results and zoom back to S2 grid
-  clearResultsAndZoomToGrid(props.map)
-  // Emit event to clear results in parent components
-  emit('clearResults')
-}
+const clearResults = () => emit('clearResults')
 </script>
 
 <style scoped>
