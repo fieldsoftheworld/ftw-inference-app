@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue'
+import { ref, onMounted } from 'vue'
 import { Map, View } from 'ol'
 import DataCabinet from './DataCabinet.vue'
 import ProcessingResults from './ProcessingResults.vue'
@@ -31,13 +31,8 @@ const dataCabinetRef = ref<InstanceType<typeof DataCabinet> | null>(null)
 
 const clearResults = () => {
   geoJsonResults.value = []
+  hidePropertiesBox()
 }
-
-watch(geoJsonResults, (newResults) => {
-  if (newResults.length === 0) {
-    hidePropertiesBox()
-  }
-})
 
 const { setupPermalink } = usePermalink()
 
@@ -112,7 +107,6 @@ defineExpose({
       :areaValues="areaValues"
       :dataCabinetRef="dataCabinetRef"
       ref="dataCabinetRef"
-      @clearResults="clearResults"
     />
 
     <ProcessingResults

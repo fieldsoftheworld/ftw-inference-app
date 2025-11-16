@@ -5,12 +5,6 @@ import useAreaOfInterest from '../composables/useAreaOfInterest'
 import useSearch from '../composables/useSearch'
 import ProcessingPanel from './ProcessingPanel.vue'
 
-const emit = defineEmits<{
-  (e: 'clearResults'): void
-}>()
-
-const clearResults = () => emit('clearResults')
-
 const { searchStatus } = useSearch()
 const { currentMgrsTileId } = useAreaOfInterest()
 
@@ -49,7 +43,7 @@ const toggleCollapsible = () => {
     </v-card-title>
 
     <div v-show="isOpen" class="content">
-      <ProcessingPanel v-if="currentMgrsTileId" @work-state-changed="(v) => (isWorking = v)" @clearResults="clearResults" />
+      <ProcessingPanel v-if="currentMgrsTileId" @work-state-changed="(v) => (isWorking = v)" />
       <p v-else class="pa-4 text-center">Select a grid cell to search for Sentinel-2 images.</p>
     </div>
   </v-card>
