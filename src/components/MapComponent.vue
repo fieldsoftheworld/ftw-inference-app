@@ -22,6 +22,7 @@ const {
   originalClickPosition,
   hidePropertiesBox,
   geoJsonResults,
+  handleMapClick,
 } = useMap()
 
 const { addMapClickHandler } = useAreaOfInterest()
@@ -30,12 +31,18 @@ const { setAvailableModels } = useSettings()
 const dataCabinetRef = ref<InstanceType<typeof DataCabinet> | null>(null)
 
 const clearResults = () => {
-  geoJsonResults.value = []
+  if (geoJsonResults.value.length > 0) {
+    geoJsonResults.value = []
+  }
 }
 
 watch(geoJsonResults, (newResults) => {
   if (newResults.length === 0) {
     hidePropertiesBox()
+    map.value?.un('click', handleMapClick)
+  }
+  else {
+    map.value?.on('click', handleMapClick)
   }
 })
 
@@ -116,9 +123,7 @@ defineExpose({
     />
 
     <ProcessingResults
-      v-if="geoJsonResults.length > 0"
-      :map="map as Map"
-      :geoJsonResults="geoJsonResults"
+      v-if="map && geoJsonResults.length > 0"
       @clearResults="clearResults"
     />
   </div>

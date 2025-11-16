@@ -4,7 +4,7 @@ import useAreaOfInterest from './useAreaOfInterest'
 import useMap from './useMap'
 import useSearch from './useSearch'
 import useSettings from './useSettings'
-import { fromLonLat, toLonLat } from 'ol/proj'
+import { fromLonLat, toLonLat, transformExtent } from 'ol/proj'
 import { type Coordinate } from 'ol/coordinate'
 
 export interface PermalinkState {
@@ -25,7 +25,7 @@ export interface PermalinkState {
 export default function usePermalink() {
   const { handleSearchResults } = useSearch()
   const { settings } = useSettings()
-  const { activeTileId, currentBBox, currentMgrsTileId, secondActiveTileId, triggerTileSelection } =
+  const { activeTileId, currentBBox, currentMgrsTileId, drawnExtent, secondActiveTileId, triggerTileSelection } =
     useAreaOfInterest()
   const { areaValues } = useMap()
 
@@ -144,8 +144,8 @@ export default function usePermalink() {
     if (currentMgrsTileId) {
       // Add tile IDs
       hashParts.push(currentMgrsTileId)
-      hashParts.push(String(settings.value.autoSceneSelection && activeTileId ? '' : activeTileId))
-      hashParts.push(String(settings.value.autoSceneSelection && secondActiveTileId ? '' : secondActiveTileId))
+      hashParts.push(String(!settings.value.autoSceneSelection && activeTileId ? activeTileId : ''))
+      hashParts.push(String(!settings.value.autoSceneSelection && secondActiveTileId ? secondActiveTileId : ''))
 
       if (extent) {
         hashParts.push(`bbox:${extent.join(',')}`)
@@ -275,6 +275,8 @@ export default function usePermalink() {
     }
     if (initialState.bbox) {
       currentBBox.value = initialState.bbox
+      const extent = transformExtent(currentBBox.value, 'EPSG:4326', 'EPSG:3857')
+      drawnExtent.value = extent
     }
 
     // Update permalink when map moves
