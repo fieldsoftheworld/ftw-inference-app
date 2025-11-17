@@ -7,7 +7,7 @@ import { fromLonLat } from 'ol/proj'
 
 const isLoadingPlaces = ref(false)
 const placeSearch = ref('')
-const suggestedPlaces = shallowRef<Array<string>>([])
+const suggestedPlaces = shallowRef<Array<PlaceResult>>([])
 
 interface PlaceResult {
   lon: string
@@ -51,7 +51,7 @@ export default function useGeocoding() {
           value: place,
           title: place.display_name,
         }))
-      } catch (error) {
+      } catch {
         showError('Failed to fetch places. Please try again.')
       } finally {
         isLoadingPlaces.value = false

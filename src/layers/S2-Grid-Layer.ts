@@ -16,7 +16,7 @@ export default function createS2GridLayer() {
     }),
     zIndex: 1000,
     properties: {
-      name: 's2-grid'
+      name: 's2-grid',
     },
     style: new Style({
       stroke: new Stroke({

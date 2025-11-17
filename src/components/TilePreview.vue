@@ -50,8 +50,8 @@ const handleViewOnMap = async () => {
     if (!isNaN(areaCoverage) && areaCoverage <= 99.9) {
       showWarning(
         `Selected tile has only ${areaCoverage.toFixed(
-          1
-        )}% area coverage. Be sure to select an area where there is imagery coverage.`
+          1,
+        )}% area coverage. Be sure to select an area where there is imagery coverage.`,
       )
     }
   }

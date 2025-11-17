@@ -8,7 +8,8 @@ export default function createLabelLayer() {
       maxZoom: 20,
       minZoom: 0,
       crossOrigin: 'anonymous',
-      attributions: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>, &copy; <a href="https://carto.com/attributions">CARTO</a>',
+      attributions:
+        '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>, &copy; <a href="https://carto.com/attributions">CARTO</a>',
     }),
   })
 }
