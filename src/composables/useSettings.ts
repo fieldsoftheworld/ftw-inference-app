@@ -1,4 +1,4 @@
-import { computed, ref, watch, shallowRef } from 'vue'
+import { computed, ref, watch } from 'vue'
 
 export interface Settings {
   autoSceneSelection: boolean
@@ -29,7 +29,7 @@ const availableCollections: [keyof typeof collections][] = Object.keys(collectio
   c,
 ]) as [keyof typeof collections][]
 
-const availableModels = shallowRef<ModelInfo[]>([])
+const availableModels = ref<ModelInfo[]>([])
 
 const defaultModel: string = '3_Class_FULL_multiWindow_v2'
 
