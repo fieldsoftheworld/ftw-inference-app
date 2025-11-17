@@ -1,4 +1,4 @@
-import { ref, watch } from 'vue'
+import { ref, watch, shallowRef } from 'vue'
 import { debounce } from 'vuetify/lib/util/helpers.mjs'
 import useAreaOfInterest from './useAreaOfInterest'
 import useMap from './useMap'
@@ -7,7 +7,7 @@ import { fromLonLat } from 'ol/proj'
 
 const isLoadingPlaces = ref(false)
 const placeSearch = ref('')
-const suggestedPlaces = ref<Array<string>>([])
+const suggestedPlaces = shallowRef<Array<string>>([])
 
 interface PlaceResult {
   lon: string

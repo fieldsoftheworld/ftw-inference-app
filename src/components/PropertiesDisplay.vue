@@ -2,6 +2,7 @@
   <v-list-item
     class="property-item py-1 px-0"
     density="compact"
+    :lines="false"
     v-for="(value, key) in propertiesWithoutGeometry"
     :key="key"
   >

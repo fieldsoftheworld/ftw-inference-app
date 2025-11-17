@@ -149,8 +149,10 @@ export default function usePermalink() {
     if (currentMgrsTileId) {
       // Add tile IDs
       hashParts.push(currentMgrsTileId)
-      hashParts.push(String(settings.value.autoSceneSelection ? '' : activeTileId))
-      hashParts.push(String(settings.value.autoSceneSelection ? '' : secondActiveTileId))
+      hashParts.push(String(!settings.value.autoSceneSelection && activeTileId ? activeTileId : ''))
+      hashParts.push(
+        String(!settings.value.autoSceneSelection && secondActiveTileId ? secondActiveTileId : ''),
+      )
 
       if (extent) {
         hashParts.push(`bbox:${extent.join(',')}`)
@@ -237,13 +239,17 @@ export default function usePermalink() {
         secondActiveTileId.value,
         settings.value.autoSceneSelection,
         settings.value.year,
+        settings.value.endMonth,
+        settings.value.startMonth,
+        settings.value.cloudCover,
+        settings.value.areaCoverage,
       ],
       () => {
         if (!map.value) {
           return
         }
         // Update permalink after tile selection changes
-        updateTileSelection(
+        updatePermalink(
           map.value,
           drawnExtent.value,
           currentMgrsTileId.value,
@@ -319,17 +325,6 @@ export default function usePermalink() {
 
       shouldUpdate = false
     })
-  }
-
-  // Update permalink when tile selection changes
-  const updateTileSelection = (
-    map: Map,
-    drawnExtent: Extent | null,
-    currentMgrsTileId: string | null,
-    activeTileId: string | null,
-    secondActiveTileId: string | null,
-  ) => {
-    updatePermalink(map, drawnExtent, currentMgrsTileId, activeTileId, secondActiveTileId)
   }
 
   return { setupPermalink }

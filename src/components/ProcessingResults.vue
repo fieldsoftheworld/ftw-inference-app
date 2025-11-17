@@ -334,8 +334,4 @@ const clearResults = () => {
 .statistics-panel {
   background-color: transparent !important;
 }
-
-.v-list-item--density-compact.v-list-item--one-line {
-  min-height: auto !important;
-}
 </style>
