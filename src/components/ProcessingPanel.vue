@@ -1029,7 +1029,6 @@ const process = () => {
   flex: 1;
   padding: 0.5rem 1rem;
   overflow-y: auto;
-  min-height: min-content;
 }
 
 .settings .v-expansion-panel-title .v-badge {
