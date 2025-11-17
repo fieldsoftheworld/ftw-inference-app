@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch, nextTick, computed, onMounted } from 'vue'
+import { ref, watch, nextTick, computed, onMounted, shallowRef } from 'vue'
 import { type Extent } from 'ol/extent'
 import { generateJWT } from '../functions/generate-jwt'
 import { transformExtent } from 'ol/proj'
@@ -67,7 +67,7 @@ const sceneSelectionStatus = ref<boolean | null>(null)
 const sceneYears = Array.from({ length: 10 }, (_, i) => new Date().getFullYear() - i)
 
 const isSelectingScenes = computed(
-  () => sceneSelectionStatus.value === null && settings.value.autoSceneSelection
+  () => sceneSelectionStatus.value === null && settings.value.autoSceneSelection,
 )
 
 let abortController: AbortController | null = null
@@ -130,7 +130,7 @@ watch(
       sceneSelectionStatus.value = true
       if (!settings.value.expertMode) {
         showSuccess(
-          'Scenes have been selected automatically. You can start processing or adjust the scenes or your settings.'
+          'Scenes have been selected automatically. You can start processing or adjust the scenes or your settings.',
         )
       }
     } catch (error) {
@@ -139,12 +139,12 @@ watch(
         console.error('Error during auto scene selection:', error)
         showError(
           'Failed to perform auto scene selection: ' +
-            (error instanceof Error ? error.message : 'Unknown error')
+            (error instanceof Error ? error.message : 'Unknown error'),
         )
       }
     }
   },
-  { deep: true }
+  { deep: true },
 )
 
 // todo: check whether we should only run on a subset of settings
@@ -157,10 +157,10 @@ watch(
       handleSearchResults(currentBBox.value, settings.value)
     }
   },
-  { deep: true }
+  { deep: true },
 )
 
-const availableTiles = ref<any[]>([])
+const availableTiles = shallowRef<any[]>([])
 
 // Load available S2 tiles from the map layer
 const loadAvailableTiles = () => {
@@ -174,7 +174,7 @@ const loadAvailableTiles = () => {
     (layer) =>
       layer.get('name') === 's2-grid' ||
       (layer.get('properties') && layer.get('properties').name === 's2-grid') ||
-      ((layer as any).getSource && (layer as any).getSource().getFeatures)
+      ((layer as any).getSource && (layer as any).getSource().getFeatures),
   )
 
   if (s2GridLayer && (s2GridLayer as any).getSource) {
@@ -258,7 +258,7 @@ const filteredResults = computed(() => {
     return []
   }
   return searchResults.value.filter(
-    (r) => r.id !== activeTileId.value && r.id !== secondActiveTileId.value
+    (r) => r.id !== activeTileId.value && r.id !== secondActiveTileId.value,
   )
 })
 
@@ -298,7 +298,7 @@ const loadMore = async () => {
   } catch (error: unknown) {
     console.error('Error loading more results:', error)
     showError(
-      `Error loading more results: ${error instanceof Error ? error.message : 'Unknown error'}`
+      `Error loading more results: ${error instanceof Error ? error.message : 'Unknown error'}`,
     )
     searchStatus.value = false
   } finally {
@@ -361,7 +361,7 @@ const handleTileSelected = (tileName: string) => {
     (layer) =>
       layer.get('name') === 's2-grid' ||
       (layer.get('properties') && layer.get('properties').name === 's2-grid') ||
-      ((layer as any).getSource && (layer as any).getSource().getFeatures)
+      ((layer as any).getSource && (layer as any).getSource().getFeatures),
   )
 
   if (s2GridLayer && (s2GridLayer as any).getSource) {
