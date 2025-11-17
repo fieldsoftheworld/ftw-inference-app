@@ -12,7 +12,7 @@ export default function useNotifier() {
   const notifier = useVuetifyNotifier()
 
   const showNotifier = (notification: NotifierMessage) => {
-    let { type, text } = notification
+    let { type, text } = notification //eslint-disable-line prefer-const
     if (lastMessages[type] === text) {
       return
     }

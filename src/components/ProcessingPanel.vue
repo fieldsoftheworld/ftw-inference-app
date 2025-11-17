@@ -270,10 +270,10 @@ const sortDesc = (a: SearchResult, b: SearchResult) => {
 }
 
 const resultsA = computed(() => {
-  return filteredResults.value.sort(sortAsc)
+  return [...filteredResults.value].sort(sortAsc)
 })
 const resultsB = computed(() => {
-  return filteredResults.value.sort(sortDesc)
+  return [...filteredResults.value].sort(sortDesc)
 })
 
 // Function to load more results

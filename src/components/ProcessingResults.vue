@@ -34,7 +34,7 @@
       <v-expansion-panels>
         <v-expansion-panel title="Statistics" class="statistics-panel">
           <v-expansion-panel-text>
-            <div v-for="field in statFields" class="mb-4">
+            <div v-for="field in statFields" class="mb-4" :key="field">
               <v-label class="text-capitalize mb-1">{{ field }}</v-label>
               <PropertiesDisplay :properties="statistics[field]" :units="statUnits[field]" />
             </div>
@@ -79,17 +79,15 @@
 </template>
 
 <script setup lang="ts">
-import type Map from 'ol/Map'
 import { ref, onMounted, onUnmounted, onBeforeUnmount, computed } from 'vue'
 import useMap from '../composables/useMap'
 import useNotifier from '../composables/useNotifier'
 import useAreaOfInterest from '../composables/useAreaOfInterest'
 import PropertiesDisplay from './PropertiesDisplay.vue'
 import { mdiDownloadBoxOutline, mdiDelete, mdiChevronDown } from '@mdi/js'
-import { Feature } from 'geojson'
+import { type Feature } from 'geojson'
 
 const props = defineProps<{
-  map: Map
   geoJsonResults: any[]
 }>()
 
@@ -254,7 +252,7 @@ const fitMapToResult = (result: Feature) => {
   // This ensures the geometry fits regardless of screen size
   const paddingY = Math.max(100, screenHeight * 0.2) // At least 100px or 30% of screen height
   // Fit the map to the result's extent with dynamic padding
-  props.map.getView().fit(extent, {
+  map.value?.getView().fit(extent, {
     duration: 1000,
     padding: [paddingY, screenWidth * 0.25, paddingY, screenWidth * 0.35], // [top, right, bottom, left]
     maxZoom: 17,
@@ -281,7 +279,7 @@ onUnmounted(() => {
 
 const clearResults = () => {
   // Clear results and zoom back to S2 grid
-  clearResultsAndZoomToGrid(props.map)
+  clearResultsAndZoomToGrid(map.value!)
   // Emit event to clear results in parent components
   emit('clearResults')
 }

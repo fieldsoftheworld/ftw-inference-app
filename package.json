@@ -9,7 +9,10 @@
     "preview": "vite preview",
     "test:unit": "vitest",
     "test": "vitest run",
-    "type-check": "vue-tsc --noEmit -p tsconfig.app.json --composite false"
+    "pretest": "npm run lint && npm run type-check",
+    "type-check": "vue-tsc --noEmit -p tsconfig.app.json --composite false",
+    "lint": "eslint && prettier --check \"src/**/*.{ts,js,html,vue}\"",
+    "lint:fix": "eslint --fix && prettier --write \"src/**/*.{ts,js,html,vue}\""
   },
   "dependencies": {
     "@turf/boolean-within": "^7.2.0",

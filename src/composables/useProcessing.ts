@@ -53,7 +53,7 @@ export default function useProcessing() {
     }
   }
 
-  const requestUntil = async (fn: Function): Promise<any> => {
+  const requestUntil = async (fn: () => Promise<Response>): Promise<any> => {
     const response = await fn()
     if (response.status === 503) {
       showInfo('Server is busy. Retrying in 20 seconds...')
