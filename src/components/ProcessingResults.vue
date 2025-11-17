@@ -61,20 +61,25 @@ import PropertyDisplay from './PropertyDisplay.vue'
 import { mdiDownloadBoxOutline, mdiDelete, mdiChevronDown } from '@mdi/js'
 import { formatMeasurementDisplay } from '../functions/format-measurement-display'
 
+const props = defineProps<{
+  map: Map
+  geoJsonResults: any[]
+}>()
+
 const emit = defineEmits<{
   (e: 'clearResults'): void
 }>()
 
+const { map, handleMapClick } = useMap()
 const { showInfo, showError } = useNotifier()
-const { map, geoJsonResults, hidePropertiesBox } = useMap()
 
 const processedResults = computed(() => {
-  const formattedResults = new Array(geoJsonResults.value.length)
+  const formattedResults = new Array(props.geoJsonResults.length)
   for (const {
     properties: { geometry, id, ...rest },
     id: featureId,
     ...feature
-  } of geoJsonResults.value) {
+  } of props.geoJsonResults) {
     formattedResults[parseInt(id) - 1] = {
       id,
       ...feature,
@@ -98,7 +103,7 @@ const toggleCollapsible = () => {
 }
 
 const downloadResults = () => {
-  if (!geoJsonResults.value || geoJsonResults.value.length === 0) {
+  if (!props.geoJsonResults || props.geoJsonResults.length === 0) {
     showInfo('No results to download.')
     return
   }
@@ -107,7 +112,7 @@ const downloadResults = () => {
     // Create a GeoJSON FeatureCollection from the results
     const geojson = {
       type: 'FeatureCollection',
-      features: geoJsonResults.value,
+      features: props.geoJsonResults,
     }
 
     // Convert to JSON string
@@ -152,8 +157,6 @@ const fitMapToResult = (result: any) => {
     return
   }
 
-  hidePropertiesBox()
-
   // The extent is already in CRS84 (EPSG:4326), so no transformation needed
   const transformedExtent = extent
 
@@ -164,12 +167,26 @@ const fitMapToResult = (result: any) => {
   // This ensures the geometry fits regardless of screen size
   const paddingY = Math.max(100, screenHeight * 0.2) // At least 100px or 30% of screen height
   // Fit the map to the result's extent with dynamic padding
-  map.value.getView().fit(transformedExtent, {
+  props.map.getView().fit(transformedExtent, {
     duration: 1000,
     padding: [paddingY, screenWidth * 0.25, paddingY, screenWidth * 0.35], // [top, right, bottom, left]
     maxZoom: 17,
   })
 }
+
+onMounted(() => {
+  // Add map click handler to detect feature clicks and show properties
+  if (map.value) {
+    map.value.on('click', handleMapClick)
+  }
+})
+
+// Clean up map click handler when component is unmounted
+onUnmounted(() => {
+  if (map.value) {
+    map.value.un('click', handleMapClick)
+  }
+})
 
 const clearResults = () => emit('clearResults')
 </script>
