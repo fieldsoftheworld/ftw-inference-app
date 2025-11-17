@@ -225,8 +225,8 @@ onMounted(() => {
 })
 
 // Window A and B input fields
-const firstTile = ref<SearchResult | null>(null)
-const secondTile = ref<SearchResult | null>(null)
+const firstTile = shallowRef<SearchResult | null>(null)
+const secondTile = shallowRef<SearchResult | null>(null)
 watch(activeTileId, async (id) => {
   firstTile.value = id ? await getTileById(id) : null
 })
