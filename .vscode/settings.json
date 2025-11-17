@@ -3,5 +3,6 @@
   "editor.formatOnSave": true,
   "[vue]": {
     "editor.defaultFormatter": "esbenp.prettier-vscode"
-  }
+  },
+  "eslint.validate": ["javascript", "typescript", "vue", "html"]
 }
