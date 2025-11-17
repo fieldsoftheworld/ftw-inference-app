@@ -66,7 +66,7 @@ const emit = defineEmits<{
   (e: 'clearResults'): void
 }>()
 
-const { map, handleMapClick, vectorLayer, selectedFeature } = useMap()
+const { map, handleMapClick, vectorLayer, selectedFeature, hidePropertiesBox } = useMap()
 const { clearResultsAndZoomToGrid } = useAreaOfInterest()
 const { showInfo, showError } = useNotifier()
 
@@ -126,6 +126,8 @@ const fitMapToResult = (result: Feature) => {
     showError('Feature not found on the map.')
     return
   }
+
+  hidePropertiesBox()
 
   // Highlight the result feature
   selectedFeature.value = resultFeature
