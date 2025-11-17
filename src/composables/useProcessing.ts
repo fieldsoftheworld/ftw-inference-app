@@ -176,7 +176,7 @@ export default function useProcessing() {
       removeStacLayer(map.value!)
       removeStacLayer(map.value!, true)
     } catch (error) {
-      showError((error as Error)?.message || 'An unexpected error occured.')
+      showError((error as Error)?.message || String(error))
     } finally {
       isProcessing.value = false
     }
@@ -274,7 +274,7 @@ export default function useProcessing() {
         fitMapToBbox(extent)
       }
     } catch (error) {
-      showError((error as Error)?.message || 'An unexpected error occured.')
+      showError((error as Error)?.message || String(error))
     } finally {
       isProcessing.value = false
     }

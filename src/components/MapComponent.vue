@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue'
+import { ref, onMounted } from 'vue'
 import { Map, View } from 'ol'
 import DataCabinet from './DataCabinet.vue'
 import ProcessingResults from './ProcessingResults.vue'
-import PropertyDisplay from './PropertyDisplay.vue'
+import PropertiesDisplay from './PropertiesDisplay.vue'
 import createLabelLayer from '../layers/Label-Layer'
 import createS2GridLayer from '../layers/S2-Grid-Layer'
 import createCloudlessLayer from '../layers/S2-Cloudless-Layer'
@@ -22,29 +22,15 @@ const {
   originalClickPosition,
   hidePropertiesBox,
   geoJsonResults,
-  handleMapClick,
 } = useMap()
 
 const { addMapClickHandler } = useAreaOfInterest()
 const { setAvailableModels } = useSettings()
 
-const dataCabinetRef = ref<InstanceType<typeof DataCabinet> | null>(null)
-
 const clearResults = () => {
-  if (geoJsonResults.value.length > 0) {
-    geoJsonResults.value = []
-  }
+  geoJsonResults.value = []
+  hidePropertiesBox()
 }
-
-watch(geoJsonResults, (newResults) => {
-  if (newResults.length === 0) {
-    hidePropertiesBox()
-    map.value?.un('click', handleMapClick)
-  }
-  else {
-    map.value?.on('click', handleMapClick)
-  }
-})
 
 const { setupPermalink } = usePermalink()
 
@@ -113,17 +99,12 @@ defineExpose({
   <div class="map-wrapper">
     <div id="map" class="map-container"></div>
 
-    <DataCabinet
-      v-if="map"
-      :map="map as Map"
-      :areaValues="areaValues"
-      :dataCabinetRef="dataCabinetRef"
-      ref="dataCabinetRef"
-      @clearResults="clearResults"
-    />
+    <DataCabinet v-if="map" :map="map as Map" :areaValues="areaValues" />
 
     <ProcessingResults
-      v-if="map && geoJsonResults.length > 0"
+      v-if="geoJsonResults.length > 0"
+      :map="map as Map"
+      :geoJsonResults="geoJsonResults"
       @clearResults="clearResults"
     />
   </div>
@@ -163,11 +144,7 @@ defineExpose({
       </div>
     </div>
     <div class="properties-content">
-      <PropertyDisplay
-        v-for="property in selectedFeature.cleanProperties"
-        :key="property.key"
-        :property="property"
-      />
+      <PropertiesDisplay :properties="selectedFeature.getProperties()" />
     </div>
   </div>
 

@@ -5,6 +5,7 @@ import useMap from './useMap'
 import useSearch from './useSearch'
 import useSettings from './useSettings'
 import { fromLonLat, toLonLat, transformExtent } from 'ol/proj'
+import { type Extent } from 'ol/extent'
 import { type Coordinate } from 'ol/coordinate'
 
 export interface PermalinkState {
@@ -13,7 +14,7 @@ export interface PermalinkState {
   currentMgrsTileId: string | null
   activeTileId: string | null
   secondActiveTileId: string | null
-  bbox?: number[]
+  bbox?: Extent
   // Search settings - only included when currentMgrsTileId is present
   year?: number
   startMonth?: number
@@ -25,7 +26,7 @@ export interface PermalinkState {
 export default function usePermalink() {
   const { handleSearchResults } = useSearch()
   const { settings } = useSettings()
-  const { activeTileId, currentBBox, currentMgrsTileId, drawnExtent, secondActiveTileId, triggerTileSelection } =
+  const { activeTileId, currentMgrsTileId, drawnExtent, secondActiveTileId, triggerTileSelection } =
     useAreaOfInterest()
   const { areaValues } = useMap()
 
@@ -119,10 +120,10 @@ export default function usePermalink() {
   // Update permalink in URL
   const updatePermalink = (
     map: Map,
+    drawnExtent: Extent | null,
     currentMgrsTileId: string | null,
     activeTileId: string | null,
     secondActiveTileId: string | null,
-    currentBBox?: number[],
   ) => {
     if (!shouldUpdate) {
       shouldUpdate = true
@@ -136,7 +137,11 @@ export default function usePermalink() {
 
     const center = toLonLat(viewCenter)
 
-    const extent = currentBBox ? currentBBox.map((coord) => Number(coord.toFixed(4))) : null
+    const extent = drawnExtent
+      ? transformExtent(drawnExtent, 'EPSG:3857', 'EPSG:4326').map((coord) =>
+          Number(coord.toFixed(4)),
+        )
+      : null
 
     // Build hash parts, excluding null values
     const hashParts = [zoom.toFixed(2), center[0].toFixed(4), center[1].toFixed(4)]
@@ -144,8 +149,8 @@ export default function usePermalink() {
     if (currentMgrsTileId) {
       // Add tile IDs
       hashParts.push(currentMgrsTileId)
-      hashParts.push(String(!settings.value.autoSceneSelection && activeTileId ? activeTileId : ''))
-      hashParts.push(String(!settings.value.autoSceneSelection && secondActiveTileId ? secondActiveTileId : ''))
+      hashParts.push(String(settings.value.autoSceneSelection ? '' : activeTileId))
+      hashParts.push(String(settings.value.autoSceneSelection ? '' : secondActiveTileId))
 
       if (extent) {
         hashParts.push(`bbox:${extent.join(',')}`)
@@ -226,28 +231,24 @@ export default function usePermalink() {
     watch(
       () => [
         map.value,
-        currentBBox.value,
+        drawnExtent.value,
         currentMgrsTileId.value,
         activeTileId.value,
         secondActiveTileId.value,
         settings.value.autoSceneSelection,
         settings.value.year,
-        settings.value.endMonth,
-        settings.value.startMonth,
-        settings.value.cloudCover,
-        settings.value.areaCoverage,
       ],
       () => {
         if (!map.value) {
           return
         }
         // Update permalink after tile selection changes
-        updatePermalink(
+        updateTileSelection(
           map.value,
+          drawnExtent.value,
           currentMgrsTileId.value,
           activeTileId.value,
           secondActiveTileId.value,
-          currentBBox.value,
         )
       },
     )
@@ -273,20 +274,19 @@ export default function usePermalink() {
         false,
       )
     }
-    if (initialState.bbox) {
-      currentBBox.value = initialState.bbox
-      const extent = transformExtent(currentBBox.value, 'EPSG:4326', 'EPSG:3857')
-      drawnExtent.value = extent
+    const initialBbox = initialState.bbox
+    if (initialBbox) {
+      drawnExtent.value = transformExtent(initialBbox, 'EPSG:4326', 'EPSG:3857')
     }
 
     // Update permalink when map moves
     map.value.on('moveend', () => {
       updatePermalink(
         map.value!,
+        drawnExtent.value,
         currentMgrsTileId.value,
         activeTileId.value,
         secondActiveTileId.value,
-        currentBBox.value,
       )
     })
 
@@ -319,6 +319,17 @@ export default function usePermalink() {
 
       shouldUpdate = false
     })
+  }
+
+  // Update permalink when tile selection changes
+  const updateTileSelection = (
+    map: Map,
+    drawnExtent: Extent | null,
+    currentMgrsTileId: string | null,
+    activeTileId: string | null,
+    secondActiveTileId: string | null,
+  ) => {
+    updatePermalink(map, drawnExtent, currentMgrsTileId, activeTileId, secondActiveTileId)
   }
 
   return { setupPermalink }

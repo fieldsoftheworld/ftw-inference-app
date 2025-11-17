@@ -33,17 +33,13 @@
     <div v-show="isOpen" class="content">
       <v-list density="compact" color="transparent" class="pa-0">
         <v-list-item
-          v-for="result in processedResults"
+          v-for="result in geoJsonResults"
           :key="result.id"
           class="result-item"
           @click.stop="fitMapToResult(result)"
         >
           <div class="result-properties">
-            <PropertyDisplay
-              v-for="property in result.filteredProperties"
-              :key="property.key"
-              :property="property"
-            />
+            <PropertiesDisplay :properties="result.properties" />
           </div>
         </v-list-item>
       </v-list>
@@ -53,43 +49,26 @@
 
 <script setup lang="ts">
 import type Map from 'ol/Map'
-import { computed, ref, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted, onBeforeUnmount } from 'vue'
 import useMap from '../composables/useMap'
 import useNotifier from '../composables/useNotifier'
 import useAreaOfInterest from '../composables/useAreaOfInterest'
-import PropertyDisplay from './PropertyDisplay.vue'
+import PropertiesDisplay from './PropertiesDisplay.vue'
 import { mdiDownloadBoxOutline, mdiDelete, mdiChevronDown } from '@mdi/js'
-import { formatMeasurementDisplay } from '../functions/format-measurement-display'
+import { Feature } from 'geojson'
+
+const props = defineProps<{
+  map: Map
+  geoJsonResults: any[]
+}>()
 
 const emit = defineEmits<{
   (e: 'clearResults'): void
 }>()
 
+const { map, handleMapClick, vectorLayer, selectedFeature, hidePropertiesBox } = useMap()
+const { clearResultsAndZoomToGrid } = useAreaOfInterest()
 const { showInfo, showError } = useNotifier()
-const { map, geoJsonResults, hidePropertiesBox } = useMap()
-
-const processedResults = computed(() => {
-  const formattedResults = new Array(geoJsonResults.value.length)
-  for (const {
-    properties: { geometry, id, ...rest },
-    id: featureId,
-    ...feature
-  } of geoJsonResults.value) {
-    formattedResults[parseInt(id) - 1] = {
-      id,
-      ...feature,
-      filteredProperties: Object.entries({ id, ...rest }).reduce((acc, [key, value]) => {
-        acc.push({
-          key,
-          value,
-          formattedValue: formatMeasurementDisplay(value as number, key),
-        })
-        return acc
-      }, [] as { key: string; value: any; formattedValue: string }[]),
-    }
-  }
-  return formattedResults
-})
 
 const isOpen = ref(true)
 
@@ -98,7 +77,7 @@ const toggleCollapsible = () => {
 }
 
 const downloadResults = () => {
-  if (!geoJsonResults.value || geoJsonResults.value.length === 0) {
+  if (!props.geoJsonResults || props.geoJsonResults.length === 0) {
     showInfo('No results to download.')
     return
   }
@@ -107,7 +86,7 @@ const downloadResults = () => {
     // Create a GeoJSON FeatureCollection from the results
     const geojson = {
       type: 'FeatureCollection',
-      features: geoJsonResults.value,
+      features: props.geoJsonResults,
     }
 
     // Convert to JSON string
@@ -135,14 +114,26 @@ const downloadResults = () => {
   }
 }
 
-const fitMapToResult = (result: any) => {
-  if (!result || !result.geometry) {
+const fitMapToResult = (result: Feature) => {
+  if (!result || !result.id) {
     showError('No valid geometry found for this result.')
     return
   }
 
+  const resultFeature = vectorLayer.value?.getSource()?.getFeatureById(result.id)
+  if (!resultFeature) {
+    showError('Feature not found on the map.')
+    return
+  }
+
+  hidePropertiesBox()
+
+  // Highlight the result feature
+  selectedFeature.value = resultFeature
+
   // Get the extent of the feature
-  const extent = result.geometry.getExtent()
+  const extent = resultFeature.getGeometry()?.getExtent()
+
   if (
     !extent ||
     extent.every((coord: number) => coord === 0) ||
@@ -152,11 +143,6 @@ const fitMapToResult = (result: any) => {
     return
   }
 
-  hidePropertiesBox()
-
-  // The extent is already in CRS84 (EPSG:4326), so no transformation needed
-  const transformedExtent = extent
-
   // Calculate dynamic padding based on screen dimensions
   const screenWidth = window.innerWidth
   const screenHeight = window.innerHeight
@@ -164,14 +150,37 @@ const fitMapToResult = (result: any) => {
   // This ensures the geometry fits regardless of screen size
   const paddingY = Math.max(100, screenHeight * 0.2) // At least 100px or 30% of screen height
   // Fit the map to the result's extent with dynamic padding
-  map.value.getView().fit(transformedExtent, {
+  props.map.getView().fit(extent, {
     duration: 1000,
     padding: [paddingY, screenWidth * 0.25, paddingY, screenWidth * 0.35], // [top, right, bottom, left]
     maxZoom: 17,
   })
 }
 
-const clearResults = () => emit('clearResults')
+onMounted(() => {
+  // Add map click handler to detect feature clicks and show properties
+  if (map.value) {
+    map.value.on('click', handleMapClick)
+  }
+})
+
+onBeforeUnmount(() => {
+  selectedFeature.value = null
+})
+
+// Clean up map click handler when component is unmounted
+onUnmounted(() => {
+  if (map.value) {
+    map.value.un('click', handleMapClick)
+  }
+})
+
+const clearResults = () => {
+  // Clear results and zoom back to S2 grid
+  clearResultsAndZoomToGrid(props.map)
+  // Emit event to clear results in parent components
+  emit('clearResults')
+}
 </script>
 
 <style scoped>

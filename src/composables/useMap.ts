@@ -1,4 +1,4 @@
-import { ref, shallowRef } from 'vue'
+import { ref, shallowRef, watch } from 'vue'
 import type Map from 'ol/Map'
 import VectorSource from 'ol/source/Vector'
 import VectorLayer from 'ol/layer/Vector'
@@ -6,8 +6,11 @@ import GeoJSON from 'ol/format/GeoJSON'
 import { transformExtent } from 'ol/proj'
 import type { Extent } from 'ol/extent'
 import { type FeatureCollection } from 'geojson'
-import { formatMeasurementDisplay } from '../functions/format-measurement-display'
 import useNotifier from './useNotifier'
+import { Fill, Stroke, Style } from 'ol/style'
+import { type FeatureLike } from 'ol/Feature'
+
+let featureId = 0
 
 export interface AreaValues {
   min_area_km2: number
@@ -24,12 +27,33 @@ const areaValues = ref<AreaValues>({
 const vectorLayer = shallowRef<VectorLayer<VectorSource> | null>(null)
 
 // Properties display state
-const selectedFeature = ref<any>(null)
+const selectedFeature = shallowRef<FeatureLike | null>(null)
+watch(selectedFeature, () => vectorLayer.value?.changed())
 const propertiesBoxPosition = ref<{ x: number; y: number } | null>(null)
 const originalClickPosition = ref<{ x: number; y: number } | null>(null)
 const showPropertiesBox = ref(false)
 
 const geoJsonResults = shallowRef<any[]>([])
+
+const featureStyle = new Style({
+  fill: new Fill({
+    color: 'rgba(255, 255, 0, 0.1)',
+  }),
+  stroke: new Stroke({
+    color: 'rgba(255, 255, 0, 1)',
+    width: 2,
+  }),
+})
+
+const highlightStyle = [
+  featureStyle,
+  new Style({
+    stroke: new Stroke({
+      color: 'rgba(255, 0, 0, 1)',
+      width: 1.5,
+    }),
+  }),
+]
 
 export default function useMap() {
   const { showWarning } = useNotifier()
@@ -37,38 +61,16 @@ export default function useMap() {
   const handleMapClick = (event: any) => {
     // Check if click is on a feature from our vector layer
     const pixel = event.pixel
-    let clickedFeature: any = null
 
     // Check if we clicked on a feature from our results layer
-    map.value!.forEachFeatureAtPixel(pixel, (feature) => {
-      // Only process features from our results layer
-      if (
-        vectorLayer.value
-          ?.getSource()
-          ?.getFeatures()
-          .includes(feature as any)
-      ) {
-        clickedFeature = feature
-        return true // Stop after finding a feature from our results layer
-      }
-      return false // Continue checking other features
+    const [clickedFeature] = map.value!.getFeaturesAtPixel(pixel, {
+      layerFilter: (layer) => layer === vectorLayer.value,
     })
 
     if (clickedFeature) {
       // Clicked on a feature from our results layer
       selectedFeature.value = clickedFeature
-      const properties = clickedFeature.getProperties()
-      // Remove geometry and other non-property fields
-      const { geometry, ...cleanProperties } = properties
-      selectedFeature.value.cleanProperties = Object.entries(cleanProperties).map(
-        ([key, value]) => {
-          return {
-            key,
-            value,
-            formattedValue: formatMeasurementDisplay(value as string | number, key),
-          }
-        },
-      )
+
       // Store original click position for arrow indicator
       originalClickPosition.value = { x: pixel[0], y: pixel[1] }
 
@@ -153,6 +155,12 @@ export default function useMap() {
     if (vectorLayer.value) {
       map.value!.removeLayer(vectorLayer.value)
     }
+    for (const feature of geojson.features) {
+      if (feature.id === undefined) {
+        feature.id =
+          feature.properties?.id !== undefined ? feature.properties.id : `feature-${featureId++}`
+      }
+    }
 
     // Create new vector source and layer
     const source = new VectorSource({
@@ -172,10 +180,11 @@ export default function useMap() {
 
     vectorLayer.value = new VectorLayer({
       source: source,
-      style: {
-        'fill-color': 'rgba(255, 255, 0, 0.1)',
-        'stroke-color': 'rgba(255, 255, 0, 1)',
-        'stroke-width': 2,
+      style: (feature) => {
+        if (feature === selectedFeature.value) {
+          return highlightStyle
+        }
+        return featureStyle
       },
       zIndex: 1001, // Higher than S2-grid-layer (1000)
     })
@@ -183,14 +192,7 @@ export default function useMap() {
     // Ensure the results layer is on top by setting a high z-index
     map.value!.addLayer(vectorLayer.value)
 
-    // Emit the GeoJSON results to the parent component
-    const results = source.getFeatures().map((feature) => ({
-      id: feature.getId() || `feature-${Date.now()}-${Math.random()}`,
-      geometry: feature.getGeometry(),
-      properties: feature.getProperties(),
-    }))
-
-    geoJsonResults.value = results
+    geoJsonResults.value = geojson.features
 
     // Get the extent and validate it
     const extent = source.getExtent()
