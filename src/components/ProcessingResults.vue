@@ -226,8 +226,4 @@ const clearResults = () => {
   flex-direction: column;
   gap: 0.25rem;
 }
-
-.v-list-item--density-compact.v-list-item--one-line {
-  min-height: auto !important;
-}
 </style>
