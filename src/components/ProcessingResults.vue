@@ -116,7 +116,6 @@ const downloadResults = () => {
 
 const fitMapToResult = (result: Feature) => {
   if (!result || !result.id) {
-    console.log(result)
     showError('No valid geometry found for this result.')
     return
   }
