@@ -27,8 +27,6 @@ const {
 const { addMapClickHandler } = useAreaOfInterest()
 const { setAvailableModels } = useSettings()
 
-const dataCabinetRef = ref<InstanceType<typeof DataCabinet> | null>(null)
-
 const clearResults = () => {
   geoJsonResults.value = []
   hidePropertiesBox()
@@ -101,13 +99,7 @@ defineExpose({
   <div class="map-wrapper">
     <div id="map" class="map-container"></div>
 
-    <DataCabinet
-      v-if="map"
-      :map="map as Map"
-      :areaValues="areaValues"
-      :dataCabinetRef="dataCabinetRef"
-      ref="dataCabinetRef"
-    />
+    <DataCabinet v-if="map" :map="map as Map" :areaValues="areaValues" />
 
     <ProcessingResults
       v-if="geoJsonResults.length > 0"
