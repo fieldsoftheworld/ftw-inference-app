@@ -13,7 +13,7 @@
         class="text-caption text-white text-right"
         style="max-width: 120px; word-break: break-word"
       >
-        {{ formattedValue(key, value) }}
+        {{ formattedValue(key, value, props.unit) }}
       </div>
     </template>
   </v-list-item>
@@ -24,6 +24,7 @@ import { computed } from 'vue'
 
 const props = defineProps<{
   properties: { [key: string]: any }
+  unit?: string
 }>()
 
 const propertiesWithoutGeometry = computed(() => {
@@ -31,16 +32,19 @@ const propertiesWithoutGeometry = computed(() => {
   return propertiesWithoutGeometry
 })
 
-function formattedValue(key: string | number, value: any): string {
+function formattedValue(key: string | number, value: any, unit?: string): string {
   if (typeof value !== 'number') {
     return value
   }
 
-  if (key === 'area') {
+  if (typeof unit === 'string') {
+    return `${value.toFixed(2)} ${unit}`
+  } else if (key === 'area') {
     return `${value.toFixed(2)} ha`
+  } else if (key === 'perimeter') {
+    return `${value.toFixed(2)} km`
   }
-
-  return `${value.toFixed(2)} km`
+  return `${value.toFixed(2)}`
 }
 </script>
 
