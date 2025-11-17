@@ -1,5 +1,5 @@
 import type { Polygon } from 'geojson'
-import { type Ref, ref } from 'vue'
+import { type Ref, ref, shallowRef } from 'vue'
 import searchStacApi, { type SearchSettings } from '../functions/search-stac-api'
 import useNotifier from './useNotifier'
 
@@ -18,7 +18,7 @@ export interface SearchResult {
 
 export type SearchResults = Ref<SearchResult[]>
 
-const searchResults = ref<SearchResult[]>([])
+const searchResults = shallowRef<SearchResult[]>([])
 
 const hasMore = ref(false)
 const isLoading = ref(false)
