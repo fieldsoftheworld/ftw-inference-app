@@ -36,7 +36,7 @@
           <v-expansion-panel-text>
             <div v-for="field in statFields" class="mb-4">
               <v-label class="text-capitalize mb-1">{{ field }}</v-label>
-              <PropertiesDisplay :properties="statistics[field]" :unit="statUnits[field]" />
+              <PropertiesDisplay :properties="statistics[field]" :units="statUnits[field]" />
             </div>
           </v-expansion-panel-text>
         </v-expansion-panel>
@@ -146,9 +146,9 @@ interface ResaultStats {
 }
 
 const statFields: ('area' | 'perimeter')[] = ['area', 'perimeter']
-const statUnits: Record<'area' | 'perimeter', string> = {
-  area: 'ha',
-  perimeter: 'km',
+const statUnits: Record<'area' | 'perimeter', (key: string | number) => string> = {
+  area: (key) => (key === 'count' ? '' : 'ha'),
+  perimeter: (key) => (key === 'count' ? '' : 'km'),
 }
 
 const statistics = computed(() => {
