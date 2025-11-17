@@ -31,9 +31,40 @@
     </v-card-title>
 
     <div v-show="isOpen" class="content">
+      <v-expansion-panels>
+        <v-expansion-panel title="Statistics" class="statistics-panel">
+          <v-expansion-panel-text>
+            <div v-for="field in statFields" class="mb-4">
+              <v-label class="text-capitalize mb-1">{{ field }}</v-label>
+              <PropertiesDisplay :properties="statistics[field]" :unit="statUnits[field]" />
+            </div>
+          </v-expansion-panel-text>
+        </v-expansion-panel>
+      </v-expansion-panels>
+      <v-row>
+        <v-col cols="12" class="d-flex align-center">
+          <v-select
+            class="w-50"
+            label="Sort by"
+            hide-details
+            outlined
+            :items="['Id', 'Area', 'Perimeter']"
+            v-model="sortKey"
+          ></v-select>
+          <v-select
+            class="w-50"
+            label="Sort order"
+            hide-details
+            outlined
+            :items="['ascending', 'descending']"
+            v-model="sortOrder"
+          ></v-select>
+        </v-col>
+      </v-row>
+
       <v-list density="compact" color="transparent" class="pa-0">
         <v-list-item
-          v-for="result in geoJsonResults"
+          v-for="result in sortedResults"
           :key="result.id"
           class="result-item"
           @click.stop="fitMapToResult(result)"
@@ -49,7 +80,7 @@
 
 <script setup lang="ts">
 import type Map from 'ol/Map'
-import { ref, onMounted, onUnmounted, onBeforeUnmount } from 'vue'
+import { ref, onMounted, onUnmounted, onBeforeUnmount, computed } from 'vue'
 import useMap from '../composables/useMap'
 import useNotifier from '../composables/useNotifier'
 import useAreaOfInterest from '../composables/useAreaOfInterest'
@@ -71,6 +102,79 @@ const { clearResultsAndZoomToGrid } = useAreaOfInterest()
 const { showInfo, showError } = useNotifier()
 
 const isOpen = ref(true)
+
+const sortKey = ref<'Id' | 'Area' | 'Perimeter'>('Id')
+const sortOrder = ref<'ascending' | 'descending'>('ascending')
+
+const sortedResults = computed(() => {
+  return props.geoJsonResults.slice(0).sort((a, b) => {
+    let compareA, compareB
+    switch (sortKey.value) {
+      case 'Id':
+        compareA = a.id
+        compareB = b.id
+        break
+      default:
+        const key = sortKey.value.toLowerCase()
+        compareA = a.properties[key]
+        compareB = b.properties[key]
+    }
+
+    let order = 0
+    if (typeof compareA === 'string' || typeof compareB === 'string') {
+      compareA = String(compareA)
+      compareB = String(compareB)
+      order = compareA.localeCompare(compareB)
+    } else if (compareA < compareB) {
+      order = -1
+    } else if (compareA > compareB) {
+      order = 1
+    }
+    if (sortOrder.value === 'descending') {
+      order *= -1
+    }
+    return order
+  })
+})
+
+interface ResaultStats {
+  count: number
+  min: number
+  mean: number | null
+  max: number
+  sum: number
+}
+
+const statFields: ('area' | 'perimeter')[] = ['area', 'perimeter']
+const statUnits: Record<'area' | 'perimeter', string> = {
+  area: 'ha',
+  perimeter: 'km',
+}
+
+const statistics = computed(() => {
+  const template: ResaultStats = { count: 0, min: Infinity, mean: 0, max: -Infinity, sum: 0 }
+  const stats: Record<'area' | 'perimeter', ResaultStats> = {
+    area: Object.assign({}, template),
+    perimeter: Object.assign({}, template),
+  }
+  props.geoJsonResults.forEach((feature) => {
+    for (const type of statFields) {
+      const value = feature.properties[type]
+      if (typeof value === 'number') {
+        stats[type].count += 1
+        stats[type].sum += value
+        if (value < stats[type].min) stats[type].min = value
+        if (value > stats[type].max) stats[type].max = value
+      }
+    }
+  })
+
+  for (const type of statFields) {
+    const stat = stats[type]
+    stat.mean = stat.count > 0 ? stat.sum / stat.count : null
+  }
+  return stats
+})
 
 const toggleCollapsible = () => {
   isOpen.value = !isOpen.value
@@ -225,5 +329,9 @@ const clearResults = () => {
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
+}
+
+.statistics-panel {
+  background-color: transparent !important;
 }
 </style>
