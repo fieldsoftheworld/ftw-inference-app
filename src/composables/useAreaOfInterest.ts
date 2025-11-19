@@ -2,7 +2,7 @@ import { Feature, type Map } from 'ol'
 import { never } from 'ol/events/condition'
 import {
   buffer,
-  containsExtent,
+  getCenter,
   getHeight,
   getIntersection,
   getWidth,
@@ -62,7 +62,7 @@ const validStyle = new Style({
 
 export default function useAreaOfInterest() {
   const { searchResults } = useSearch()
-  const { settings } = useSettings()
+  const { settings, modelIsSingleShot } = useSettings()
   const { maxArea, vectorLayer, areaValues, geoJsonResults, map } = useMap()
   const { updateProcessingMode } = useProcessingMode()
   const { showWarning, showError } = useNotifier()
@@ -124,6 +124,7 @@ export default function useAreaOfInterest() {
         drawnExtent.value = event.extent
         const bbox = transformExtent(event.extent, 'EPSG:3857', 'EPSG:4326')
         if (validateBBox(bbox)) {
+          addBBoxAtPixel(map.getPixelFromCoordinate(getCenter(event.extent)), map, areaValues)
           currentBBox.value = bbox
           if (!settings.value.autoSceneSelection) {
             // Check geometry containment if both tiles are selected
@@ -226,23 +227,31 @@ export default function useAreaOfInterest() {
 
   const checkBboxContainment = async (extent: Extent, drawnExtent: Ref<Extent | null>) => {
     const currentExtent = extent || drawnExtent.value
-    if (!activeTileId.value || !secondActiveTileId.value || !currentExtent) {
+    if (
+      !activeTileId.value ||
+      (!modelIsSingleShot.value && !secondActiveTileId.value) ||
+      !currentExtent
+    ) {
       return
     }
 
-    const firstTile = await getTileById(activeTileId.value)
-    const secondTile = await getTileById(secondActiveTileId.value)
-
-    if (!firstTile?.geometry || !secondTile?.geometry) {
-      return
+    const tiles = [await getTileById(activeTileId.value)]
+    if (!modelIsSingleShot.value && secondActiveTileId.value) {
+      tiles.push(await getTileById(secondActiveTileId.value))
     }
 
     // Create the intersection from the geometries to see if the bbox is contained within
-    const tilePolygons: GeoJSONFeature<GeoJSONPolygon>[] = [firstTile, secondTile].map((f) => ({
-      type: 'Feature',
-      properties: null,
-      geometry: f.geometry as GeoJSONPolygon, // c'mon, TypeScript, you know the geometry is not null, we checked it above
-    }))
+    const tilePolygons: GeoJSONFeature<GeoJSONPolygon>[] = tiles
+      .filter((tile) => tile?.geometry)
+      .map((f) => ({
+        type: 'Feature',
+        properties: null,
+        geometry: f!.geometry as GeoJSONPolygon, // c'mon, TypeScript, you know feature and geometry are not null, we filtered it above
+      }))
+
+    if (!tilePolygons.length) {
+      return
+    }
 
     // Convert drawn extent to GeoJSON bbox format [minX, minY, maxX, maxY]
     const bbox = transformExtent(currentExtent, 'EPSG:3857', 'EPSG:4326')
@@ -311,17 +320,6 @@ export default function useAreaOfInterest() {
       return false
     }
 
-    const extent = transformExtent(bbox, 'EPSG:4326', 'EPSG:3857')
-    if (currentGridExtent.value && !containsExtent(currentGridExtent.value, extent)) {
-      const message =
-        'Running inference across Sentinel 2 tile boundaries is not yet supported. Move your area of interest to the selected tile, or select a different tile.'
-      if (!silent) {
-        showWarning(message)
-      }
-      currentBBoxValid.value = message
-      return false
-    }
-
     currentBBoxValid.value = true
     return true
   }
@@ -329,7 +327,9 @@ export default function useAreaOfInterest() {
   function addBBoxAtPixel(pixel: number[], map: Map, areaValues: AreaValues) {
     removeExtentInteraction()
 
-    const features = map.getFeaturesAtPixel(pixel)
+    const features = map.getFeaturesAtPixel(pixel, {
+      layerFilter: (layer) => layer.get('name') === 's2-grid',
+    })
     const coordinate = map.getCoordinateFromPixel(pixel)
 
     let extentFound = false
