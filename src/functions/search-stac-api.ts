@@ -112,7 +112,8 @@ export default async function searchStacApi(
   const startYear = params?.year || defaultSettings.year
   const endYear = endMonth < startMonth ? startYear + 1 : startYear
   const startDate = `${startYear}-${startMonth}-01T00:00:00Z`
-  const endDate = `${endYear}-${endMonth}-31T23:59:59Z`
+  const lastDayOfMonth = new Date(endYear, parseInt(endMonth, 10) % 12, 0).getDate()
+  const endDate = `${endYear}-${endMonth}-${lastDayOfMonth}T23:59:59Z`
   const cloudCover = params?.cloudCover || defaultSettings.cloudCover
   const areaCoverage = params?.areaCoverage || defaultSettings.areaCoverage
 
