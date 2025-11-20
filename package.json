@@ -49,6 +49,7 @@
     "vite-plugin-vue-devtools": "^7.0.6",
     "vite-plugin-vuetify": "^2.1.2",
     "vitest": "^3.2.3",
+    "vitest-matchmedia-mock": "^2.0.3",
     "vue-tsc": "^2.2.10"
   }
 }

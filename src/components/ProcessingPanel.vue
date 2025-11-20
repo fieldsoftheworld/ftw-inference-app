@@ -46,6 +46,15 @@ const months = [
   { value: 12, title: '12 - December' },
 ]
 
+watch(currentMgrsTileId, (newValue, oldValue) => {
+  if (oldValue && !newValue) {
+    activePanel.value = 'aoi'
+  }
+  if (!oldValue && newValue) {
+    activePanel.value = null
+  }
+})
+
 watch(currentBBox, (newValue) => {
   if (activePanel.value !== 'aoi' && !settings.value.autoSceneSelection && newValue) {
     activePanel.value = 'win-a'
@@ -61,7 +70,7 @@ watch(activeTileId, (newValue) => {
 })
 
 const projectTitle = ref(new Date().toISOString())
-const activePanel = ref<string | null>(null)
+const activePanel = ref<string | null>(currentMgrsTileId.value ? null : 'aoi')
 const hasLoadedMore = ref(false)
 const sceneSelectionStatus = ref<boolean | null>(null)
 const sceneYears = Array.from({ length: 10 }, (_, i) => new Date().getFullYear() - i)
@@ -401,7 +410,11 @@ const process = () => {
       :color="isBatchProcessing ? 'warning' : 'gray'"
       class="mb-2"
     >
-      <template v-if="isBatchProcessing">
+      <template v-if="!currentMgrsTileId">
+        <strong>Please select an area of interest.</strong> Click on the map to select an area or
+        use the search box below.
+      </template>
+      <template v-else-if="isBatchProcessing">
         You are in <strong>batch mode</strong> due to the selected larger area. The processing may
         take multiple minutes depending on the selected settings.
       </template>
@@ -424,7 +437,7 @@ const process = () => {
     </v-row>
 
     <v-expansion-panels v-model="activePanel">
-      <v-expansion-panel v-if="isBatchProcessing" value="project">
+      <v-expansion-panel v-if="currentMgrsTileId && isBatchProcessing" value="project">
         <v-expansion-panel-title>
           <span class="header-text">
             Project
@@ -442,7 +455,7 @@ const process = () => {
         </v-expansion-panel-text>
       </v-expansion-panel>
       <!-- Model -->
-      <v-expansion-panel value="model">
+      <v-expansion-panel v-if="currentMgrsTileId" value="model">
         <v-expansion-panel-title>
           <span class="header-text">
             Model
@@ -487,7 +500,7 @@ const process = () => {
         </v-expansion-panel-text>
       </v-expansion-panel>
       <!-- Data Collection -->
-      <v-expansion-panel v-if="settings.expertMode" value="data">
+      <v-expansion-panel v-if="currentMgrsTileId && settings.expertMode" value="data">
         <v-expansion-panel-title>
           <span class="header-text">
             Imagery
@@ -655,7 +668,7 @@ const process = () => {
           <v-row v-else-if="!settings.expertMode">
             <v-col>
               <v-alert color="gray" type="info" variant="tonal" density="compact"
-                >Please select an area of interest on the map by clicking on the map. Then adjusting
+                >Please select an area of interest on the map by clicking on the map. Then adjust
                 the bounding box.</v-alert
               >
             </v-col>
@@ -663,7 +676,7 @@ const process = () => {
         </v-expansion-panel-text>
       </v-expansion-panel>
       <!-- Time -->
-      <v-expansion-panel value="time">
+      <v-expansion-panel v-if="currentMgrsTileId" value="time">
         <v-expansion-panel-title>
           <span class="header-text">
             Time
@@ -730,7 +743,7 @@ const process = () => {
         </v-expansion-panel-text>
       </v-expansion-panel>
       <!-- Coverage -->
-      <v-expansion-panel v-if="settings.expertMode" value="coverage">
+      <v-expansion-panel v-if="currentMgrsTileId && settings.expertMode" value="coverage">
         <v-expansion-panel-title>
           <span class="header-text">
             Coverage
@@ -842,7 +855,7 @@ const process = () => {
         </v-expansion-panel-text>
       </v-expansion-panel>
       <!-- Scene Selection -->
-      <v-expansion-panel value="scene-selection">
+      <v-expansion-panel v-if="currentMgrsTileId" value="scene-selection">
         <v-expansion-panel-title>
           <span class="header-text">
             Scene Selection Mode
@@ -890,7 +903,7 @@ const process = () => {
         </v-expansion-panel-text>
       </v-expansion-panel>
       <!-- Scene A -->
-      <v-expansion-panel value="win-a">
+      <v-expansion-panel v-if="currentMgrsTileId" value="win-a">
         <v-expansion-panel-title>
           <span class="header-text">
             Scene<template v-if="!modelIsSingleShot">&nbsp;A</template>
@@ -946,7 +959,11 @@ const process = () => {
         </v-expansion-panel-text>
       </v-expansion-panel>
       <!-- Scene B -->
-      <v-expansion-panel v-if="!modelIsSingleShot" value="win-b" :disabled="!activeTileId">
+      <v-expansion-panel
+        v-if="currentMgrsTileId && !modelIsSingleShot"
+        value="win-b"
+        :disabled="!activeTileId"
+      >
         <v-expansion-panel-title>
           <span class="header-text">
             Scene B
