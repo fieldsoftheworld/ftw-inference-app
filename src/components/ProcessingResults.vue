@@ -268,7 +268,7 @@ const fitMapToResult = (result: Feature) => {
 onMounted(() => {
   // Add map click handler to detect feature clicks and show properties
   if (map.value) {
-    map.value.on('click', handleMapClick)
+    map.value.on('singleclick', handleMapClick)
   }
 })
 
@@ -279,7 +279,7 @@ onBeforeUnmount(() => {
 // Clean up map click handler when component is unmounted
 onUnmounted(() => {
   if (map.value) {
-    map.value.un('click', handleMapClick)
+    map.value.un('singleclick', handleMapClick)
   }
 })
 
