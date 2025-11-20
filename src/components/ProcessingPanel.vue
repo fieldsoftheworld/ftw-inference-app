@@ -1036,16 +1036,9 @@ const process = () => {
 <style scoped>
 .results {
   flex: 1;
-  overflow-y: auto;
   transition: opacity 0.3s ease;
   min-height: 300px;
   max-height: 50vh;
-}
-
-.settings {
-  flex: 1;
-  padding: 0.5rem 1rem;
-  overflow-y: auto;
 }
 
 .settings .v-expansion-panel-title .v-badge {
@@ -1060,35 +1053,5 @@ const process = () => {
 
 .coverage-input {
   width: 100px;
-}
-
-.action-buttons {
-  flex: 0;
-  padding: 0.5rem 1rem 1rem 1rem;
-}
-
-.action-button {
-  width: 100%;
-  background-color: rgba(0, 136, 136, 0.8);
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 0.875rem;
-  transition: all 0.2s ease;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  min-height: 2.5rem;
-  padding: 0.25rem;
-}
-
-.action-button:hover:not(:disabled) {
-  background-color: rgba(0, 136, 136, 1);
-}
-
-.action-button:disabled {
-  background-color: rgba(0, 136, 136, 0.4);
-  cursor: not-allowed;
 }
 </style>

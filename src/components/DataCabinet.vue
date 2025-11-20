@@ -42,9 +42,9 @@ const toggleCollapsible = () => {
       </div>
     </v-card-title>
 
-    <div v-show="isOpen" class="content">
+    <v-card-text v-show="isOpen" class="content">
       <ProcessingPanel @work-state-changed="(v) => (isWorking = v)" />
-    </div>
+    </v-card-text>
   </v-card>
 </template>
 
@@ -54,10 +54,5 @@ const toggleCollapsible = () => {
   min-width: 300px;
   width: 30vw;
   max-width: 45vw;
-}
-.data-cabinet.sidebar .content {
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
 }
 </style>
