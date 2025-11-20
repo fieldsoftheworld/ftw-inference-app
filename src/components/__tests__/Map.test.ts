@@ -6,10 +6,12 @@ import { createVuetify } from 'vuetify'
 import * as components from 'vuetify/components'
 import * as directives from 'vuetify/directives'
 import VuetifyNotifier from 'vuetify-notifier'
+import MatchMediaMock from 'vitest-matchmedia-mock'
 
 global.ResizeObserver = ResizeObserver
 
 describe('Map', () => {
+  const matchMediaMock = new MatchMediaMock()
   const vuetify = createVuetify({ components, directives })
   it('creates a map container div on mount', () => {
     const wrapper = mount(Map, {
@@ -19,5 +21,8 @@ describe('Map', () => {
     })
     const mapContainer = wrapper.find('#map')
     expect(mapContainer.exists()).toBe(true)
+  })
+  afterAll(() => {
+    matchMediaMock.clear()
   })
 })

@@ -29,11 +29,14 @@ export default function useGeocoding() {
       return
     }
     const transformedCoord = fromLonLat([lon, lat])
-    map.value.getView().setCenter(transformedCoord)
-    const pixel = map.value?.getPixelFromCoordinate(transformedCoord)
-    if (pixel) {
-      addBBoxAtPixel(pixel, map.value, areaValues.value)
-    }
+    const view = map.value.getView()
+    view.setCenter(transformedCoord)
+    map.value.once('rendercomplete', () => {
+      const pixel = map.value?.getPixelFromCoordinate(transformedCoord)
+      if (pixel) {
+        addBBoxAtPixel(pixel, map.value!, areaValues.value)
+      }
+    })
   }
 
   watch(
