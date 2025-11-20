@@ -1019,16 +1019,9 @@ const process = () => {
 <style scoped>
 .results {
   flex: 1;
-  overflow-y: auto;
   transition: opacity 0.3s ease;
   min-height: 300px;
   max-height: 50vh;
-}
-
-.settings {
-  flex: 1;
-  padding: 0.5rem 1rem;
-  overflow-y: auto;
 }
 
 .settings .v-expansion-panel-title .v-badge {

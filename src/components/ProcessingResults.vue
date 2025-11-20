@@ -10,77 +10,79 @@
         </v-icon>
         <span class="text-white title">Results ({{ geoJsonResults.length }})</span>
       </div>
-      <div class="d-flex align-right gap-2 ms-4">
-        <v-btn
-          @click="downloadResults"
-          variant="text"
-          color="teal"
-          class="pa-0 action-btn"
-          title="Download Results"
-          :icon="mdiDownloadBoxOutline"
-        ></v-btn>
-        <v-btn
-          @click="clearResults"
-          variant="text"
-          color="error"
-          class="pa-0 action-btn"
-          title="Clear Results"
-          :icon="mdiDelete"
-        ></v-btn>
-      </div>
     </v-card-title>
 
     <v-card-text v-show="isOpen" class="content">
-      <v-expansion-panels>
-        <v-expansion-panel title="Statistics" class="panel statistics">
-          <v-expansion-panel-text>
-            <div v-for="field in statFields" class="group" :key="field">
-              <v-label class="text-capitalize mb-1">{{ field }}</v-label>
-              <PropertiesDisplay :properties="statistics[field]" :units="statUnits[field]" />
-            </div>
-          </v-expansion-panel-text>
-        </v-expansion-panel>
-        <v-expansion-panel title="Field Details" class="panel fields">
-          <v-expansion-panel-text>
-            <v-row>
-              <v-col cols="12" class="d-flex align-center">
-                <v-select
-                  class="w-50"
-                  label="Sort by"
-                  hide-details
-                  outlined
-                  :items="['Id', 'Area', 'Perimeter']"
-                  v-model="sortKey"
-                ></v-select>
-                <v-select
-                  class="w-50"
-                  label="Sort order"
-                  hide-details
-                  outlined
-                  :items="['ascending', 'descending']"
-                  v-model="sortOrder"
-                ></v-select>
-              </v-col>
-            </v-row>
+      <div class="settings">
+        <v-expansion-panels>
+          <v-expansion-panel title="Statistics" class="panel statistics">
+            <v-expansion-panel-text>
+              <div v-for="field in statFields" class="group" :key="field">
+                <v-label class="text-capitalize mb-1">{{ field }}</v-label>
+                <PropertiesDisplay :properties="statistics[field]" :units="statUnits[field]" />
+              </div>
+            </v-expansion-panel-text>
+          </v-expansion-panel>
+          <v-expansion-panel title="Field Details" class="panel fields">
+            <v-expansion-panel-text>
+              <v-row>
+                <v-col cols="12" class="d-flex align-center">
+                  <v-select
+                    class="w-50"
+                    label="Sort by"
+                    hide-details
+                    outlined
+                    :items="['Id', 'Area', 'Perimeter']"
+                    v-model="sortKey"
+                  ></v-select>
+                  <v-select
+                    class="w-50"
+                    label="Sort order"
+                    hide-details
+                    outlined
+                    :items="['ascending', 'descending']"
+                    v-model="sortOrder"
+                  ></v-select>
+                </v-col>
+              </v-row>
 
-            <v-list density="compact" color="transparent" class="pa-0">
-              <v-list-item
-                v-for="result in sortedResults"
-                :key="result.id"
-                class="result-item"
-                @click.stop="fitMapToResult(result)"
-              >
-                <div class="result-properties">
-                  <PropertiesDisplay :properties="result.properties" />
-                </div>
-              </v-list-item>
-            </v-list>
-            <v-btn v-if="hasMoreResults" @click="limit += 50" class="action-button mt-4"
-              >Show more
-            </v-btn>
-          </v-expansion-panel-text>
-        </v-expansion-panel>
-      </v-expansion-panels>
+              <v-list density="compact" color="transparent" class="pa-0">
+                <v-list-item
+                  v-for="result in sortedResults"
+                  :key="result.id"
+                  class="result-item"
+                  @click.stop="fitMapToResult(result)"
+                >
+                  <div class="result-properties">
+                    <PropertiesDisplay :properties="result.properties" />
+                  </div>
+                </v-list-item>
+              </v-list>
+              <v-btn v-if="hasMoreResults" @click="limit += 50" class="action-button mt-4"
+                >Show more
+              </v-btn>
+            </v-expansion-panel-text>
+          </v-expansion-panel>
+        </v-expansion-panels>
+      </div>
+
+      <div class="action-buttons">
+        <v-btn
+          class="action-button"
+          @click="downloadResults"
+          :icon="mdiDownloadBoxOutline"
+          density="compact"
+          >Download</v-btn
+        >
+        <v-btn
+          class="action-button"
+          @click="clearResults"
+          color="error"
+          :icon="mdiDelete"
+          density="compact"
+          >Clear</v-btn
+        >
+      </div>
     </v-card-text>
   </v-card>
 </template>
@@ -91,7 +93,7 @@ import useMap from '../composables/useMap'
 import useNotifier from '../composables/useNotifier'
 import useAreaOfInterest from '../composables/useAreaOfInterest'
 import PropertiesDisplay from './PropertiesDisplay.vue'
-import { mdiDownloadBoxOutline, mdiDelete, mdiChevronDown } from '@mdi/js'
+import { mdiChevronDown } from '@mdi/js'
 import { type Feature } from 'geojson'
 
 const props = defineProps<{
@@ -307,12 +309,6 @@ const clearResults = () => {
   min-width: 250px;
   width: 260px;
   max-width: 45vw;
-  height: 45vh;
-}
-
-.processing-results.sidebar .content {
-  padding-top: 0.5rem;
-  overflow-y: auto;
 }
 
 .processing-results .v-list {
