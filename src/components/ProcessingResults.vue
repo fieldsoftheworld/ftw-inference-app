@@ -67,19 +67,8 @@
       </div>
 
       <div class="action-buttons">
-        <v-btn
-          class="action-button"
-          @click="downloadResults"
-          :icon="mdiDownloadBoxOutline"
-          density="compact"
-          >Download</v-btn
-        >
-        <v-btn
-          class="action-button"
-          @click="clearResults"
-          color="error"
-          :icon="mdiDelete"
-          density="compact"
+        <v-btn class="action-button" @click="downloadResults" density="compact">Download</v-btn>
+        <v-btn class="action-button" @click="clearResults" color="error" density="compact"
           >Clear</v-btn
         >
       </div>
