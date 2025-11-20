@@ -60,7 +60,15 @@ const validStyle = new Style({
   }),
 })
 
+// Everything in this composable is module level, nothing is per-invocation
+let moduleLevelComposable: any = null
+
 export default function useAreaOfInterest() {
+  if (moduleLevelComposable) {
+    // No need to create watchers, functions, etc. again
+    return moduleLevelComposable
+  }
+
   const { searchResults } = useSearch()
   const { settings, modelIsSingleShot } = useSettings()
   const { maxArea, vectorLayer, areaValues, geoJsonResults, map } = useMap()
@@ -124,7 +132,12 @@ export default function useAreaOfInterest() {
         drawnExtent.value = event.extent
         const bbox = transformExtent(event.extent, 'EPSG:3857', 'EPSG:4326')
         if (validateBBox(bbox)) {
-          addBBoxAtPixel(map.getPixelFromCoordinate(getCenter(event.extent)), map, areaValues)
+          const [feature] = map.getFeaturesAtPixel(
+            map.getPixelFromCoordinate(getCenter(event.extent)),
+            { layerFilter: (l) => l.get('name') === 's2-grid' },
+          )
+          currentMgrsTileId.value = feature ? feature.get('Name') : null
+
           currentBBox.value = bbox
           if (!settings.value.autoSceneSelection) {
             // Check geometry containment if both tiles are selected
@@ -511,7 +524,7 @@ export default function useAreaOfInterest() {
     return tile ?? null
   }
 
-  return {
+  moduleLevelComposable = {
     maxArea,
     drawnExtent,
     currentBBox,
@@ -532,4 +545,5 @@ export default function useAreaOfInterest() {
     isBBox,
     validateBBox,
   }
+  return moduleLevelComposable
 }
