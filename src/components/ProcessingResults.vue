@@ -13,7 +13,7 @@
       <div class="d-flex align-right gap-2 ms-4">
         <v-btn
           @click="downloadResults"
-          variant="plain"
+          variant="text"
           color="teal"
           class="pa-0 action-btn"
           title="Download Results"
@@ -21,7 +21,7 @@
         ></v-btn>
         <v-btn
           @click="clearResults"
-          variant="plain"
+          variant="text"
           color="error"
           class="pa-0 action-btn"
           title="Clear Results"
@@ -30,51 +30,58 @@
       </div>
     </v-card-title>
 
-    <div v-show="isOpen" class="content">
+    <v-card-text v-show="isOpen" class="content">
       <v-expansion-panels>
-        <v-expansion-panel title="Statistics" class="statistics-panel">
+        <v-expansion-panel title="Statistics" class="panel statistics">
           <v-expansion-panel-text>
-            <div v-for="field in statFields" class="mb-4" :key="field">
+            <div v-for="field in statFields" class="group" :key="field">
               <v-label class="text-capitalize mb-1">{{ field }}</v-label>
               <PropertiesDisplay :properties="statistics[field]" :units="statUnits[field]" />
             </div>
           </v-expansion-panel-text>
         </v-expansion-panel>
-      </v-expansion-panels>
-      <v-row>
-        <v-col cols="12" class="d-flex align-center">
-          <v-select
-            class="w-50"
-            label="Sort by"
-            hide-details
-            outlined
-            :items="['Id', 'Area', 'Perimeter']"
-            v-model="sortKey"
-          ></v-select>
-          <v-select
-            class="w-50"
-            label="Sort order"
-            hide-details
-            outlined
-            :items="['ascending', 'descending']"
-            v-model="sortOrder"
-          ></v-select>
-        </v-col>
-      </v-row>
+        <v-expansion-panel title="Field Details" class="panel fields">
+          <v-expansion-panel-text>
+            <v-row>
+              <v-col cols="12" class="d-flex align-center">
+                <v-select
+                  class="w-50"
+                  label="Sort by"
+                  hide-details
+                  outlined
+                  :items="['Id', 'Area', 'Perimeter']"
+                  v-model="sortKey"
+                ></v-select>
+                <v-select
+                  class="w-50"
+                  label="Sort order"
+                  hide-details
+                  outlined
+                  :items="['ascending', 'descending']"
+                  v-model="sortOrder"
+                ></v-select>
+              </v-col>
+            </v-row>
 
-      <v-list density="compact" color="transparent" class="pa-0">
-        <v-list-item
-          v-for="result in sortedResults"
-          :key="result.id"
-          class="result-item"
-          @click.stop="fitMapToResult(result)"
-        >
-          <div class="result-properties">
-            <PropertiesDisplay :properties="result.properties" />
-          </div>
-        </v-list-item>
-      </v-list>
-    </div>
+            <v-list density="compact" color="transparent" class="pa-0">
+              <v-list-item
+                v-for="result in sortedResults"
+                :key="result.id"
+                class="result-item"
+                @click.stop="fitMapToResult(result)"
+              >
+                <div class="result-properties">
+                  <PropertiesDisplay :properties="result.properties" />
+                </div>
+              </v-list-item>
+            </v-list>
+            <v-btn v-if="hasMoreResults" @click="limit += 50" class="action-button mt-4"
+              >Show more
+            </v-btn>
+          </v-expansion-panel-text>
+        </v-expansion-panel>
+      </v-expansion-panels>
+    </v-card-text>
   </v-card>
 </template>
 
@@ -100,39 +107,47 @@ const { clearResultsAndZoomToGrid } = useAreaOfInterest()
 const { showInfo, showError } = useNotifier()
 
 const isOpen = ref(true)
+const limit = ref(50)
 
 const sortKey = ref<'Id' | 'Area' | 'Perimeter'>('Id')
 const sortOrder = ref<'ascending' | 'descending'>('ascending')
 
-const sortedResults = computed(() => {
-  return props.geoJsonResults.slice(0).sort((a, b) => {
-    let compareA, compareB
-    switch (sortKey.value) {
-      case 'Id':
-        compareA = a.id
-        compareB = b.id
-        break
-      default:
-        const key = sortKey.value.toLowerCase()
-        compareA = a.properties[key]
-        compareB = b.properties[key]
-    }
+const hasMoreResults = computed(() => {
+  return props.geoJsonResults.length > limit.value
+})
 
-    let order = 0
-    if (typeof compareA === 'string' || typeof compareB === 'string') {
-      compareA = String(compareA)
-      compareB = String(compareB)
-      order = compareA.localeCompare(compareB)
-    } else if (compareA < compareB) {
-      order = -1
-    } else if (compareA > compareB) {
-      order = 1
-    }
-    if (sortOrder.value === 'descending') {
-      order *= -1
-    }
-    return order
-  })
+const sortedResults = computed(() => {
+  return props.geoJsonResults
+    .slice(0)
+    .sort((a, b) => {
+      let compareA, compareB
+      switch (sortKey.value) {
+        case 'Id':
+          compareA = a.id
+          compareB = b.id
+          break
+        default:
+          const key = sortKey.value.toLowerCase()
+          compareA = a.properties[key]
+          compareB = b.properties[key]
+      }
+
+      let order = 0
+      if (typeof compareA === 'string' || typeof compareB === 'string') {
+        compareA = String(compareA)
+        compareB = String(compareB)
+        order = compareA.localeCompare(compareB)
+      } else if (compareA < compareB) {
+        order = -1
+      } else if (compareA > compareB) {
+        order = 1
+      }
+      if (sortOrder.value === 'descending') {
+        order *= -1
+      }
+      return order
+    })
+    .slice(0, limit.value)
 })
 
 interface ResaultStats {
@@ -296,7 +311,7 @@ const clearResults = () => {
 }
 
 .processing-results.sidebar .content {
-  padding: 1px;
+  padding-top: 0.5rem;
   overflow-y: auto;
 }
 
@@ -329,7 +344,14 @@ const clearResults = () => {
   gap: 0.25rem;
 }
 
-.statistics-panel {
-  background-color: transparent !important;
+:deep(.panel.fields .v-expansion-panel-text__wrapper) {
+  padding: 0;
+}
+
+.group {
+  margin-bottom: 1rem;
+}
+.group:last-child {
+  margin-bottom: 0;
 }
 </style>
