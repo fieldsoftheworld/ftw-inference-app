@@ -420,7 +420,7 @@ export default function useAreaOfInterest() {
     map: Map,
     mgrsTileId: string,
     areaValues: AreaValues,
-    handleSearchResults: (bbox?: number[], settings?: any) => Promise<void>,
+    handleSearchResults: (utmTile: string | null, bbox?: number[], settings?: any) => Promise<void>,
     bbox?: number[],
     fit: boolean = true,
   ) {
@@ -497,7 +497,7 @@ export default function useAreaOfInterest() {
 
         // Call the search function
         if (currentMgrsTileId.value) {
-          await handleSearchResults(finalBbox, settings.value)
+          await handleSearchResults(currentMgrsTileId.value, finalBbox, settings.value)
         }
         addExtentInteraction(map, areaValues)
       }

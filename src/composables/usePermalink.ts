@@ -77,12 +77,12 @@ export default function usePermalink() {
           const part = parts[i]
           if (part.startsWith('start_month:')) {
             const startMonth = parseInt(part.substring(12), 10)
-            if (!isNaN(startMonth)) {
+            if (startMonth > 0) {
               result.startMonth = startMonth
             }
           } else if (part.startsWith('end_month:')) {
             const endMonth = parseInt(part.substring(10), 10)
-            if (!isNaN(endMonth)) {
+            if (endMonth > 0) {
               result.endMonth = endMonth
             }
           } else if (part.startsWith('cloud_cover:')) {

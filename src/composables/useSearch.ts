@@ -30,6 +30,7 @@ export default function useSearch() {
 
   // Function to handle search results
   async function handleSearchResults(
+    utmTile: string | null,
     bbox?: number[],
     settings: SearchSettings = {} as SearchSettings,
   ) {
@@ -38,7 +39,7 @@ export default function useSearch() {
     const performSearch = async () => {
       searchStatus.value = true
       try {
-        const response = await searchStacApi(bbox, true, settings)
+        const response = await searchStacApi(utmTile, bbox, true, settings)
         if (response) {
           // Clear existing results for new search (resetSearch = true)
           searchResults.value = response.results

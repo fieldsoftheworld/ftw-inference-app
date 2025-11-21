@@ -32,6 +32,7 @@ const { placeSearch, isLoadingPlaces, suggestedPlaces, handleLocationSelected } 
 const { processBatch, processSmallArea, isProcessing } = useBatchProcessing()
 
 const months = [
+  { value: 0, title: 'Default' },
   { value: 1, title: '1 - January' },
   { value: 2, title: '2 - February' },
   { value: 3, title: '3 - March' },
@@ -163,7 +164,7 @@ watch(
     // If there's an active search area, refresh the search with new settings
     if (currentBBox.value && currentMgrsTileId.value) {
       // Trigger a new search with the updated settings
-      handleSearchResults(currentBBox.value, settings.value)
+      handleSearchResults(currentMgrsTileId.value, currentBBox.value, settings.value)
     }
   },
   { deep: true },
@@ -293,7 +294,12 @@ const loadMore = async () => {
 
   searchStatus.value = true
   try {
-    const response = await searchStacApi(currentBBox.value, false, settings.value)
+    const response = await searchStacApi(
+      currentMgrsTileId.value,
+      currentBBox.value,
+      false,
+      settings.value,
+    )
     if (response) {
       // Store the first item ID before adding results
       firstNewItemId = response.results.length > 0 ? response.results[0].id : null
@@ -709,6 +715,8 @@ const process = () => {
                 density="compact"
                 hide-details
                 :disabled="settings.autoSceneSelection"
+                item-value="value"
+                item-title="title"
               />
             </v-col>
             <v-col cols="6">
@@ -720,6 +728,8 @@ const process = () => {
                 density="compact"
                 hide-details
                 :disabled="settings.autoSceneSelection"
+                item-value="value"
+                item-title="title"
               />
             </v-col>
           </v-row>

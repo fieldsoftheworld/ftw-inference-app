@@ -37,8 +37,8 @@ const defaultModel: string = '3_Class_FULL_multiWindow_v2'
 const defaultSettings: Settings = {
   autoSceneSelection: true,
   year: new Date().getFullYear() - 1,
-  startMonth: 1,
-  endMonth: 12,
+  startMonth: 0,
+  endMonth: 0,
   cloudCover: 20,
   areaCoverage: 60,
   collection: availableCollections[0],
