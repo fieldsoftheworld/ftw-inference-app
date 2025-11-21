@@ -381,6 +381,7 @@ export default function useAreaOfInterest() {
         extentFeature.setGeometry(bboxPolygon)
         drawnExtent.value = bboxExtent
         currentBBox.value = transformExtent(bboxExtent, 'EPSG:3857', 'EPSG:4326')
+        validateBBox(currentBBox.value)
 
         // Add padding to the extent for view fitting
         const padding = 50
