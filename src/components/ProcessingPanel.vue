@@ -251,6 +251,7 @@ watch(sceneSelectionStatus, (newValue) => {
     secondActiveTileId.value = null
   }
 })
+watch(map, () => loadAvailableTiles())
 
 const collectionTitle = computed(() => {
   const collection = settings.value.collection[0]
@@ -568,7 +569,7 @@ const process = () => {
               <v-autocomplete
                 v-model="currentMgrsTileId"
                 @update:model-value="handleTileSelected"
-                label="MGRS Grid Selection"
+                label="MGRS Tile Selection"
                 hide-details
                 dense
                 variant="outlined"
