@@ -68,6 +68,7 @@ export interface SearchSettings {
   cloudCover: number
   areaCoverage: number
   collection?: string[]
+  autoSceneSelection?: boolean
 }
 
 export const tileDataFromStacFeature = (item: StacFeature): SearchResult => {
@@ -94,8 +95,25 @@ export const tileDataFromStacFeature = (item: StacFeature): SearchResult => {
   return result
 }
 
+export function getHemisphere(utmTile: string | null): 'N' | 'S' | 'E' | null {
+  if (typeof utmTile !== 'string' || utmTile.length !== 5) {
+    return null
+  }
+
+  const latitudeBand = utmTile.charAt(2).toUpperCase()
+  const southern = 'CDEFGHJ'
+  const equatorial = 'KLMNPQ'
+  const northern = 'RSTUVWXY'
+
+  if (northern.includes(latitudeBand)) return 'N'
+  else if (southern.includes(latitudeBand)) return 'S'
+  else if (equatorial.includes(latitudeBand)) return 'E'
+  else return null
+}
+
 // Function to search the STAC API
 export default async function searchStacApi(
+  utmTileId: string | null,
   bbox?: number[],
   resetSearch = true,
   params?: SearchSettings,
@@ -106,14 +124,40 @@ export default async function searchStacApi(
     totalNumberMatched = 0
   }
 
-  // Use provided settings or fall back to DOM elements
-  const startMonth = String(params?.startMonth || defaultSettings.startMonth).padStart(2, '0')
-  const endMonth = String(params?.endMonth || defaultSettings.endMonth).padStart(2, '0')
   const startYear = params?.year || defaultSettings.year
-  const endYear = endMonth < startMonth ? startYear + 1 : startYear
-  const startDate = `${startYear}-${startMonth}-01T00:00:00Z`
-  const lastDayOfMonth = new Date(endYear, parseInt(endMonth, 10) % 12, 0).getDate()
-  const endDate = `${endYear}-${endMonth}-${lastDayOfMonth}T23:59:59Z`
+  let endYear = startYear
+
+  let startMonth: number, endMonth: number
+  const hemisphere = getHemisphere(utmTileId)
+  if (params?.autoSceneSelection || !params?.startMonth || !params?.endMonth) {
+    if (hemisphere === 'E') {
+      // Equatorial: January this year to June next year
+      startMonth = 1
+      endMonth = 6
+      endYear += 1
+    } else if (hemisphere === 'S') {
+      // Southern Hemisphere: July this year to July next year
+      startMonth = 7
+      endMonth = 7
+      endYear += 1
+    } else {
+      // Northern Hemisphere (or unknown): January to December same year
+      startMonth = 1
+      endMonth = 12
+    }
+  } else {
+    startMonth = params.startMonth
+    endMonth = params.endMonth
+    if (endMonth < startMonth) {
+      endYear += 1
+    }
+  }
+
+  const startMonthStr = String(startMonth).padStart(2, '0')
+  const endMonthStr = String(endMonth).padStart(2, '0')
+  const startDate = `${startYear}-${startMonthStr}-01T00:00:00Z`
+  const lastDayOfMonth = new Date(endYear, endMonth % 12, 0).getDate()
+  const endDate = `${endYear}-${endMonthStr}-${lastDayOfMonth}T23:59:59Z`
   const cloudCover = params?.cloudCover || defaultSettings.cloudCover
   const areaCoverage = params?.areaCoverage || defaultSettings.areaCoverage
 
@@ -121,7 +165,7 @@ export default async function searchStacApi(
     // Build request body for POST
     const requestBody: any = {
       collections: params?.collection || ['sentinel-2-c1-l2a'],
-      limit: 20,
+      limit: 100,
       query: {
         ['eo:cloud_cover']: {
           lte: cloudCover,
