@@ -12,7 +12,7 @@ import useAreaOfInterest from '../composables/useAreaOfInterest'
 import useProcessingMode from '../composables/useProcessingMode'
 import useGeocoding from '../composables/useGeocoding'
 import useMap from '../composables/useMap'
-import { mdiHelpCircleOutline } from '@mdi/js'
+import { mdiHelpCircleOutline, mdiCheckBold, mdiExclamationThick, mdiClose } from '@mdi/js'
 import TilePreview from './TilePreview.vue'
 
 const emit = defineEmits<{
@@ -407,6 +407,15 @@ const process = () => {
     processSmallArea(firstTile.value, secondTile.value)
   }
 }
+
+const getStatus = (condition: any, warn: boolean = false) => {
+  const success = Boolean(condition)
+  return {
+    inline: true,
+    color: success ? 'success' : warn ? 'warning' : 'error',
+    icon: success ? mdiCheckBold : warn ? mdiExclamationThick : mdiClose,
+  }
+}
 </script>
 
 <template>
@@ -447,8 +456,9 @@ const process = () => {
       <v-expansion-panel v-if="currentMgrsTileId && isBatchProcessing" value="project">
         <v-expansion-panel-title>
           <span class="header-text">
+            <v-badge v-bind="getStatus(projectTitle)"></v-badge>
             Project
-            <v-badge inline color="teal" :content="projectTitle"></v-badge>
+            <v-badge v-if="projectTitle" inline color="teal" :content="projectTitle"></v-badge>
           </span>
         </v-expansion-panel-title>
         <v-expansion-panel-text>
@@ -465,9 +475,9 @@ const process = () => {
       <v-expansion-panel v-if="currentMgrsTileId" value="model">
         <v-expansion-panel-title>
           <span class="header-text">
+            <v-badge v-bind="getStatus(modelTitle)"></v-badge>
             Model
             <v-badge v-if="modelTitle" inline color="teal" :content="modelTitle"></v-badge>
-            <v-badge v-else inline color="error" content="Missing"></v-badge>
           </span>
         </v-expansion-panel-title>
         <v-expansion-panel-text>
@@ -510,6 +520,7 @@ const process = () => {
       <v-expansion-panel v-if="currentMgrsTileId && settings.expertMode" value="data">
         <v-expansion-panel-title>
           <span class="header-text">
+            <v-badge v-bind="getStatus(collectionTitle)"></v-badge>
             Imagery
             <v-badge
               v-if="collectionTitle"
@@ -517,7 +528,6 @@ const process = () => {
               color="teal"
               :content="collectionTitle"
             ></v-badge>
-            <v-badge v-else inline color="error" content="Missing"></v-badge>
           </span>
         </v-expansion-panel-title>
         <v-expansion-panel-text>
@@ -536,19 +546,13 @@ const process = () => {
       <v-expansion-panel value="aoi">
         <v-expansion-panel-title>
           <span class="header-text">
-            Area of Interest
+            <v-badge v-bind="getStatus(currentMgrsTileId && currentBBoxValid === true)"></v-badge>
+            Area
             <v-badge
               v-if="currentMgrsTileId"
               inline
               color="teal"
-              :content="currentMgrsTileId"
-            ></v-badge>
-            <v-badge v-else inline color="error" content="Missing"></v-badge>
-            <v-badge
-              v-if="currentMgrsTileId && currentBBoxValid !== true"
-              inline
-              color="error"
-              content="Invalid"
+              :content="`Tile: ${currentMgrsTileId}`"
             ></v-badge>
           </span>
         </v-expansion-panel-title>
@@ -686,9 +690,14 @@ const process = () => {
       <v-expansion-panel v-if="currentMgrsTileId" value="time">
         <v-expansion-panel-title>
           <span class="header-text">
+            <v-badge v-bind="getStatus(settings.year)"></v-badge>
             Time
-            <v-badge v-if="settings.year" inline color="teal" :content="settings.year"></v-badge>
-            <v-badge v-else inline color="error" content="Missing"></v-badge>
+            <v-badge
+              v-if="settings.year"
+              inline
+              color="teal"
+              :content="`Year: ${settings.year}`"
+            ></v-badge>
           </span>
         </v-expansion-panel-title>
         <v-expansion-panel-text>
@@ -757,13 +766,14 @@ const process = () => {
       <v-expansion-panel v-if="currentMgrsTileId && settings.expertMode" value="coverage">
         <v-expansion-panel-title>
           <span class="header-text">
+            <v-badge v-bind="getStatus(settings.cloudCover <= 50, true)"></v-badge>
             Coverage
-            <v-badge inline color="blue" :content="`Cloud ${settings.cloudCover}%`"></v-badge>
+            <v-badge inline color="blue" :content="`Cloud: ${settings.cloudCover}%`"></v-badge>
             <v-badge
               v-if="!settings.autoSceneSelection"
               inline
               color="brown"
-              :content="`Area ${settings.areaCoverage}%`"
+              :content="`Area: ${settings.areaCoverage}%`"
             ></v-badge>
           </span>
         </v-expansion-panel-title>
@@ -869,6 +879,7 @@ const process = () => {
       <v-expansion-panel v-if="currentMgrsTileId" value="scene-selection">
         <v-expansion-panel-title>
           <span class="header-text">
+            <v-badge v-bind="getStatus(settings.autoSceneSelection, true)"></v-badge>
             Scene Selection Mode
             <v-badge
               v-if="settings.autoSceneSelection"
@@ -877,27 +888,13 @@ const process = () => {
               content="Automatic"
             ></v-badge>
             <v-badge v-else inline color="warning" content="Manual"></v-badge>
-            <template v-if="settings.autoSceneSelection">
-              <v-badge
-                v-if="sceneSelectionStatus === true"
-                inline
-                color="success"
-                content="Selected"
-              ></v-badge>
-              <v-badge
-                v-if="sceneSelectionStatus === false"
-                inline
-                color="error"
-                content="Failed"
-              ></v-badge>
-            </template>
           </span>
         </v-expansion-panel-title>
         <v-expansion-panel-text>
           <v-row>
             <v-col>
               <v-checkbox v-model="settings.autoSceneSelection" density="compact" hide-details
-                ><template v-slot:label>Automatic Scene Selection </template>
+                ><template v-slot:label>Automatic Scene Selection</template>
               </v-checkbox>
             </v-col>
           </v-row>
@@ -914,13 +911,13 @@ const process = () => {
         </v-expansion-panel-text>
       </v-expansion-panel>
       <!-- Scene A -->
-      <v-expansion-panel v-if="currentMgrsTileId" value="win-a">
+      <v-expansion-panel v-if="currentMgrsTileId" value="win-a" class="scenes">
         <v-expansion-panel-title>
           <span class="header-text">
+            <v-badge v-bind="getStatus(activeTileId)"></v-badge>
             Scene<template v-if="!modelIsSingleShot">&nbsp;A</template>
-            <v-badge v-if="!activeTileId" inline color="error" content="Missing"></v-badge>
             <v-badge
-              v-else
+              v-if="activeTileId"
               inline
               color="teal"
               :content="firstTile?.date || activeTileId"
@@ -972,15 +969,16 @@ const process = () => {
       <!-- Scene B -->
       <v-expansion-panel
         v-if="currentMgrsTileId && !modelIsSingleShot"
+        class="scenes"
         value="win-b"
         :disabled="!activeTileId"
       >
         <v-expansion-panel-title>
           <span class="header-text">
+            <v-badge v-bind="getStatus(secondActiveTileId)"></v-badge>
             Scene B
-            <v-badge v-if="!secondActiveTileId" inline color="error" content="Missing"></v-badge>
             <v-badge
-              v-else
+              v-if="secondActiveTileId"
               inline
               color="teal"
               :content="secondTile?.date || secondActiveTileId"
@@ -1045,14 +1043,18 @@ const process = () => {
 </template>
 
 <style scoped>
-.results {
+:deep(.scenes .v-expansion-panel-text__wrapper) {
+  padding: 0;
+}
+.scenes .results {
   flex: 1;
   transition: opacity 0.3s ease;
   min-height: 300px;
   max-height: 50vh;
+  overflow-y: scroll;
 }
 
-.settings .v-expansion-panel-title .v-badge {
+.settings .v-expansion-panel-title .v-badge:not(:first-child) {
   margin-left: 0.25rem;
 }
 
