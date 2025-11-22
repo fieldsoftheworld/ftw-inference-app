@@ -17,11 +17,11 @@ export default function useStacLayer() {
           crossOrigin: 'anonymous',
           maxZoom: 18,
         }),
-        extent: extent,
+        extent,
+        // Set a semi-transparent background to help distinguish the tile from the base layer
+        background: 'rgba(0, 0, 0, 0.7)',
         zIndex: 100, // Place above base layer but below S2 grid
       })
-      // Set a semi-transparent background to help distinguish the tile from the base layer
-      currentStacLayer.value.setBackground('rgba(0, 0, 0, 0.4)')
       // Add the new layer to the map
       map.addLayer(currentStacLayer.value)
       // Fit the view to the transformed extent
