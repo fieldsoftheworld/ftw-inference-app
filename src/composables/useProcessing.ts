@@ -11,10 +11,10 @@ import { type SearchResult } from './useSearch'
 
 export default function useProcessing() {
   const { currentBBox, isBBox } = useAreaOfInterest()
-  const { map, fitMapToBbox, displayGeoJSON } = useMap()
+  const { fitMapToBbox, displayGeoJSON } = useMap()
   const { showError, showSuccess, showInfo, showWarning } = useNotifier()
   const { settings, modelIsSingleShot } = useSettings()
-  const { removeStacLayer } = useStacLayer()
+  const { stacPreviewTileId } = useStacLayer()
 
   const apiBaseUrl = import.meta.env.VITE_API_BASE_URL
 
@@ -173,8 +173,7 @@ export default function useProcessing() {
         )
       }
 
-      removeStacLayer(map.value!)
-      removeStacLayer(map.value!, true)
+      stacPreviewTileId.value = null
     } catch (error) {
       showError((error as Error)?.message || String(error))
     } finally {
@@ -264,8 +263,7 @@ export default function useProcessing() {
         )
       }
 
-      removeStacLayer(map.value!)
-      removeStacLayer(map.value!, true)
+      stacPreviewTileId.value = null
 
       showInfo(`Downloaded ${data.features.length} field boundaries, visualizing...`)
       const extent = displayGeoJSON(data)

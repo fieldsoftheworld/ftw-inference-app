@@ -20,15 +20,15 @@ import type { Feature as GeoJSONFeature, Polygon as GeoJSONPolygon } from 'geojs
 import useMap, { type AreaValues } from './useMap'
 import useNotifier from './useNotifier'
 import useProcessingMode from './useProcessingMode'
-import useSearch, { type SearchResult } from './useSearch'
+import { searchResults, type SearchResult } from './useSearch'
 import useSettings from './useSettings'
 import { tileDataFromStacFeature } from '../functions/search-stac-api'
 import { debounce } from 'vuetify/lib/util/helpers.mjs'
 
 const extentInteraction = shallowRef<ExtentInteraction | null>(null)
 const currentMgrsTileId = ref<string | null>(null)
-const activeTileId = ref<string | null>(null)
-const secondActiveTileId = ref<string | null>(null)
+export const activeTileId = ref<string | null>(null)
+export const secondActiveTileId = ref<string | null>(null)
 /** Full grid extent */
 const currentGridExtent = shallowRef<Extent | null>(null)
 /** User bbox */
@@ -63,13 +63,32 @@ const validStyle = new Style({
 // Everything in this composable is module level, nothing is per-invocation
 let moduleLevelComposable: any = null
 
+export const getTileById = async (tileId: string): Promise<SearchResult | null> => {
+  let tile = searchResults.value.find((result) => result.id === tileId)
+  if (!tile) {
+    const base = 'https://earth-search.aws.element84.com/v1/collections/sentinel-2-c1-l2a/items/'
+    const url = base + tileId
+    try {
+      const response = await fetch(url)
+      const json = await response.json()
+      if (response.ok && json) {
+        tile = tileDataFromStacFeature(json)
+      }
+    } catch (error) {
+      if (error instanceof Error) {
+        console.error(`Error fetching tile with id ${tileId}: ${error.message}`)
+      }
+    }
+  }
+  return tile ?? null
+}
+
 export default function useAreaOfInterest() {
   if (moduleLevelComposable) {
     // No need to create watchers, functions, etc. again
     return moduleLevelComposable
   }
 
-  const { searchResults } = useSearch()
   const { settings, modelIsSingleShot } = useSettings()
   const { maxArea, vectorLayer, areaValues, geoJsonResults, map } = useMap()
   const { updateProcessingMode } = useProcessingMode()
@@ -503,26 +522,6 @@ export default function useAreaOfInterest() {
         addExtentInteraction(map, areaValues)
       }
     }
-  }
-
-  const getTileById = async (tileId: string): Promise<SearchResult | null> => {
-    let tile = searchResults.value.find((result) => result.id === tileId)
-    if (!tile) {
-      const base = 'https://earth-search.aws.element84.com/v1/collections/sentinel-2-c1-l2a/items/'
-      const url = base + tileId
-      try {
-        const response = await fetch(url)
-        const json = await response.json()
-        if (response.ok && json) {
-          tile = tileDataFromStacFeature(json)
-        }
-      } catch (error) {
-        if (error instanceof Error) {
-          console.error(`Error fetching tile with id ${tileId}: ${error.message}`)
-        }
-      }
-    }
-    return tile ?? null
   }
 
   moduleLevelComposable = {
