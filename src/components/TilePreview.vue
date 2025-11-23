@@ -3,9 +3,11 @@ import { computed, onMounted, ref } from 'vue'
 import useAreaOfInterest from '../composables/useAreaOfInterest'
 import useNotifier from '../composables/useNotifier'
 import type { SearchResult } from '../composables/useSearch'
+import useStacLayer from '../composables/useStacLayer'
 
 const { activeTileId, secondActiveTileId, currentGridExtent, getTileById } = useAreaOfInterest()
 const { showWarning } = useNotifier()
+const { stacPreviewTileId } = useStacLayer()
 
 const props = defineProps<{
   tileId: string
@@ -31,6 +33,7 @@ const handleViewOnMap = async () => {
   }
   const bounds = selectedTile.bounds
   const tileId = props.tileId
+  stacPreviewTileId.value = tileId
   const isSecondAccordion = props.win === 'b'
   // Use the stored currentGridExtent for positioning the STAC layer
   const gridExtent = currentGridExtent.value || bounds
