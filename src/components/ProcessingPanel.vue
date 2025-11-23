@@ -934,6 +934,7 @@ const getStatus = (condition: any, warn: boolean = false) => {
           </span>
           <v-spacer></v-spacer>
           <v-tooltip
+            v-if="activeTileId"
             :text="stacPreviewTileId === activeTileId ? 'Hide scene A image' : 'Show scene A image'"
             open-on-click
           >
@@ -1011,6 +1012,7 @@ const getStatus = (condition: any, warn: boolean = false) => {
           </span>
           <v-spacer></v-spacer>
           <v-tooltip
+            v-if="secondActiveTileId"
             :text="
               stacPreviewTileId === secondActiveTileId ? 'Hide scene B image' : 'Show scene B image'
             "
