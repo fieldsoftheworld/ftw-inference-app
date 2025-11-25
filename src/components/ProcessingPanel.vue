@@ -12,14 +12,23 @@ import useAreaOfInterest from '../composables/useAreaOfInterest'
 import useProcessingMode from '../composables/useProcessingMode'
 import useGeocoding from '../composables/useGeocoding'
 import useMap from '../composables/useMap'
-import { mdiHelpCircleOutline, mdiCheckBold, mdiExclamationThick, mdiClose } from '@mdi/js'
+import {
+  mdiHelpCircleOutline,
+  mdiCheckBold,
+  mdiExclamationThick,
+  mdiClose,
+  mdiEyeOutline,
+  mdiEyeOffOutline,
+} from '@mdi/js'
 import TilePreview from './TilePreview.vue'
+import useStacLayer from '../composables/useStacLayer'
 
 const emit = defineEmits<{
   (e: 'workStateChanged', isWorking: boolean): void
 }>()
 
 const { map, areaValues } = useMap()
+const { stacPreviewTileId } = useStacLayer()
 const { drawnExtent, validateBBox, getTileById, triggerTileSelection } = useAreaOfInterest()
 const { showError, showSuccess } = useNotifier()
 const { hasMore, isLoading, searchResults, searchStatus, handleSearchResults } = useSearch()
@@ -923,10 +932,27 @@ const getStatus = (condition: any, warn: boolean = false) => {
               :content="firstTile?.date || activeTileId"
             ></v-badge>
           </span>
+          <v-spacer></v-spacer>
+          <v-tooltip
+            v-if="activeTileId"
+            :text="stacPreviewTileId === activeTileId ? 'Hide scene A image' : 'Show scene A image'"
+            open-on-click
+          >
+            <template v-slot:activator="{ props }">
+              <v-btn
+                v-bind="props"
+                :icon="stacPreviewTileId === activeTileId ? mdiEyeOutline : mdiEyeOffOutline"
+                density="compact"
+                @click.stop="
+                  stacPreviewTileId = stacPreviewTileId === activeTileId ? null : activeTileId
+                "
+              ></v-btn>
+            </template>
+          </v-tooltip>
         </v-expansion-panel-title>
         <v-expansion-panel-text>
           <div class="results">
-            <!-- Show second accordion's active tile first -->
+            <!-- Show first accordion's active tile first -->
             <TilePreview v-if="activeTileId" :tileId="activeTileId" win="a" />
             <!-- Show other results -->
             <TilePreview
@@ -984,6 +1010,26 @@ const getStatus = (condition: any, warn: boolean = false) => {
               :content="secondTile?.date || secondActiveTileId"
             ></v-badge>
           </span>
+          <v-spacer></v-spacer>
+          <v-tooltip
+            v-if="secondActiveTileId"
+            :text="
+              stacPreviewTileId === secondActiveTileId ? 'Hide scene B image' : 'Show scene B image'
+            "
+            open-on-click
+          >
+            <template v-slot:activator="{ props }">
+              <v-btn
+                v-bind="props"
+                :icon="stacPreviewTileId === secondActiveTileId ? mdiEyeOutline : mdiEyeOffOutline"
+                density="compact"
+                @click.stop="
+                  stacPreviewTileId =
+                    stacPreviewTileId === secondActiveTileId ? null : secondActiveTileId
+                "
+              ></v-btn>
+            </template>
+          </v-tooltip>
         </v-expansion-panel-title>
         <v-expansion-panel-text>
           <div class="results">

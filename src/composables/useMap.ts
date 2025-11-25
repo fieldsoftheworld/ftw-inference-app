@@ -18,7 +18,7 @@ export interface AreaValues {
   default?: boolean
 }
 
-const map = shallowRef<Map | null>(null)
+export const map = shallowRef<Map | null>(null)
 const areaValues = ref<AreaValues>({
   min_area_km2: 100,
   max_area_km2: 500,

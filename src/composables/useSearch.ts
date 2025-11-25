@@ -18,7 +18,7 @@ export interface SearchResult {
 
 export type SearchResults = Ref<SearchResult[]>
 
-const searchResults = shallowRef<SearchResult[]>([])
+export const searchResults = shallowRef<SearchResult[]>([])
 
 const hasMore = ref(false)
 const isLoading = ref(false)

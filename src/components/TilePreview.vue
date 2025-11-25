@@ -1,15 +1,13 @@
 <script lang="ts" setup>
 import { computed, onMounted, ref } from 'vue'
 import useAreaOfInterest from '../composables/useAreaOfInterest'
-import useMap from '../composables/useMap'
-import useStacLayer from '../composables/useStacLayer'
 import useNotifier from '../composables/useNotifier'
 import type { SearchResult } from '../composables/useSearch'
+import useStacLayer from '../composables/useStacLayer'
 
 const { activeTileId, secondActiveTileId, currentGridExtent, getTileById } = useAreaOfInterest()
-const { removeStacLayer, addStacLayer } = useStacLayer()
-const { map } = useMap()
 const { showWarning } = useNotifier()
+const { stacPreviewTileId } = useStacLayer()
 
 const props = defineProps<{
   tileId: string
@@ -33,9 +31,9 @@ const handleViewOnMap = async () => {
   if (!selectedTile) {
     return
   }
-  const imageUrl = selectedTile.tiffUrl
   const bounds = selectedTile.bounds
   const tileId = props.tileId
+  stacPreviewTileId.value = tileId
   const isSecondAccordion = props.win === 'b'
   // Use the stored currentGridExtent for positioning the STAC layer
   const gridExtent = currentGridExtent.value || bounds
@@ -62,12 +60,9 @@ const handleViewOnMap = async () => {
     }
 
     if (secondActiveTileId.value === tileId) {
-      removeStacLayer(map.value!)
       secondActiveTileId.value = null
     } else {
-      removeStacLayer(map.value!)
       if (gridExtent) {
-        addStacLayer(map.value!, imageUrl, gridExtent)
         secondActiveTileId.value = tileId
       } else {
         console.error('No bounds available for this image')
@@ -75,15 +70,12 @@ const handleViewOnMap = async () => {
     }
   } else {
     if (activeTileId.value === tileId) {
-      removeStacLayer(map.value!)
       activeTileId.value = null
       if (secondActiveTileId.value === tileId) {
         secondActiveTileId.value = null
       }
     } else {
-      removeStacLayer(map.value!)
       if (gridExtent) {
-        addStacLayer(map.value!, imageUrl, gridExtent)
         activeTileId.value = tileId
         if (secondActiveTileId.value === tileId) {
           secondActiveTileId.value = null
