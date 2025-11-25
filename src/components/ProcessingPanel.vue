@@ -283,15 +283,9 @@ const sortDesc = (a: SearchResult, b: SearchResult) => {
 }
 
 const resultsA = computed(() => {
-  if (!Array.isArray(searchResults.value)) {
-    return []
-  }
   return searchResults.value.slice(0).sort(sortAsc)
 })
 const resultsB = computed(() => {
-  if (!Array.isArray(searchResults.value)) {
-    return []
-  }
   return searchResults.value.filter((r) => r.id !== activeTileId.value).sort(sortDesc)
 })
 
