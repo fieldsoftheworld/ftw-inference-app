@@ -222,6 +222,15 @@ export default function useAreaOfInterest() {
     }
   })
 
+  watch(activeTileId, () => {
+    if (modelIsSingleShot.value) {
+      return
+    }
+    if (activeTileId.value === secondActiveTileId.value) {
+      secondActiveTileId.value = null
+    }
+  })
+
   // Function to calculate area in square kilometers
   function calculateArea(bbox: Extent): number {
     const geometry = fromExtent(bbox)
