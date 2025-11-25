@@ -7,6 +7,7 @@ export interface Settings {
   endMonth: number
   cloudCover: number
   areaCoverage: number
+  buffer: number
   collection: string[]
   model: string
   expertMode: boolean
@@ -41,6 +42,7 @@ const defaultSettings: Settings = {
   endMonth: 0,
   cloudCover: 20,
   areaCoverage: 60,
+  buffer: 14,
   collection: availableCollections[0],
   model: defaultModel,
   expertMode: false,

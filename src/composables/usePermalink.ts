@@ -21,6 +21,7 @@ export interface PermalinkState {
   endMonth?: number
   cloudCover?: number
   areaCoverage?: number
+  buffer?: number
 }
 
 export default function usePermalink() {
@@ -94,6 +95,11 @@ export default function usePermalink() {
             const areaCoverage = parseInt(part.substring(14), 10)
             if (!isNaN(areaCoverage)) {
               result.areaCoverage = areaCoverage
+            }
+          } else if (part.startsWith('buffer:')) {
+            const buffer = parseInt(part.substring(7), 10)
+            if (!isNaN(buffer)) {
+              result.buffer = buffer
             }
           } else if (part.startsWith('bbox:')) {
             const bbox = part.substring(5).split(',').map(Number)
@@ -171,8 +177,10 @@ export default function usePermalink() {
           if (parsed.startMonth) hashParts.push(`start_month:${parsed.startMonth}`)
           if (parsed.endMonth) hashParts.push(`end_month:${parsed.endMonth}`)
           if (parsed.cloudCover !== undefined) hashParts.push(`cloud_cover:${parsed.cloudCover}`)
-          if (parsed.areaCoverage !== undefined)
+          if (parsed.areaCoverage !== undefined) {
             hashParts.push(`area_coverage:${parsed.areaCoverage}`)
+          }
+          if (parsed.buffer !== undefined) hashParts.push(`buffer:${parsed.buffer}`)
         } catch (error) {
           console.error('Error parsing stored settings for permalink:', error)
         }
@@ -243,6 +251,7 @@ export default function usePermalink() {
         settings.value.startMonth,
         settings.value.cloudCover,
         settings.value.areaCoverage,
+        settings.value.buffer,
       ],
       () => {
         if (!map.value) {
