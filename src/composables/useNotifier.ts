@@ -3,8 +3,9 @@ import { useNotifier as useVuetifyNotifier } from 'vuetify-notifier'
 export interface NotifierMessage {
   type: 'warning' | 'error' | 'info' | 'success'
   text: string
-  timeout?: number
 }
+
+export const TIMEOUT = 20000
 
 const lastMessages: Record<string, string> = {}
 
@@ -24,6 +25,13 @@ export default function useNotifier() {
       color: type,
     })
     lastMessages[type] = text
+    // Reset last message after timeout to avoid swallowing
+    // new messages (with the same text) forever
+    window.setTimeout(() => {
+      if (lastMessages[type] === text) {
+        lastMessages[type] = ''
+      }
+    }, TIMEOUT)
   }
 
   // todo: reimplement timeouts in toasts
