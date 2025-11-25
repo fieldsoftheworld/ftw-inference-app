@@ -67,6 +67,7 @@ export interface SearchSettings {
   year: number
   cloudCover: number
   areaCoverage: number
+  buffer: number
   collection?: string[]
   autoSceneSelection?: boolean
 }
@@ -81,7 +82,7 @@ export const tileDataFromStacFeature = (item: StacFeature): SearchResult => {
     date: new Date(item.properties.datetime).toLocaleDateString(),
     isoDate: item.properties.datetime,
     cloudCover: item.properties['eo:cloud_cover'],
-    areaCoverage: areaCoverage,
+    areaCoverage,
     thumbnailUrl: item.assets?.thumbnail?.href || item.assets?.visual?.href || '#',
     tiffUrl: item.assets?.visual?.href || '#',
     bounds: item.bbox

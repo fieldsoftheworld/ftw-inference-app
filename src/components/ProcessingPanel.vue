@@ -6,7 +6,7 @@ import { transformExtent } from 'ol/proj'
 import searchStacApi from '../functions/search-stac-api'
 import useSearch, { type SearchResult } from '../composables/useSearch'
 import useBatchProcessing from '../composables/useProcessing'
-import useSettings from '../composables/useSettings'
+import useSettings, { type Settings } from '../composables/useSettings'
 import useNotifier from '../composables/useNotifier'
 import useAreaOfInterest from '../composables/useAreaOfInterest'
 import useProcessingMode from '../composables/useProcessingMode'
@@ -22,6 +22,7 @@ import {
 } from '@mdi/js'
 import TilePreview from './TilePreview.vue'
 import useStacLayer from '../composables/useStacLayer'
+import { debounce } from 'vuetify/lib/util/helpers.mjs'
 
 const emit = defineEmits<{
   (e: 'workStateChanged', isWorking: boolean): void
@@ -92,7 +93,7 @@ const isSelectingScenes = computed(
 let abortController: AbortController | null = null
 watch(
   [currentBBox, settings],
-  async ([currentBBox, newSettings]) => {
+  debounce(async ([currentBBox, newSettings]: [number[] | null, Settings]) => {
     if (!newSettings.autoSceneSelection || !currentBBox || !newSettings.year) {
       return
     }
@@ -119,6 +120,7 @@ watch(
           bbox: currentBBox,
           year: newSettings.year,
           cloud_cover_max: newSettings.cloudCover,
+          buffer_days: newSettings.buffer,
         }),
         signal: abortController.signal,
       })
@@ -127,7 +129,7 @@ watch(
       if (response.status !== 200) {
         if (data.detail) {
           if (data.detail.toLowerCase().includes('no sentinel scenes within')) {
-            data.detail += ' Please adjust the year or select the scenes manually.'
+            data.detail += ' Please adjust the year, buffer or select the scenes manually.'
           }
           sceneSelectionStatus.value = false
           showError(data.detail)
@@ -162,20 +164,20 @@ watch(
         )
       }
     }
-  },
+  }, 500),
   { deep: true },
 )
 
 // todo: check whether we should only run on a subset of settings
 watch(
   [settings, currentBBox],
-  () => {
+  debounce(async () => {
     // If there's an active search area, refresh the search with new settings
     if (currentBBox.value && currentMgrsTileId.value) {
       // Trigger a new search with the updated settings
-      handleSearchResults(currentMgrsTileId.value, currentBBox.value, settings.value)
+      await handleSearchResults(currentMgrsTileId.value, currentBBox.value, settings.value)
     }
-  },
+  }, 500),
   { deep: true },
 )
 
@@ -360,22 +362,16 @@ const updateCloudCoverInput = () => {
   settings.value.cloudCover = Math.max(1, value)
 }
 
-const updateCloudCoverSlider = () => {
-  // Ensure the value is a number and not below 1
-  const value = Number(settings.value.cloudCover)
-  settings.value.cloudCover = Math.max(1, value)
-}
-
 const updateAreaCoverageInput = () => {
   // Ensure the value is a number and not below 1
   const value = Number(settings.value.areaCoverage)
   settings.value.areaCoverage = Math.max(1, value)
 }
 
-const updateAreaCoverageSlider = () => {
+const updateBufferInput = () => {
   // Ensure the value is a number and not below 1
-  const value = Number(settings.value.areaCoverage)
-  settings.value.areaCoverage = Math.max(1, value)
+  const value = Number(settings.value.buffer)
+  settings.value.buffer = Math.max(1, value)
 }
 
 // Handle tile selection from search modal
@@ -775,11 +771,25 @@ const getStatus = (condition: any, warn: boolean = false) => {
       <v-expansion-panel v-if="currentMgrsTileId && settings.expertMode" value="coverage">
         <v-expansion-panel-title>
           <span class="header-text">
-            <v-badge v-bind="getStatus(settings.cloudCover <= 50, true)"></v-badge>
+            <v-badge
+              v-bind="
+                getStatus(
+                  settings.cloudCover <= 50 &&
+                    (!settings.autoSceneSelection || settings.buffer >= 14),
+                  true,
+                )
+              "
+            ></v-badge>
             Coverage
             <v-badge inline color="blue" :content="`Cloud: ${settings.cloudCover}%`"></v-badge>
             <v-badge
-              v-if="!settings.autoSceneSelection"
+              v-if="settings.autoSceneSelection"
+              inline
+              color="purple"
+              :content="`Buffer: ${settings.buffer} days`"
+            ></v-badge>
+            <v-badge
+              v-else
               inline
               color="brown"
               :content="`Area: ${settings.areaCoverage}%`"
@@ -812,25 +822,20 @@ const getStatus = (condition: any, warn: boolean = false) => {
             <v-col>
               <v-slider
                 v-model="settings.cloudCover"
-                min="1"
-                max="100"
-                step="1"
+                :min="1"
+                :max="100"
+                :step="1"
                 color="teal"
                 track-color="grey-darken-2"
                 thumb-color="teal"
                 hide-details
-                @update:model-value="updateCloudCoverSlider"
+                @update:model-value="updateCloudCoverInput"
               />
             </v-col>
           </v-row>
-          <v-row>
+          <v-row v-if="settings.cloudCover > 50">
             <v-col>
-              <v-alert
-                v-if="settings.cloudCover > 50"
-                type="warning"
-                variant="tonal"
-                density="compact"
-              >
+              <v-alert type="warning" variant="tonal" density="compact">
                 Cloud cover above 50% may decrease the probability of getting accurate results. Try
                 to select an area without clouds.
               </v-alert>
@@ -839,18 +844,35 @@ const getStatus = (condition: any, warn: boolean = false) => {
           <!-- Area Coverage -->
           <v-row>
             <v-col cols="6">
-              <v-label class="text-subtitle-2">Area Coverage (%)</v-label>
+              <v-label class="text-subtitle-2">
+                <template v-if="settings.autoSceneSelection">Search Buffer (days)</template>
+                <template v-else>Area Coverage (%)</template>
+              </v-label>
             </v-col>
 
             <v-col cols="6" class="d-flex justify-end">
               <v-number-input
+                v-if="settings.autoSceneSelection"
+                v-model="settings.buffer"
+                @update:model-value="updateBufferInput"
+                :min="1"
+                :max="60"
+                :step="1"
+                :precision="0"
+                density="compact"
+                variant="outlined"
+                control-variant="stacked"
+                hide-details
+                class="coverage-input"
+              ></v-number-input>
+              <v-number-input
+                v-else
                 v-model="settings.areaCoverage"
                 @update:model-value="updateAreaCoverageInput"
-                :min="0"
+                :min="1"
                 :max="100"
                 :step="1"
                 :precision="0"
-                :disabled="settings.autoSceneSelection"
                 density="compact"
                 variant="outlined"
                 control-variant="stacked"
@@ -862,23 +884,36 @@ const getStatus = (condition: any, warn: boolean = false) => {
           <v-row>
             <v-col>
               <v-slider
-                v-model="settings.areaCoverage"
-                min="1"
-                max="100"
-                step="1"
-                :disabled="settings.autoSceneSelection"
+                v-if="settings.autoSceneSelection"
+                v-model="settings.buffer"
+                @update:model-value="updateBufferInput"
+                :min="1"
+                :max="60"
+                :step="1"
                 color="teal"
                 track-color="grey-darken-2"
                 thumb-color="teal"
                 hide-details
-                @update:model-value="updateAreaCoverageSlider"
+              />
+              <v-slider
+                v-else
+                v-model="settings.areaCoverage"
+                @update:model-value="updateAreaCoverageInput"
+                :min="1"
+                :max="100"
+                :step="1"
+                color="teal"
+                track-color="grey-darken-2"
+                thumb-color="teal"
+                hide-details
               />
             </v-col>
           </v-row>
           <v-row v-if="settings.autoSceneSelection">
             <v-col>
-              <v-alert color="gray" type="info" variant="tonal" density="compact">
-                Area coverage is not relevant when automatic scene selection is enabled.
+              <v-alert v-if="settings.buffer < 14" type="warning" variant="tonal" density="compact">
+                A search buffer of less than 14 days may decrease the probability of getting results
+                for automatic scene selection.
               </v-alert>
             </v-col>
           </v-row>
