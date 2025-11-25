@@ -275,15 +275,6 @@ const modelTitle = computed(() => {
   return model ? availableModels.value.find((m) => m.id === model)?.title || null : null
 })
 
-const filteredResults = computed(() => {
-  if (!Array.isArray(searchResults.value)) {
-    return []
-  }
-  return searchResults.value.filter(
-    (r) => r.id !== activeTileId.value && r.id !== secondActiveTileId.value,
-  )
-})
-
 const sortAsc = (a: SearchResult, b: SearchResult) => {
   return (a.isoDate || a.id).localeCompare(b.isoDate || b.id)
 }
@@ -292,10 +283,16 @@ const sortDesc = (a: SearchResult, b: SearchResult) => {
 }
 
 const resultsA = computed(() => {
-  return [...filteredResults.value].sort(sortAsc)
+  if (!Array.isArray(searchResults.value)) {
+    return []
+  }
+  return searchResults.value.slice(0).sort(sortAsc)
 })
 const resultsB = computed(() => {
-  return [...filteredResults.value].sort(sortDesc)
+  if (!Array.isArray(searchResults.value)) {
+    return []
+  }
+  return searchResults.value.filter((r) => r.id !== activeTileId.value).sort(sortDesc)
 })
 
 // Function to load more results
@@ -988,8 +985,20 @@ const getStatus = (condition: any, warn: boolean = false) => {
         <v-expansion-panel-text>
           <div class="results">
             <!-- Show first accordion's active tile first -->
-            <TilePreview v-if="activeTileId" :tileId="activeTileId" win="a" />
+            <template v-if="activeTileId">
+              <v-row
+                ><v-col class="text-center"
+                  ><v-label class="text-overline ma-1">Selected</v-label></v-col
+                ></v-row
+              >
+              <TilePreview :tileId="activeTileId" win="a" />
+            </template>
             <!-- Show other results -->
+            <v-row v-if="resultsA.length > 0"
+              ><v-col class="text-center"
+                ><v-label class="text-overline ma-1 mt-4">All Search Results</v-label></v-col
+              ></v-row
+            >
             <TilePreview
               v-for="result in resultsA"
               :key="result?.id"
@@ -1069,8 +1078,20 @@ const getStatus = (condition: any, warn: boolean = false) => {
         <v-expansion-panel-text>
           <div class="results">
             <!-- Show second accordion's active tile first -->
-            <TilePreview v-if="secondActiveTileId" :tileId="secondActiveTileId" win="b" />
+            <template v-if="secondActiveTileId">
+              <v-row
+                ><v-col class="text-center"
+                  ><v-label class="text-overline ma-1">Selected</v-label></v-col
+                ></v-row
+              >
+              <TilePreview :tileId="secondActiveTileId" win="b" />
+            </template>
             <!-- Show other results -->
+            <v-row v-if="resultsB.length > 0"
+              ><v-col class="text-center"
+                ><v-label class="text-overline ma-1 mt-4">All Search Results</v-label></v-col
+              ></v-row
+            >
             <TilePreview
               v-for="result in resultsB"
               :key="result?.id"
