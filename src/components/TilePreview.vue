@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import useAreaOfInterest from '../composables/useAreaOfInterest'
 import useNotifier from '../composables/useNotifier'
 import type { SearchResult } from '../composables/useSearch'
@@ -22,9 +22,13 @@ const active = computed(() => {
     : props.tileId === secondActiveTileId.value
 })
 
-onMounted(async () => {
-  tile.value = await getTileById(props.tileId)
-})
+watch(
+  () => props.tileId,
+  async (newTileId) => {
+    tile.value = await getTileById(newTileId)
+  },
+  { immediate: true },
+)
 
 const handleViewOnMap = async () => {
   const selectedTile = tile.value
