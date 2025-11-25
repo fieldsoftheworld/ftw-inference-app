@@ -7,6 +7,7 @@ import App from './App.vue'
 import router from './router'
 import vuetify from './plugins/vuetify'
 import VuetifyNotifier from 'vuetify-notifier'
+import { TIMEOUT } from './composables/useNotifier'
 
 createApp(App)
   .use(router)
@@ -14,7 +15,7 @@ createApp(App)
   .use(VuetifyNotifier, {
     toast: {
       location: 'bottom',
-      timeout: 20000,
+      timeout: TIMEOUT,
       max: 2,
       width: 500,
     },
