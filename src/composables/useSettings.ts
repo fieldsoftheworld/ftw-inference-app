@@ -20,6 +20,8 @@ export interface ModelInfo {
   requires_window?: boolean
   version?: string
   license?: string
+  legacy?: boolean
+  default?: boolean
 }
 
 const collections: Record<string, string> = {
@@ -32,8 +34,6 @@ const availableCollections: [keyof typeof collections][] = Object.keys(collectio
 
 const availableModels = shallowRef<ModelInfo[]>([])
 
-const defaultModel: string = '3_Class_FULL_multiWindow_v2'
-
 // Default settings
 const defaultSettings: Settings = {
   autoSceneSelection: true,
@@ -44,9 +44,23 @@ const defaultSettings: Settings = {
   areaCoverage: 60,
   buffer: 14,
   collection: availableCollections[0],
-  model: defaultModel,
+  model: '',
   expertMode: false,
 }
+
+const defaultModel = computed(() => {
+  let selected = availableModels.value.find((m) => m.default)
+  if (!selected && availableModels.value.length > 0) {
+    selected = availableModels.value[0]
+  }
+  return selected?.id || ''
+})
+
+watch(defaultModel, () => {
+  if (defaultModel.value && !settings.value.model) {
+    settings.value.model = defaultModel.value
+  }
+})
 
 const loadSettingsFromStorage = (): Settings => {
   const stored = localStorage.getItem('ftw-search-settings')
@@ -72,19 +86,29 @@ const setAvailableModels = (modelsData: ModelInfo[]) => {
       requires_window: model.requires_window,
       version: model.version,
       license: model.license,
+      legacy: model.legacy || false,
+      default: model.default || false,
     })
+  })
+  modelsMap.sort((a, b) => {
+    // Default models first
+    if (a.default && !b.default) return -1
+    // Then sort by legacy status (non-legacy first)
+    if (a.legacy && !b.legacy) return 1
+    if (!a.legacy && b.legacy) return -1
+    // Then by version (newest first)
+    // only works if the version strings are comparable, assumes "v\d" format
+    const v = b.version?.localeCompare(a.version || '')
+    if (v) return v
+    // Finally alphabetically
+    return a.title.localeCompare(b.title)
   })
 
   availableModels.value = modelsMap
 
   // If an old model is stored in localStorage, reset to default model
   if (settings.value.model && !modelsMap.find((m) => m.id === settings.value.model)) {
-    settings.value.model = defaultModel
-  }
-
-  // Set default model if none is selected and models are available
-  if (!settings.value.model && modelsMap.length > 0) {
-    settings.value.model = modelsMap[0].id
+    settings.value.model = defaultModel.value
   }
 }
 

@@ -481,13 +481,6 @@ const getStatus = (condition: any, warn: boolean = false) => {
             <v-radio v-for="model in availableModels" :key="model.id" :value="model.id" color="teal"
               ><template v-slot:label>
                 {{ model.title }}
-                <v-badge
-                  inline
-                  color="black"
-                  v-if="model.version"
-                  title="Version"
-                  :content="model.version"
-                ></v-badge>
                 <v-tooltip v-if="model.description" max-width="400" open-on-click>
                   <template #activator="{ props }">
                     <v-icon
@@ -498,6 +491,9 @@ const getStatus = (condition: any, warn: boolean = false) => {
                     ></v-icon>
                   </template>
                   <div>
+                    <template v-if="model.version"
+                      ><strong>Version:</strong> {{ model.version }}<br
+                    /></template>
                     <strong>License:</strong> {{ model.license || 'unknown' }}<br />
                     <template v-if="model.description">
                       <strong>Description:</strong>
@@ -506,9 +502,22 @@ const getStatus = (condition: any, warn: boolean = false) => {
                       </div>
                     </template>
                   </div>
-                </v-tooltip></template
-              ></v-radio
-            >
+                </v-tooltip>
+                <v-badge
+                  v-if="model.legacy"
+                  inline
+                  color="black"
+                  title="Legacy Model"
+                  content="Legacy"
+                ></v-badge>
+                <v-badge
+                  v-if="model.default"
+                  inline
+                  color="success"
+                  title="Default model, recommended choice by the FTW team"
+                  content="Recommended"
+                ></v-badge> </template
+            ></v-radio>
           </v-radio-group>
         </v-expansion-panel-text>
       </v-expansion-panel>
