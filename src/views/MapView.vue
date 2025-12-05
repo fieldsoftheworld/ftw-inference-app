@@ -32,8 +32,8 @@ watch(dontShowAgain, (newValue) => {
       <v-card max-width="600" border :prepend-icon="mdiInformation" title="About the Inference App">
         <v-card-text>
           Welcome to the Fields of the World (FTW) Web App. Use it to run the FTW model on
-          Sentinel-2 imagery and generate predicted field boundaries for your chosen area of
-          interest. To get started, either zoom in or click on your area of interest.
+          Sentinel-2 Level 2A Collection 1 imagery and generate predicted field boundaries for your
+          chosen area of interest. To get started, either zoom in or click on your area of interest.
         </v-card-text>
         <v-card-actions>
           <v-checkbox-btn v-model="dontShowAgain" label="Don't show again"></v-checkbox-btn>
