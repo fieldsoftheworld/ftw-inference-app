@@ -12,6 +12,15 @@ export interface Settings {
   expertMode: boolean
 }
 
+export interface ProcessingSettings {
+  inference_resize_factor: number
+  inference_patch_size: number | null
+  inference_padding: number | null
+  polygons_simplify: number
+  polygons_min_size: number
+  polygons_close_interiors: boolean
+}
+
 export interface ModelInfo {
   id: string
   title: string
@@ -38,6 +47,33 @@ const defaultSettings: Settings = {
   expertMode: false,
 }
 
+// Default processing settings
+const defaultProcessingSettings: ProcessingSettings = {
+  inference_resize_factor: 2,
+  inference_patch_size: null,
+  inference_padding: null,
+  polygons_simplify: 15,
+  polygons_min_size: 500,
+  polygons_close_interiors: false,
+}
+
+function filterProcessingSettings(prefix: string) {
+  const data = {}
+  for (const key in processingSettings.value) {
+    if (key.startsWith(prefix)) {
+      const value = (processingSettings.value as any)[key]
+      if (value !== (defaultProcessingSettings as any)[key]) {
+        ;(data as any)[key.substring(prefix.length)] = value
+      }
+    }
+  }
+  return data
+}
+
+const inferenceSettings = computed(() => filterProcessingSettings('inference_'))
+
+const polygonizationSettings = computed(() => filterProcessingSettings('polygons_'))
+
 const defaultModel = computed(() => {
   let selected = availableModels.value.find((m) => m.default)
   if (!selected && availableModels.value.length > 0) {
@@ -52,17 +88,25 @@ watch(defaultModel, () => {
   }
 })
 
-const loadSettingsFromStorage = (): Settings => {
-  const stored = localStorage.getItem('ftw-search-settings')
+const loadSettingsFromStorage = (key: string, defaults: object): object => {
+  const stored = localStorage.getItem(key)
   if (stored) {
     const parsed = JSON.parse(stored)
-    return Object.assign(structuredClone(defaultSettings), parsed) as Settings
+    return Object.assign(structuredClone(defaults), parsed)
   }
 
-  return structuredClone(defaultSettings)
+  return structuredClone(defaults)
 }
 
-const settings = ref<Settings>(loadSettingsFromStorage())
+const settings = ref<Settings>(
+  loadSettingsFromStorage('ftw-search-settings', defaultSettings) as Settings,
+)
+const processingSettings = ref<ProcessingSettings>(
+  loadSettingsFromStorage(
+    'ftw-processing-settings',
+    defaultProcessingSettings,
+  ) as ProcessingSettings,
+)
 
 // Function to set available models from API response
 const setAvailableModels = (modelsData: ModelInfo[]) => {
@@ -111,6 +155,14 @@ watch(
   { deep: true },
 )
 
+watch(
+  processingSettings,
+  (newProcessingSettings) => {
+    localStorage.setItem('ftw-processing-settings', JSON.stringify(newProcessingSettings))
+  },
+  { deep: true },
+)
+
 const modelIsSingleShot = computed(() => {
   const model = availableModels.value.find((m) => m.id === settings.value.model)
   return model?.requires_window === false
@@ -119,8 +171,12 @@ const modelIsSingleShot = computed(() => {
 export default function useSettings() {
   return {
     settings,
+    processingSettings,
+    inferenceSettings,
+    polygonizationSettings,
     availableModels,
     defaultSettings,
+    defaultProcessingSettings,
     defaultModel,
     loadSettingsFromStorage,
     setAvailableModels,

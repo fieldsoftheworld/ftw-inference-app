@@ -35,7 +35,7 @@ const { showError, showSuccess } = useNotifier()
 const { hasMore, isLoading, searchResults, searchStatus, handleSearchResults } = useSearch()
 const { activeTileId, currentBBox, currentBBoxValid, secondActiveTileId, currentMgrsTileId } =
   useAreaOfInterest()
-const { settings, availableModels, modelIsSingleShot } = useSettings()
+const { processingSettings, settings, availableModels, modelIsSingleShot } = useSettings()
 const { isBatchProcessing } = useProcessingMode()
 const { placeSearch, isLoadingPlaces, suggestedPlaces, handleLocationSelected } = useGeocoding()
 const { processBatch, processSmallArea, isProcessing } = useBatchProcessing()
@@ -88,6 +88,25 @@ const sceneYears = Array.from({ length: 10 }, (_, i) => new Date().getFullYear()
 const isSelectingScenes = computed(
   () => sceneSelectionStatus.value === null && settings.value.autoSceneSelection,
 )
+
+const patchSizes = [32, 64, 128, 256, 512, 1024, 2048, 4096]
+const patchSizeEnabled = ref(true)
+watch(patchSizeEnabled, (newValue) => {
+  if (newValue) {
+    processingSettings.value.inference_patch_size = null
+  } else {
+    processingSettings.value.inference_patch_size = 256
+  }
+})
+
+const paddingEnabled = ref(true)
+watch(paddingEnabled, (newValue) => {
+  if (newValue) {
+    processingSettings.value.inference_padding = null
+  } else {
+    processingSettings.value.inference_padding = 64
+  }
+})
 
 let abortController: AbortController | null = null
 watch(
@@ -676,7 +695,6 @@ const getStatus = (condition: any, warn: boolean = false) => {
                 :items="months"
                 label=" Start Month"
                 variant="outlined"
-                density="compact"
                 hide-details
                 :disabled="settings.autoSceneSelection"
                 item-value="value"
@@ -689,7 +707,6 @@ const getStatus = (condition: any, warn: boolean = false) => {
                 :items="months"
                 label="End Month"
                 variant="outlined"
-                density="compact"
                 hide-details
                 :disabled="settings.autoSceneSelection"
                 item-value="value"
@@ -750,7 +767,7 @@ const getStatus = (condition: any, warn: boolean = false) => {
           <!-- Cloud Coverage -->
           <v-row>
             <v-col cols="6">
-              <v-label class="text-subtitle-2">Cloud Cover (%)</v-label>
+              <v-label>Cloud Cover (%)</v-label>
             </v-col>
             <v-col cols="6" class="d-flex justify-end">
               <v-number-input
@@ -792,7 +809,7 @@ const getStatus = (condition: any, warn: boolean = false) => {
           <!-- Area Coverage -->
           <v-row>
             <v-col cols="6">
-              <v-label class="text-subtitle-2">
+              <v-label>
                 <template v-if="settings.autoSceneSelection">Search Buffer (days)</template>
                 <template v-else>Area Coverage (%)</template>
               </v-label>
@@ -1051,6 +1068,208 @@ const getStatus = (condition: any, warn: boolean = false) => {
             <template v-else>Load more</template>
           </v-btn>
         </div>
+      </v-expansion-panel>
+      <!-- Inference -->
+      <v-expansion-panel v-if="settings.expertMode && currentMgrsTileId" value="inference">
+        <v-expansion-panel-title>
+          <span class="header-text">
+            <v-badge v-bind="getStatus(true)"></v-badge>
+            Inference Settings
+          </span>
+        </v-expansion-panel-title>
+        <v-expansion-panel-text>
+          <!-- resize_factor -->
+          <v-row>
+            <v-col cols="7">
+              <v-label>Resize factor</v-label>
+            </v-col>
+            <v-col cols="5" class="d-flex justify-end">
+              <v-number-input
+                v-model.number="processingSettings.inference_resize_factor"
+                :min="1"
+                :max="5"
+                :step="1"
+                :precision="0"
+                density="compact"
+                variant="outlined"
+                control-variant="stacked"
+                hide-details
+                class="coverage-input"
+              ></v-number-input>
+            </v-col>
+          </v-row>
+          <v-row>
+            <v-col>
+              <v-slider
+                v-model.number="processingSettings.inference_resize_factor"
+                :min="1"
+                :max="5"
+                :step="1"
+                color="teal"
+                track-color="grey-darken-2"
+                thumb-color="teal"
+                hide-details
+              />
+            </v-col>
+          </v-row>
+          <!-- patch_size -->
+          <v-row>
+            <v-col>
+              <v-checkbox v-model="patchSizeEnabled" density="compact" hide-details
+                ><template v-slot:label>Automatic patch size</template>
+              </v-checkbox>
+            </v-col>
+          </v-row>
+          <v-row v-if="!patchSizeEnabled">
+            <v-col>
+              <v-select
+                v-model.number="processingSettings.inference_patch_size"
+                label="Patch Size (must be a power of 2)"
+                :items="patchSizes"
+                variant="outlined"
+                hide-details
+              ></v-select>
+            </v-col>
+          </v-row>
+          <!-- padding -->
+          <template v-if="!modelTitle?.includes('DelineateAnything')">
+            <v-row>
+              <v-col :cols="paddingEnabled ? 12 : 7">
+                <v-checkbox v-model="paddingEnabled" density="compact" hide-details
+                  ><template v-slot:label>Automatic padding</template>
+                </v-checkbox>
+              </v-col>
+              <v-col
+                v-if="processingSettings.inference_padding !== null"
+                cols="5"
+                class="d-flex justify-end"
+              >
+                <v-number-input
+                  v-model.number="processingSettings.inference_padding"
+                  :min="0"
+                  :max="1024"
+                  :step="1"
+                  :precision="0"
+                  density="compact"
+                  variant="outlined"
+                  control-variant="stacked"
+                  hide-details
+                  class="coverage-input"
+                ></v-number-input>
+              </v-col>
+            </v-row>
+            <v-row v-if="processingSettings.inference_padding !== null">
+              <v-col>
+                <v-slider
+                  v-model.number="processingSettings.inference_padding"
+                  :min="0"
+                  :max="1024"
+                  :step="1"
+                  color="teal"
+                  track-color="grey-darken-2"
+                  thumb-color="teal"
+                  hide-details
+                />
+              </v-col>
+            </v-row>
+          </template>
+        </v-expansion-panel-text>
+      </v-expansion-panel>
+      <!-- Polygonization -->
+      <v-expansion-panel
+        v-if="
+          settings.expertMode && currentMgrsTileId && !modelTitle?.includes('DelineateAnything')
+        "
+        value="polygonization"
+      >
+        <v-expansion-panel-title>
+          <span class="header-text">
+            <v-badge v-bind="getStatus(true)"></v-badge>
+            Polygonization Settings
+          </span>
+        </v-expansion-panel-title>
+        <v-expansion-panel-text>
+          <!-- close_interiors -->
+          <v-row>
+            <v-col>
+              <v-checkbox
+                v-model="processingSettings.polygons_close_interiors"
+                density="compact"
+                hide-details
+              >
+                <template v-slot:label>Remove interior holes in the polygons</template>
+              </v-checkbox>
+            </v-col>
+          </v-row>
+          <!-- min_size -->
+          <v-row>
+            <v-col cols="7">
+              <v-label>Min. field size in m²</v-label>
+            </v-col>
+            <v-col cols="5" class="d-flex justify-end">
+              <v-number-input
+                v-model.number="processingSettings.polygons_min_size"
+                :min="100"
+                :max="10000"
+                :step="10"
+                :precision="0"
+                density="compact"
+                variant="outlined"
+                control-variant="stacked"
+                hide-details
+                class="coverage-input"
+              ></v-number-input>
+            </v-col>
+          </v-row>
+          <v-row>
+            <v-col>
+              <v-slider
+                v-model.number="processingSettings.polygons_min_size"
+                :min="100"
+                :max="10000"
+                :step="10"
+                color="teal"
+                track-color="grey-darken-2"
+                thumb-color="teal"
+                hide-details
+              />
+            </v-col>
+          </v-row>
+          <!-- simplify -->
+          <v-row>
+            <v-col cols="7">
+              <v-label>Simplification factor in meters</v-label>
+            </v-col>
+            <v-col cols="5" class="d-flex justify-end">
+              <v-number-input
+                v-model.number="processingSettings.polygons_simplify"
+                :min="5"
+                :max="100"
+                :step="1"
+                :precision="0"
+                density="compact"
+                variant="outlined"
+                control-variant="stacked"
+                hide-details
+                class="coverage-input"
+              ></v-number-input>
+            </v-col>
+          </v-row>
+          <v-row>
+            <v-col>
+              <v-slider
+                v-model.number="processingSettings.polygons_simplify"
+                :min="5"
+                :max="100"
+                :step="1"
+                color="teal"
+                track-color="grey-darken-2"
+                thumb-color="teal"
+                hide-details
+              />
+            </v-col>
+          </v-row>
+        </v-expansion-panel-text>
       </v-expansion-panel>
     </v-expansion-panels>
   </div>
