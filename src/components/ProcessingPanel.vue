@@ -739,25 +739,11 @@ const getStatus = (condition: any, warn: boolean = false) => {
       <v-expansion-panel v-if="currentMgrsTileId && settings.expertMode" value="coverage">
         <v-expansion-panel-title>
           <span class="header-text">
-            <v-badge
-              v-bind="
-                getStatus(
-                  settings.cloudCover <= 50 &&
-                    (!settings.autoSceneSelection || settings.buffer >= 14),
-                  true,
-                )
-              "
-            ></v-badge>
+            <v-badge v-bind="getStatus(settings.cloudCover <= 50, true)"></v-badge>
             Coverage
             <v-badge inline color="blue" :content="`Cloud: ${settings.cloudCover}%`"></v-badge>
             <v-badge
-              v-if="settings.autoSceneSelection"
-              inline
-              color="purple"
-              :content="`Buffer: ${settings.buffer} days`"
-            ></v-badge>
-            <v-badge
-              v-else
+              v-if="!settings.autoSceneSelection"
               inline
               color="brown"
               :content="`Area: ${settings.areaCoverage}%`"
@@ -810,89 +796,59 @@ const getStatus = (condition: any, warn: boolean = false) => {
             </v-col>
           </v-row>
           <!-- Area Coverage -->
-          <v-row>
-            <v-col cols="6">
-              <v-label class="text-subtitle-2">
-                <template v-if="settings.autoSceneSelection">Search Buffer (days)</template>
-                <template v-else>Area Coverage (%)</template>
-              </v-label>
-            </v-col>
-
-            <v-col cols="6" class="d-flex justify-end">
-              <v-number-input
-                v-if="settings.autoSceneSelection"
-                v-model="settings.buffer"
-                @update:model-value="updateBufferInput"
-                :min="1"
-                :max="60"
-                :step="1"
-                :precision="0"
-                density="compact"
-                variant="outlined"
-                control-variant="stacked"
-                hide-details
-                class="coverage-input"
-              ></v-number-input>
-              <v-number-input
-                v-else
-                v-model="settings.areaCoverage"
-                @update:model-value="updateAreaCoverageInput"
-                :min="1"
-                :max="100"
-                :step="1"
-                :precision="0"
-                density="compact"
-                variant="outlined"
-                control-variant="stacked"
-                hide-details
-                class="coverage-input"
-              ></v-number-input>
-            </v-col>
-          </v-row>
-          <v-row>
-            <v-col>
-              <v-slider
-                v-if="settings.autoSceneSelection"
-                v-model="settings.buffer"
-                @update:model-value="updateBufferInput"
-                :min="1"
-                :max="60"
-                :step="1"
-                color="teal"
-                track-color="grey-darken-2"
-                thumb-color="teal"
-                hide-details
-              />
-              <v-slider
-                v-else
-                v-model="settings.areaCoverage"
-                @update:model-value="updateAreaCoverageInput"
-                :min="1"
-                :max="100"
-                :step="1"
-                color="teal"
-                track-color="grey-darken-2"
-                thumb-color="teal"
-                hide-details
-              />
-            </v-col>
-          </v-row>
-          <v-row v-if="settings.autoSceneSelection">
-            <v-col>
-              <v-alert v-if="settings.buffer < 14" type="warning" variant="tonal" density="compact">
-                A search buffer of less than 14 days may decrease the probability of getting results
-                for automatic scene selection.
-              </v-alert>
-            </v-col>
-          </v-row>
+          <template v-if="!settings.autoSceneSelection">
+            <v-row>
+              <v-col cols="6">
+                <v-label class="text-subtitle-2">Area Coverage (%)</v-label>
+              </v-col>
+              <v-col cols="6" class="d-flex justify-end">
+                <v-number-input
+                  v-model="settings.areaCoverage"
+                  @update:model-value="updateAreaCoverageInput"
+                  :min="1"
+                  :max="100"
+                  :step="1"
+                  :precision="0"
+                  density="compact"
+                  variant="outlined"
+                  control-variant="stacked"
+                  hide-details
+                  class="coverage-input"
+                ></v-number-input>
+              </v-col>
+            </v-row>
+            <v-row>
+              <v-col>
+                <v-slider
+                  v-model="settings.areaCoverage"
+                  @update:model-value="updateAreaCoverageInput"
+                  :min="1"
+                  :max="100"
+                  :step="1"
+                  color="teal"
+                  track-color="grey-darken-2"
+                  thumb-color="teal"
+                  hide-details
+                />
+              </v-col>
+            </v-row>
+          </template>
         </v-expansion-panel-text>
       </v-expansion-panel>
       <!-- Scene Selection -->
       <v-expansion-panel v-if="currentMgrsTileId" value="scene-selection">
         <v-expansion-panel-title>
           <span class="header-text">
-            <v-badge v-bind="getStatus(settings.autoSceneSelection, true)"></v-badge>
-            Scene Selection Mode
+            <v-badge
+              v-bind="
+                getStatus(
+                  settings.autoSceneSelection &&
+                    (!settings.autoSceneSelection || settings.buffer >= 14),
+                  true,
+                )
+              "
+            ></v-badge>
+            Scene Selection
             <v-badge
               v-if="settings.autoSceneSelection"
               inline
@@ -900,6 +856,12 @@ const getStatus = (condition: any, warn: boolean = false) => {
               content="Automatic"
             ></v-badge>
             <v-badge v-else inline color="warning" content="Manual"></v-badge>
+            <v-badge
+              v-if="settings.autoSceneSelection"
+              inline
+              color="teal"
+              :content="`Buffer: ${settings.buffer} days`"
+            ></v-badge>
           </span>
         </v-expansion-panel-title>
         <v-expansion-panel-text>
@@ -920,6 +882,57 @@ const getStatus = (condition: any, warn: boolean = false) => {
               </v-alert>
             </v-col>
           </v-row>
+
+          <template v-if="settings.autoSceneSelection">
+            <v-row>
+              <v-col cols="6">
+                <v-label class="text-subtitle-2">Search Buffer (days)</v-label>
+              </v-col>
+              <v-col cols="6" class="d-flex justify-end">
+                <v-number-input
+                  v-model="settings.buffer"
+                  @update:model-value="updateBufferInput"
+                  :min="1"
+                  :max="60"
+                  :step="1"
+                  :precision="0"
+                  density="compact"
+                  variant="outlined"
+                  control-variant="stacked"
+                  hide-details
+                  class="coverage-input"
+                ></v-number-input>
+              </v-col>
+            </v-row>
+            <v-row>
+              <v-col>
+                <v-slider
+                  v-model="settings.buffer"
+                  @update:model-value="updateBufferInput"
+                  :min="1"
+                  :max="60"
+                  :step="1"
+                  color="teal"
+                  track-color="grey-darken-2"
+                  thumb-color="teal"
+                  hide-details
+                />
+              </v-col>
+            </v-row>
+            <v-row>
+              <v-col>
+                <v-alert
+                  v-if="settings.buffer < 14"
+                  type="warning"
+                  variant="tonal"
+                  density="compact"
+                >
+                  A search buffer of less than 14 days may decrease the probability of getting
+                  results for automatic scene selection.
+                </v-alert>
+              </v-col>
+            </v-row>
+          </template>
         </v-expansion-panel-text>
       </v-expansion-panel>
       <!-- Scene A -->
