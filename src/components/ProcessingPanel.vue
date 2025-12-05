@@ -985,59 +985,47 @@ const getStatus = (condition: any, warn: boolean = false) => {
             </template>
           </v-tooltip>
         </v-expansion-panel-title>
-        <v-expansion-panel-text>
-          <div class="results">
-            <!-- Show first accordion's active tile first -->
-            <template v-if="activeTileId">
-              <v-row
-                ><v-col class="text-center"
-                  ><v-label class="text-overline ma-1">Selected</v-label></v-col
-                ></v-row
-              >
-              <TilePreview :tileId="activeTileId" win="a" />
-            </template>
-            <!-- Show other results -->
-            <v-row v-if="resultsA.length > 0"
+        <div class="results">
+          <!-- Show first accordion's active tile first -->
+          <template v-if="activeTileId">
+            <v-row
               ><v-col class="text-center"
-                ><v-label class="text-overline ma-1 mt-4">All Search Results</v-label></v-col
+                ><v-label class="text-overline ma-1">Selected</v-label></v-col
               ></v-row
             >
-            <TilePreview
-              v-for="result in resultsA"
-              :key="result?.id"
-              win="a"
-              :tileId="result?.id"
-            />
-            <v-alert v-if="!hasMore" class="mb-2 mt-2" color="teal" type="info" density="compact">
-              <p class="mb-2">
-                No more images found. Try adjusting your filters (date range, cloud cover, area
-                coverage) to increase the likelihood of finding more results.
-              </p>
-              <p>
-                You can provide your own EarthSearch STAC Item ID if you didn't find what you were
-                looking for:<br />
-                <v-text-field
-                  v-model="activeTileId"
-                  type="text"
-                  label="STAC Item ID"
-                  variant="outlined"
-                  density="compact"
-                  hide-details
-                  class="mt-2"
-                />
-              </p>
-            </v-alert>
-            <v-btn
-              v-if="hasMore"
-              @click="loadMore"
-              class="action-button mt-4"
-              :disabled="isLoading"
-            >
-              <template v-if="isLoading">Loading...</template>
-              <template v-else>Load more</template>
-            </v-btn>
-          </div>
-        </v-expansion-panel-text>
+            <TilePreview :tileId="activeTileId" win="a" />
+          </template>
+          <!-- Show other results -->
+          <v-row v-if="resultsA.length > 0"
+            ><v-col class="text-center"
+              ><v-label class="text-overline ma-1 mt-4">All Search Results</v-label></v-col
+            ></v-row
+          >
+          <TilePreview v-for="result in resultsA" :key="result?.id" win="a" :tileId="result?.id" />
+          <v-alert v-if="!hasMore" class="mb-2 mt-2" color="teal" type="info" density="compact">
+            <p class="mb-2">
+              No more images found. Try adjusting your filters (date range, cloud cover, area
+              coverage) to increase the likelihood of finding more results.
+            </p>
+            <p>
+              You can provide your own EarthSearch STAC Item ID if you didn't find what you were
+              looking for:<br />
+              <v-text-field
+                v-model="activeTileId"
+                type="text"
+                label="STAC Item ID"
+                variant="outlined"
+                density="compact"
+                hide-details
+                class="mt-2"
+              />
+            </p>
+          </v-alert>
+          <v-btn v-if="hasMore" @click="loadMore" class="action-button mt-4" :disabled="isLoading">
+            <template v-if="isLoading">Loading...</template>
+            <template v-else>Load more</template>
+          </v-btn>
+        </div>
       </v-expansion-panel>
       <!-- Scene B -->
       <v-expansion-panel
@@ -1078,59 +1066,47 @@ const getStatus = (condition: any, warn: boolean = false) => {
             </template>
           </v-tooltip>
         </v-expansion-panel-title>
-        <v-expansion-panel-text>
-          <div class="results">
-            <!-- Show second accordion's active tile first -->
-            <template v-if="secondActiveTileId">
-              <v-row
-                ><v-col class="text-center"
-                  ><v-label class="text-overline ma-1">Selected</v-label></v-col
-                ></v-row
-              >
-              <TilePreview :tileId="secondActiveTileId" win="b" />
-            </template>
-            <!-- Show other results -->
-            <v-row v-if="resultsB.length > 0"
+        <div class="results">
+          <!-- Show second accordion's active tile first -->
+          <template v-if="secondActiveTileId">
+            <v-row
               ><v-col class="text-center"
-                ><v-label class="text-overline ma-1 mt-4">All Search Results</v-label></v-col
+                ><v-label class="text-overline ma-1">Selected</v-label></v-col
               ></v-row
             >
-            <TilePreview
-              v-for="result in resultsB"
-              :key="result?.id"
-              win="b"
-              :tileId="result?.id"
-            />
-            <v-alert v-if="!hasMore" class="mb-2 mt-2" color="teal" type="info" density="compact">
-              <p class="mb-2">
-                No more images found. Try adjusting your filters (date range, cloud cover, area
-                coverage) to increase the likelihood of finding more results.
-              </p>
-              <p>
-                You can provide your own EarthSearch STAC Item ID if you didn't find what you were
-                looking for:<br />
-                <v-text-field
-                  v-model="secondActiveTileId"
-                  type="text"
-                  label="STAC Item ID"
-                  variant="outlined"
-                  density="compact"
-                  hide-details
-                  class="mt-2"
-                />
-              </p>
-            </v-alert>
-            <v-btn
-              v-if="hasMore"
-              @click="loadMore"
-              class="action-button mt-4"
-              :disabled="isLoading"
-            >
-              <template v-if="isLoading">Loading...</template>
-              <template v-else>Load more</template>
-            </v-btn>
-          </div>
-        </v-expansion-panel-text>
+            <TilePreview :tileId="secondActiveTileId" win="b" />
+          </template>
+          <!-- Show other results -->
+          <v-row v-if="resultsB.length > 0"
+            ><v-col class="text-center"
+              ><v-label class="text-overline ma-1 mt-4">All Search Results</v-label></v-col
+            ></v-row
+          >
+          <TilePreview v-for="result in resultsB" :key="result?.id" win="b" :tileId="result?.id" />
+          <v-alert v-if="!hasMore" class="mb-2 mt-2" color="teal" type="info" density="compact">
+            <p class="mb-2">
+              No more images found. Try adjusting your filters (date range, cloud cover, area
+              coverage) to increase the likelihood of finding more results.
+            </p>
+            <p>
+              You can provide your own EarthSearch STAC Item ID if you didn't find what you were
+              looking for:<br />
+              <v-text-field
+                v-model="secondActiveTileId"
+                type="text"
+                label="STAC Item ID"
+                variant="outlined"
+                density="compact"
+                hide-details
+                class="mt-2"
+              />
+            </p>
+          </v-alert>
+          <v-btn v-if="hasMore" @click="loadMore" class="action-button mt-4" :disabled="isLoading">
+            <template v-if="isLoading">Loading...</template>
+            <template v-else>Load more</template>
+          </v-btn>
+        </div>
       </v-expansion-panel>
     </v-expansion-panels>
   </div>
@@ -1148,9 +1124,6 @@ const getStatus = (condition: any, warn: boolean = false) => {
 </template>
 
 <style scoped>
-:deep(.scenes .v-expansion-panel-text__wrapper) {
-  padding: 0;
-}
 .scenes .results {
   flex: 1;
   transition: opacity 0.3s ease;
