@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { mdiChevronDown } from '@mdi/js'
 import { ref } from 'vue'
-import useAreaOfInterest from '../composables/useAreaOfInterest'
 import useSearch from '../composables/useSearch'
+import useSettings from '../composables/useSettings'
 import ProcessingPanel from './ProcessingPanel.vue'
 
 const { searchStatus } = useSearch()
-const { currentMgrsTileId } = useAreaOfInterest()
+const { modelTitle, settings } = useSettings()
 
 // Sidebar state
 const isWorking = ref(false)
@@ -33,10 +33,9 @@ const toggleCollapsible = () => {
         <span class="title text-white">
           Processing
           <v-badge
-            v-if="currentMgrsTileId"
+            v-if="modelTitle && !settings.expertMode"
             inline
-            :content="currentMgrsTileId"
-            title="The selected tile identifier"
+            :content="`Model: ${modelTitle}`"
           ></v-badge>
         </span>
       </div>

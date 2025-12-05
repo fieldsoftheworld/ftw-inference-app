@@ -35,7 +35,7 @@ const { showError, showSuccess } = useNotifier()
 const { hasMore, isLoading, searchResults, searchStatus, handleSearchResults } = useSearch()
 const { activeTileId, currentBBox, currentBBoxValid, secondActiveTileId, currentMgrsTileId } =
   useAreaOfInterest()
-const { settings, availableModels, modelIsSingleShot } = useSettings()
+const { settings, availableModels, modelIsSingleShot, modelTitle } = useSettings()
 const { isBatchProcessing } = useProcessingMode()
 const { placeSearch, isLoadingPlaces, suggestedPlaces, handleLocationSelected } = useGeocoding()
 const { processBatch, processSmallArea, isProcessing } = useBatchProcessing()
@@ -278,11 +278,6 @@ watch([settings.value.autoSceneSelection, activeTileId], ([autoSelection, tileId
 
 watch(map, () => loadAvailableTiles())
 
-const modelTitle = computed(() => {
-  const model = settings.value.model
-  return model ? availableModels.value.find((m) => m.id === model)?.title || null : null
-})
-
 const sortAsc = (a: SearchResult, b: SearchResult) => {
   return (a.isoDate || a.id).localeCompare(b.isoDate || b.id)
 }
@@ -458,7 +453,7 @@ const getStatus = (condition: any, warn: boolean = false) => {
         </v-expansion-panel-text>
       </v-expansion-panel>
       <!-- Model -->
-      <v-expansion-panel v-if="currentMgrsTileId" value="model">
+      <v-expansion-panel v-if="currentMgrsTileId && settings.expertMode" value="model">
         <v-expansion-panel-title>
           <span class="header-text">
             <v-badge v-bind="getStatus(modelTitle)"></v-badge>
