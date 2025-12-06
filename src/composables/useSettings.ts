@@ -8,7 +8,6 @@ export interface Settings {
   cloudCover: number
   areaCoverage: number
   buffer: number
-  collection: string[]
   model: string
   expertMode: boolean
 }
@@ -24,14 +23,6 @@ export interface ModelInfo {
   default?: boolean
 }
 
-const collections: Record<string, string> = {
-  'sentinel-2-c1-l2a': 'Sentinel-2 Level 2A, Collection 1',
-  'sentinel-2-l2a': 'Sentinel-2 Level 2A, Legacy',
-}
-const availableCollections: [keyof typeof collections][] = Object.keys(collections).map((c) => [
-  c,
-]) as [keyof typeof collections][]
-
 const availableModels = shallowRef<ModelInfo[]>([])
 
 // Default settings
@@ -43,7 +34,6 @@ const defaultSettings: Settings = {
   cloudCover: 20,
   areaCoverage: 60,
   buffer: 14,
-  collection: availableCollections[0],
   model: '',
   expertMode: false,
 }
@@ -129,8 +119,6 @@ const modelIsSingleShot = computed(() => {
 export default function useSettings() {
   return {
     settings,
-    collections,
-    availableCollections,
     availableModels,
     defaultSettings,
     defaultModel,

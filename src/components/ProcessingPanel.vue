@@ -35,8 +35,7 @@ const { showError, showSuccess } = useNotifier()
 const { hasMore, isLoading, searchResults, searchStatus, handleSearchResults } = useSearch()
 const { activeTileId, currentBBox, currentBBoxValid, secondActiveTileId, currentMgrsTileId } =
   useAreaOfInterest()
-const { settings, collections, availableCollections, availableModels, modelIsSingleShot } =
-  useSettings()
+const { settings, availableModels, modelIsSingleShot } = useSettings()
 const { isBatchProcessing } = useProcessingMode()
 const { placeSearch, isLoadingPlaces, suggestedPlaces, handleLocationSelected } = useGeocoding()
 const { processBatch, processSmallArea, isProcessing } = useBatchProcessing()
@@ -264,11 +263,6 @@ watch(sceneSelectionStatus, (newValue) => {
   }
 })
 watch(map, () => loadAvailableTiles())
-
-const collectionTitle = computed(() => {
-  const collection = settings.value.collection[0]
-  return collection ? collections[collection] : null
-})
 
 const modelTitle = computed(() => {
   const model = settings.value.model
@@ -518,32 +512,6 @@ const getStatus = (condition: any, warn: boolean = false) => {
                   content="Recommended"
                 ></v-badge> </template
             ></v-radio>
-          </v-radio-group>
-        </v-expansion-panel-text>
-      </v-expansion-panel>
-      <!-- Data Collection -->
-      <v-expansion-panel v-if="currentMgrsTileId && settings.expertMode" value="data">
-        <v-expansion-panel-title>
-          <span class="header-text">
-            <v-badge v-bind="getStatus(collectionTitle)"></v-badge>
-            Imagery
-            <v-badge
-              v-if="collectionTitle"
-              inline
-              color="teal"
-              :content="collectionTitle"
-            ></v-badge>
-          </span>
-        </v-expansion-panel-title>
-        <v-expansion-panel-text>
-          <v-radio-group v-model="settings.collection" inline hide-details>
-            <v-radio
-              v-for="collection in availableCollections"
-              :key="collection[0]"
-              :label="collections[collection[0]]"
-              :value="collection"
-              color="teal"
-            />
           </v-radio-group>
         </v-expansion-panel-text>
       </v-expansion-panel>
