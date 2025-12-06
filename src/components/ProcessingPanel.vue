@@ -341,24 +341,6 @@ const loadMore = async () => {
   }
 }
 
-const updateCloudCoverInput = () => {
-  // Ensure the value is a number and not below 1
-  const value = Number(settings.value.cloudCover)
-  settings.value.cloudCover = Math.max(1, value)
-}
-
-const updateAreaCoverageInput = () => {
-  // Ensure the value is a number and not below 1
-  const value = Number(settings.value.areaCoverage)
-  settings.value.areaCoverage = Math.max(1, value)
-}
-
-const updateBufferInput = () => {
-  // Ensure the value is a number and not below 1
-  const value = Number(settings.value.buffer)
-  settings.value.buffer = Math.max(1, value)
-}
-
 // Handle tile selection from search modal
 const handleTileSelected = (tileName: string) => {
   // Find the tile feature on the map and trigger the tile selection
@@ -772,8 +754,7 @@ const getStatus = (condition: any, warn: boolean = false) => {
             </v-col>
             <v-col cols="6" class="d-flex justify-end">
               <v-number-input
-                v-model="settings.cloudCover"
-                @update:model-value="updateCloudCoverInput"
+                v-model.number="settings.cloudCover"
                 :min="1"
                 :max="100"
                 :step="1"
@@ -789,7 +770,7 @@ const getStatus = (condition: any, warn: boolean = false) => {
           <v-row>
             <v-col>
               <v-slider
-                v-model="settings.cloudCover"
+                v-model.number="settings.cloudCover"
                 :min="1"
                 :max="100"
                 :step="1"
@@ -797,7 +778,6 @@ const getStatus = (condition: any, warn: boolean = false) => {
                 track-color="grey-darken-2"
                 thumb-color="teal"
                 hide-details
-                @update:model-value="updateCloudCoverInput"
               />
             </v-col>
           </v-row>
@@ -821,8 +801,7 @@ const getStatus = (condition: any, warn: boolean = false) => {
             <v-col cols="6" class="d-flex justify-end">
               <v-number-input
                 v-if="settings.autoSceneSelection"
-                v-model="settings.buffer"
-                @update:model-value="updateBufferInput"
+                v-model.number="settings.buffer"
                 :min="1"
                 :max="60"
                 :step="1"
@@ -835,8 +814,7 @@ const getStatus = (condition: any, warn: boolean = false) => {
               ></v-number-input>
               <v-number-input
                 v-else
-                v-model="settings.areaCoverage"
-                @update:model-value="updateAreaCoverageInput"
+                v-model.number="settings.areaCoverage"
                 :min="1"
                 :max="100"
                 :step="1"
@@ -853,8 +831,7 @@ const getStatus = (condition: any, warn: boolean = false) => {
             <v-col>
               <v-slider
                 v-if="settings.autoSceneSelection"
-                v-model="settings.buffer"
-                @update:model-value="updateBufferInput"
+                v-model.number="settings.buffer"
                 :min="1"
                 :max="60"
                 :step="1"
@@ -865,8 +842,7 @@ const getStatus = (condition: any, warn: boolean = false) => {
               />
               <v-slider
                 v-else
-                v-model="settings.areaCoverage"
-                @update:model-value="updateAreaCoverageInput"
+                v-model.number="settings.areaCoverage"
                 :min="1"
                 :max="100"
                 :step="1"
