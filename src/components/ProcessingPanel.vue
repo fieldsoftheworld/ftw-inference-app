@@ -270,7 +270,7 @@ watch(sceneSelectionStatus, (newValue) => {
 })
 
 // Display Scene A image by default when auto scene selection is enabled and a scene is selected
-watch([() => settings.value.autoSceneSelection, activeTileId], ([autoSelection, tileId]) => {
+watch([settings.value.autoSceneSelection, activeTileId], ([autoSelection, tileId]) => {
   if (autoSelection && tileId) {
     stacPreviewTileId.value = tileId
   }
