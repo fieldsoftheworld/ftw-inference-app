@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { Map, View } from 'ol'
 import DataCabinet from './DataCabinet.vue'
 import ProcessingResults from './ProcessingResults.vue'
@@ -25,7 +25,7 @@ const {
 } = useMap()
 
 const { addMapClickHandler } = useAreaOfInterest()
-const { setAvailableModels } = useSettings()
+const { settings, setAvailableModels } = useSettings()
 
 const clearResults = () => {
   geoJsonResults.value = []
@@ -35,11 +35,12 @@ const clearResults = () => {
 const { setupPermalink } = usePermalink()
 
 const critical = ref<string | null>(null)
+const cloudlessLayer = ref<ReturnType<typeof createCloudlessLayer> | null>(null)
 
 onMounted(async () => {
   map.value = new Map({
     target: 'map',
-    layers: [createCloudlessLayer(), createLabelLayer()],
+    layers: [createLabelLayer()],
     view: new View({
       center: [0, 0],
       zoom: 2,
@@ -83,11 +84,28 @@ onMounted(async () => {
     const s2GridLayer = createS2GridLayer()
     addMapClickHandler(map.value as Map, areaValues.value)
     map.value.addLayer(s2GridLayer)
-
     // Setup permalink functionality
     setupPermalink(map)
   }
 })
+
+// Watch for year changes and update the cloudless layer
+watch(
+  () => settings.value.year,
+  (newYear) => {
+    if (!map.value || !cloudlessLayer.value) {
+      return
+    }
+
+    // Remove the old cloudless layer
+    map.value.removeLayer(cloudlessLayer.value as any)
+
+    // Create and add the new cloudless layer with the updated year
+    cloudlessLayer.value = createCloudlessLayer(newYear)
+    // Insert at index 0 to maintain the layer order (cloudless layer should be first)
+    map.value.getLayers().insertAt(0, cloudlessLayer.value as any)
+  },
+)
 
 // Expose methods to parent components
 defineExpose({

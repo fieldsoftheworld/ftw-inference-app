@@ -1,10 +1,11 @@
 import TileLayer from 'ol/layer/Tile'
 import { XYZ } from 'ol/source'
 
-export default function createCloudlessLayer() {
+export default function createCloudlessLayer(year: number) {
+  console.log('createCloudlessLayer', year)
   return new TileLayer({
     source: new XYZ({
-      url: 'https://tiles.maps.eox.at/wmts?layer=s2cloudless-2024_3857&style=default&tilematrixset=GoogleMapsCompatible&Service=WMTS&Request=GetTile&Version=1.0.0&Format=image%2Fjpeg&TileMatrix={z}&TileCol={x}&TileRow={y}',
+      url: `https://tiles.maps.eox.at/wmts?layer=s2cloudless-${year}_3857&style=default&tilematrixset=GoogleMapsCompatible&Service=WMTS&Request=GetTile&Version=1.0.0&Format=image%2Fjpeg&TileMatrix={z}&TileCol={x}&TileRow={y}`,
       maxZoom: 18,
       tileSize: 256,
       crossOrigin: 'anonymous',
