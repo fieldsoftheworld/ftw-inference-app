@@ -10,6 +10,15 @@
         </v-icon>
         <span class="text-white title">Results ({{ geoJsonResults.length }})</span>
       </div>
+      <v-btn
+        icon
+        variant="text"
+        size="small"
+        @click.stop="returnToResultsHandler"
+        class="text-white"
+      >
+        <v-icon :icon="mdiTarget"></v-icon>
+      </v-btn>
     </v-card-title>
 
     <v-card-text v-show="isOpen" class="content">
@@ -68,7 +77,7 @@
 
       <div class="action-buttons">
         <v-btn class="action-button" @click="downloadResults" density="compact">Download</v-btn>
-        <v-btn class="action-button" @click="clearResults" color="error" density="compact"
+        <v-btn class="action-button" @click="clearResultsHandler" color="error" density="compact"
           >Clear</v-btn
         >
       </div>
@@ -82,7 +91,7 @@ import useMap from '../composables/useMap'
 import useNotifier from '../composables/useNotifier'
 import useAreaOfInterest from '../composables/useAreaOfInterest'
 import PropertiesDisplay from './PropertiesDisplay.vue'
-import { mdiChevronDown } from '@mdi/js'
+import { mdiChevronDown, mdiTarget } from '@mdi/js'
 import { type Feature } from 'geojson'
 
 const props = defineProps<{
@@ -94,7 +103,7 @@ const emit = defineEmits<{
 }>()
 
 const { map, handleMapClick, vectorLayer, selectedFeature, hidePropertiesBox } = useMap()
-const { clearResultsAndZoomToGrid } = useAreaOfInterest()
+const { clearResults, returnToResults } = useAreaOfInterest()
 const { showInfo, showError } = useNotifier()
 
 const isOpen = ref(true)
@@ -283,11 +292,15 @@ onUnmounted(() => {
   }
 })
 
-const clearResults = () => {
+const clearResultsHandler = () => {
   // Clear results and zoom back to S2 grid
-  clearResultsAndZoomToGrid(map.value!)
+  clearResults(map.value!)
   // Emit event to clear results in parent components
   emit('clearResults')
+}
+
+const returnToResultsHandler = () => {
+  returnToResults(map.value!)
 }
 </script>
 

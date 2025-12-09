@@ -188,18 +188,7 @@ export default function useAreaOfInterest() {
     extentInteraction.value = null
   }
 
-  function clearResultsAndZoomToGrid(map: Map) {
-    geoJsonResults.value = []
-
-    // Remove the GeoJSON results layer from the map
-    if (vectorLayer.value) {
-      map.removeLayer(vectorLayer.value)
-      // Dispose of the layer source to free memory
-      if (vectorLayer.value.getSource) {
-        vectorLayer.value.getSource()!.dispose()
-      }
-    }
-
+  function returnToResults(map: Map) {
     // Zoom back to the stored grid extent if available
     if (currentGridExtent.value) {
       const padding = 50
@@ -209,6 +198,19 @@ export default function useAreaOfInterest() {
         duration: 1000,
         maxZoom: 13,
       })
+    }
+  }
+
+  function clearResults(map: Map) {
+    geoJsonResults.value = []
+
+    // Remove the GeoJSON results layer from the map
+    if (vectorLayer.value) {
+      map.removeLayer(vectorLayer.value)
+      // Dispose of the layer source to free memory
+      if (vectorLayer.value.getSource) {
+        vectorLayer.value.getSource()!.dispose()
+      }
     }
   }
 
@@ -547,7 +549,8 @@ export default function useAreaOfInterest() {
     currentGridExtent,
     activeTileId,
     secondActiveTileId,
-    clearResultsAndZoomToGrid,
+    clearResults,
+    returnToResults,
     triggerTileSelection,
     calculateArea,
     getTileById,
