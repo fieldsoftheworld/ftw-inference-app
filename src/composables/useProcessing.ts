@@ -13,7 +13,7 @@ export default function useProcessing() {
   const { currentBBox, isBBox } = useAreaOfInterest()
   const { fitMapToBbox, displayGeoJSON } = useMap()
   const { showError, showSuccess, showInfo, showWarning } = useNotifier()
-  const { settings, modelIsSingleShot } = useSettings()
+  const { settings, inferenceSettings, polygonizationSettings, modelIsSingleShot } = useSettings()
   const { stacPreviewTileId } = useStacLayer()
 
   const apiBaseUrl = import.meta.env.VITE_API_BASE_URL
@@ -144,10 +144,9 @@ export default function useProcessing() {
                 ? [firstTile?.itemUrl]
                 : [firstTile?.itemUrl, secondTile?.itemUrl],
               bbox: currentBBox.value,
+              ...inferenceSettings.value,
             },
-            polygons: {
-              close_interiors: true,
-            },
+            polygons: polygonizationSettings.value,
           }),
         })
       })
@@ -224,6 +223,7 @@ export default function useProcessing() {
             images: modelIsSingleShot.value
               ? [firstTile?.itemUrl]
               : [firstTile?.itemUrl, secondTile?.itemUrl],
+            ...inferenceSettings.value,
           }),
         })
       })
@@ -238,9 +238,7 @@ export default function useProcessing() {
           return await fetch(`${apiBaseUrl}projects/${projectId}/polygons`, {
             method: 'PUT',
             headers: createHeaders(),
-            body: JSON.stringify({
-              close_interiors: true,
-            }),
+            body: JSON.stringify(polygonizationSettings.value),
           })
         })
       }
