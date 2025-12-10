@@ -148,6 +148,12 @@ watch(
       secondActiveTileId.value = new URL(windowB).pathname.split('/').pop() || null
 
       sceneSelectionStatus.value = true
+
+      // Display Scene A image by default when auto scene selection is enabled
+      if (settings.value.autoSceneSelection && activeTileId.value) {
+        stacPreviewTileId.value = activeTileId.value
+      }
+
       if (!settings.value.expertMode) {
         showSuccess(
           'Scenes have been selected automatically. You can start processing or adjust the scenes or your settings.',
@@ -262,6 +268,14 @@ watch(sceneSelectionStatus, (newValue) => {
     secondActiveTileId.value = null
   }
 })
+
+// Display Scene A image by default when auto scene selection is enabled and a scene is selected
+watch([settings.value.autoSceneSelection, activeTileId], ([autoSelection, tileId]) => {
+  if (autoSelection && tileId) {
+    stacPreviewTileId.value = tileId
+  }
+})
+
 watch(map, () => loadAvailableTiles())
 
 const modelTitle = computed(() => {
