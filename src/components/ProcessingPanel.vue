@@ -148,6 +148,12 @@ watch(
       secondActiveTileId.value = new URL(windowB).pathname.split('/').pop() || null
 
       sceneSelectionStatus.value = true
+
+      // Display Scene A image by default when auto scene selection is enabled
+      if (settings.value.autoSceneSelection && activeTileId.value) {
+        stacPreviewTileId.value = activeTileId.value
+      }
+
       if (!settings.value.expertMode) {
         showSuccess(
           'Scenes have been selected automatically. You can start processing or adjust the scenes or your settings.',
@@ -262,6 +268,14 @@ watch(sceneSelectionStatus, (newValue) => {
     secondActiveTileId.value = null
   }
 })
+
+// Display Scene A image by default when auto scene selection is enabled and a scene is selected
+watch([settings.value.autoSceneSelection, activeTileId], ([autoSelection, tileId]) => {
+  if (autoSelection && tileId) {
+    stacPreviewTileId.value = tileId
+  }
+})
+
 watch(map, () => loadAvailableTiles())
 
 const modelTitle = computed(() => {
@@ -339,24 +353,6 @@ const loadMore = async () => {
       await scrollToElement()
     }
   }
-}
-
-const updateCloudCoverInput = () => {
-  // Ensure the value is a number and not below 1
-  const value = Number(settings.value.cloudCover)
-  settings.value.cloudCover = Math.max(1, value)
-}
-
-const updateAreaCoverageInput = () => {
-  // Ensure the value is a number and not below 1
-  const value = Number(settings.value.areaCoverage)
-  settings.value.areaCoverage = Math.max(1, value)
-}
-
-const updateBufferInput = () => {
-  // Ensure the value is a number and not below 1
-  const value = Number(settings.value.buffer)
-  settings.value.buffer = Math.max(1, value)
 }
 
 // Handle tile selection from search modal
@@ -758,8 +754,7 @@ const getStatus = (condition: any, warn: boolean = false) => {
             </v-col>
             <v-col cols="6" class="d-flex justify-end">
               <v-number-input
-                v-model="settings.cloudCover"
-                @update:model-value="updateCloudCoverInput"
+                v-model.number="settings.cloudCover"
                 :min="1"
                 :max="100"
                 :step="1"
@@ -775,7 +770,7 @@ const getStatus = (condition: any, warn: boolean = false) => {
           <v-row>
             <v-col>
               <v-slider
-                v-model="settings.cloudCover"
+                v-model.number="settings.cloudCover"
                 :min="1"
                 :max="100"
                 :step="1"
@@ -783,7 +778,6 @@ const getStatus = (condition: any, warn: boolean = false) => {
                 track-color="grey-darken-2"
                 thumb-color="teal"
                 hide-details
-                @update:model-value="updateCloudCoverInput"
               />
             </v-col>
           </v-row>
@@ -803,8 +797,7 @@ const getStatus = (condition: any, warn: boolean = false) => {
               </v-col>
               <v-col cols="6" class="d-flex justify-end">
                 <v-number-input
-                  v-model="settings.areaCoverage"
-                  @update:model-value="updateAreaCoverageInput"
+                  v-model.number="settings.areaCoverage"
                   :min="1"
                   :max="100"
                   :step="1"
@@ -820,8 +813,7 @@ const getStatus = (condition: any, warn: boolean = false) => {
             <v-row>
               <v-col>
                 <v-slider
-                  v-model="settings.areaCoverage"
-                  @update:model-value="updateAreaCoverageInput"
+                  v-model.number="settings.areaCoverage"
                   :min="1"
                   :max="100"
                   :step="1"
@@ -890,8 +882,7 @@ const getStatus = (condition: any, warn: boolean = false) => {
               </v-col>
               <v-col cols="6" class="d-flex justify-end">
                 <v-number-input
-                  v-model="settings.buffer"
-                  @update:model-value="updateBufferInput"
+                  v-model.number="settings.buffer"
                   :min="1"
                   :max="60"
                   :step="1"
@@ -907,8 +898,7 @@ const getStatus = (condition: any, warn: boolean = false) => {
             <v-row>
               <v-col>
                 <v-slider
-                  v-model="settings.buffer"
-                  @update:model-value="updateBufferInput"
+                  v-model.number="settings.buffer"
                   :min="1"
                   :max="60"
                   :step="1"
@@ -966,47 +956,59 @@ const getStatus = (condition: any, warn: boolean = false) => {
             </template>
           </v-tooltip>
         </v-expansion-panel-title>
-        <div class="results">
-          <!-- Show first accordion's active tile first -->
-          <template v-if="activeTileId">
-            <v-row
+        <v-expansion-panel-text>
+          <div class="results">
+            <!-- Show first accordion's active tile first -->
+            <template v-if="activeTileId">
+              <v-row
+                ><v-col class="text-center"
+                  ><v-label class="text-overline ma-1">Selected</v-label></v-col
+                ></v-row
+              >
+              <TilePreview :tileId="activeTileId" win="a" />
+            </template>
+            <!-- Show other results -->
+            <v-row v-if="resultsA.length > 0"
               ><v-col class="text-center"
-                ><v-label class="text-overline ma-1">Selected</v-label></v-col
+                ><v-label class="text-overline ma-1 mt-4">All Search Results</v-label></v-col
               ></v-row
             >
-            <TilePreview :tileId="activeTileId" win="a" />
-          </template>
-          <!-- Show other results -->
-          <v-row v-if="resultsA.length > 0"
-            ><v-col class="text-center"
-              ><v-label class="text-overline ma-1 mt-4">All Search Results</v-label></v-col
-            ></v-row
-          >
-          <TilePreview v-for="result in resultsA" :key="result?.id" win="a" :tileId="result?.id" />
-          <v-alert v-if="!hasMore" class="mb-2 mt-2" color="teal" type="info" density="compact">
-            <p class="mb-2">
-              No more images found. Try adjusting your filters (date range, cloud cover, area
-              coverage) to increase the likelihood of finding more results.
-            </p>
-            <p>
-              You can provide your own EarthSearch STAC Item ID if you didn't find what you were
-              looking for:<br />
-              <v-text-field
-                v-model="activeTileId"
-                type="text"
-                label="STAC Item ID"
-                variant="outlined"
-                density="compact"
-                hide-details
-                class="mt-2"
-              />
-            </p>
-          </v-alert>
-          <v-btn v-if="hasMore" @click="loadMore" class="action-button mt-4" :disabled="isLoading">
-            <template v-if="isLoading">Loading...</template>
-            <template v-else>Load more</template>
-          </v-btn>
-        </div>
+            <TilePreview
+              v-for="result in resultsA"
+              :key="result?.id"
+              win="a"
+              :tileId="result?.id"
+            />
+            <v-alert v-if="!hasMore" class="mb-2 mt-2" color="teal" type="info" density="compact">
+              <p class="mb-2">
+                No more images found. Try adjusting your filters (date range, cloud cover, area
+                coverage) to increase the likelihood of finding more results.
+              </p>
+              <p>
+                You can provide your own EarthSearch STAC Item ID if you didn't find what you were
+                looking for:<br />
+                <v-text-field
+                  v-model="activeTileId"
+                  type="text"
+                  label="STAC Item ID"
+                  variant="outlined"
+                  density="compact"
+                  hide-details
+                  class="mt-2"
+                />
+              </p>
+            </v-alert>
+            <v-btn
+              v-if="hasMore"
+              @click="loadMore"
+              class="action-button mt-4"
+              :disabled="isLoading"
+            >
+              <template v-if="isLoading">Loading...</template>
+              <template v-else>Load more</template>
+            </v-btn>
+          </div>
+        </v-expansion-panel-text>
       </v-expansion-panel>
       <!-- Scene B -->
       <v-expansion-panel
@@ -1047,47 +1049,59 @@ const getStatus = (condition: any, warn: boolean = false) => {
             </template>
           </v-tooltip>
         </v-expansion-panel-title>
-        <div class="results">
-          <!-- Show second accordion's active tile first -->
-          <template v-if="secondActiveTileId">
-            <v-row
+        <v-expansion-panel-text>
+          <div class="results">
+            <!-- Show second accordion's active tile first -->
+            <template v-if="secondActiveTileId">
+              <v-row
+                ><v-col class="text-center"
+                  ><v-label class="text-overline ma-1">Selected</v-label></v-col
+                ></v-row
+              >
+              <TilePreview :tileId="secondActiveTileId" win="b" />
+            </template>
+            <!-- Show other results -->
+            <v-row v-if="resultsB.length > 0"
               ><v-col class="text-center"
-                ><v-label class="text-overline ma-1">Selected</v-label></v-col
+                ><v-label class="text-overline ma-1 mt-4">All Search Results</v-label></v-col
               ></v-row
             >
-            <TilePreview :tileId="secondActiveTileId" win="b" />
-          </template>
-          <!-- Show other results -->
-          <v-row v-if="resultsB.length > 0"
-            ><v-col class="text-center"
-              ><v-label class="text-overline ma-1 mt-4">All Search Results</v-label></v-col
-            ></v-row
-          >
-          <TilePreview v-for="result in resultsB" :key="result?.id" win="b" :tileId="result?.id" />
-          <v-alert v-if="!hasMore" class="mb-2 mt-2" color="teal" type="info" density="compact">
-            <p class="mb-2">
-              No more images found. Try adjusting your filters (date range, cloud cover, area
-              coverage) to increase the likelihood of finding more results.
-            </p>
-            <p>
-              You can provide your own EarthSearch STAC Item ID if you didn't find what you were
-              looking for:<br />
-              <v-text-field
-                v-model="secondActiveTileId"
-                type="text"
-                label="STAC Item ID"
-                variant="outlined"
-                density="compact"
-                hide-details
-                class="mt-2"
-              />
-            </p>
-          </v-alert>
-          <v-btn v-if="hasMore" @click="loadMore" class="action-button mt-4" :disabled="isLoading">
-            <template v-if="isLoading">Loading...</template>
-            <template v-else>Load more</template>
-          </v-btn>
-        </div>
+            <TilePreview
+              v-for="result in resultsB"
+              :key="result?.id"
+              win="b"
+              :tileId="result?.id"
+            />
+            <v-alert v-if="!hasMore" class="mb-2 mt-2" color="teal" type="info" density="compact">
+              <p class="mb-2">
+                No more images found. Try adjusting your filters (date range, cloud cover, area
+                coverage) to increase the likelihood of finding more results.
+              </p>
+              <p>
+                You can provide your own EarthSearch STAC Item ID if you didn't find what you were
+                looking for:<br />
+                <v-text-field
+                  v-model="secondActiveTileId"
+                  type="text"
+                  label="STAC Item ID"
+                  variant="outlined"
+                  density="compact"
+                  hide-details
+                  class="mt-2"
+                />
+              </p>
+            </v-alert>
+            <v-btn
+              v-if="hasMore"
+              @click="loadMore"
+              class="action-button mt-4"
+              :disabled="isLoading"
+            >
+              <template v-if="isLoading">Loading...</template>
+              <template v-else>Load more</template>
+            </v-btn>
+          </div>
+        </v-expansion-panel-text>
       </v-expansion-panel>
     </v-expansion-panels>
   </div>
@@ -1105,6 +1119,9 @@ const getStatus = (condition: any, warn: boolean = false) => {
 </template>
 
 <style scoped>
+:deep(.scenes .v-expansion-panel-text__wrapper) {
+  padding: 0;
+}
 .scenes .results {
   flex: 1;
   transition: opacity 0.3s ease;

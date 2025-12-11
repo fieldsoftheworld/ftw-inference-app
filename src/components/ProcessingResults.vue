@@ -24,7 +24,7 @@
             </v-expansion-panel-text>
           </v-expansion-panel>
           <v-expansion-panel title="Field Details" class="panel fields">
-            <div class="field-details">
+            <v-expansion-panel-text>
               <v-row>
                 <v-col cols="12" class="d-flex align-center">
                   <v-select
@@ -61,7 +61,7 @@
               <v-btn v-if="hasMoreResults" @click="limit += 50" class="action-button mt-4"
                 >Show more
               </v-btn>
-            </div>
+            </v-expansion-panel-text>
           </v-expansion-panel>
         </v-expansion-panels>
       </div>
@@ -327,6 +327,10 @@ const clearResults = () => {
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
+}
+
+:deep(.panel.fields .v-expansion-panel-text__wrapper) {
+  padding: 0;
 }
 
 .group {
