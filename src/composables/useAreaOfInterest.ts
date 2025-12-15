@@ -196,7 +196,7 @@ export default function useAreaOfInterest() {
 
       map.getView().fit(paddedExtent, {
         duration: 1000,
-        maxZoom: 13,
+        maxZoom: 17,
       })
     }
   }

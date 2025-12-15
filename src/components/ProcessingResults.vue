@@ -10,15 +10,6 @@
         </v-icon>
         <span class="text-white title">Results ({{ geoJsonResults.length }})</span>
       </div>
-      <v-btn
-        icon
-        variant="text"
-        size="small"
-        @click.stop="returnToResultsHandler"
-        class="text-white"
-      >
-        <v-icon :icon="mdiTarget"></v-icon>
-      </v-btn>
     </v-card-title>
 
     <v-card-text v-show="isOpen" class="content">
@@ -76,10 +67,25 @@
       </div>
 
       <div class="action-buttons">
-        <v-btn class="action-button" @click="downloadResults" density="compact">Download</v-btn>
-        <v-btn class="action-button" @click="clearResultsHandler" color="error" density="compact"
+        <v-btn class="action-button download-results" @click="downloadResults" density="comfortable"
+          >Download</v-btn
+        >
+        <v-btn
+          class="action-button clear-results"
+          @click="clearResultsHandler"
+          color="error"
+          density="compact"
           >Clear</v-btn
         >
+        <v-btn
+          icon
+          color="primary"
+          variant="flat"
+          @click.stop="returnToResultsHandler"
+          class="action-button return-to-results"
+        >
+          <v-icon :icon="mdiTarget"></v-icon>
+        </v-btn>
       </div>
     </v-card-text>
   </v-card>
