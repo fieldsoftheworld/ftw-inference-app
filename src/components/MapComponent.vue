@@ -1,12 +1,11 @@
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue'
+import { ref, onMounted } from 'vue'
 import { Map, View } from 'ol'
 import DataCabinet from './DataCabinet.vue'
 import ProcessingResults from './ProcessingResults.vue'
 import PropertiesDisplay from './PropertiesDisplay.vue'
 import createLabelLayer from '../layers/Label-Layer'
 import createS2GridLayer from '../layers/S2-Grid-Layer'
-import createCloudlessLayer from '../layers/S2-Cloudless-Layer'
 import { generateJWT } from '../functions/generate-jwt'
 import useAreaOfInterest from '../composables/useAreaOfInterest'
 import usePermalink from '../composables/usePermalink'
@@ -22,10 +21,11 @@ const {
   originalClickPosition,
   hidePropertiesBox,
   geoJsonResults,
+  initCloudlessLayer,
 } = useMap()
 
 const { addMapClickHandler } = useAreaOfInterest()
-const { settings, setAvailableModels } = useSettings()
+const { setAvailableModels } = useSettings()
 
 const clearResults = () => {
   geoJsonResults.value = []
@@ -35,7 +35,6 @@ const clearResults = () => {
 const { setupPermalink } = usePermalink()
 
 const critical = ref<string | null>(null)
-const cloudlessLayer = ref<ReturnType<typeof createCloudlessLayer> | null>(null)
 
 onMounted(async () => {
   map.value = new Map({
@@ -81,6 +80,9 @@ onMounted(async () => {
 
   // Add S2 Grid layer after map is initialized
   if (map.value) {
+    // Initialize the cloudless base layer
+    initCloudlessLayer()
+
     const s2GridLayer = createS2GridLayer()
     addMapClickHandler(map.value as Map, areaValues.value)
     map.value.addLayer(s2GridLayer)
@@ -88,24 +90,6 @@ onMounted(async () => {
     setupPermalink(map)
   }
 })
-
-// Watch for year changes and update the cloudless layer
-watch(
-  () => settings.value.year,
-  (newYear) => {
-    if (!map.value || !cloudlessLayer.value) {
-      return
-    }
-
-    // Remove the old cloudless layer
-    map.value.removeLayer(cloudlessLayer.value as any)
-
-    // Create and add the new cloudless layer with the updated year
-    cloudlessLayer.value = createCloudlessLayer(newYear)
-    // Insert at index 0 to maintain the layer order (cloudless layer should be first)
-    map.value.getLayers().insertAt(0, cloudlessLayer.value as any)
-  },
-)
 
 // Expose methods to parent components
 defineExpose({
