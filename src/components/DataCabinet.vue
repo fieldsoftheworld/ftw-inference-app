@@ -36,18 +36,26 @@ const toggleCollapsible = () => {
             v-if="modelTitle && !settings.expertMode"
             inline
             :content="`Model: ${modelTitle}`"
+            @click.stop="($refs.panel as typeof ProcessingPanel).openModelSelection()"
+            class="clickable-badge"
           ></v-badge>
         </span>
       </div>
     </v-card-title>
 
     <v-card-text v-show="isOpen" class="content">
-      <ProcessingPanel @work-state-changed="(v) => (isWorking = v)" />
+      <ProcessingPanel ref="panel" @work-state-changed="(v) => (isWorking = v)" />
     </v-card-text>
   </v-card>
 </template>
 
 <style scoped>
+.clickable-badge {
+  cursor: pointer;
+}
+.clickable-badge:hover :deep(.v-badge__badge) {
+  background-color: white;
+}
 .data-cabinet {
   left: 1rem;
   min-width: 300px;

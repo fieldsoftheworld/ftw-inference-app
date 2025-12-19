@@ -397,6 +397,12 @@ const getStatus = (condition: any, warn: boolean = false) => {
     icon: success ? mdiCheckBold : warn ? mdiExclamationThick : mdiClose,
   }
 }
+
+const openModelSelection = () => {
+  settings.value.expertMode = true
+  activePanel.value = 'model'
+}
+defineExpose({ openModelSelection })
 </script>
 
 <template>
