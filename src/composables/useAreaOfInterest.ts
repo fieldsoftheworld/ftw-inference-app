@@ -1,14 +1,6 @@
 import { Feature, type Map } from 'ol'
 import { never } from 'ol/events/condition'
-import {
-  buffer,
-  getCenter,
-  getHeight,
-  getIntersection,
-  getWidth,
-  isEmpty,
-  type Extent,
-} from 'ol/extent'
+import { getCenter, getHeight, getIntersection, getWidth, isEmpty, type Extent } from 'ol/extent'
 import ExtentInteraction from 'ol/interaction/Extent'
 import { Fill, Stroke, Style } from 'ol/style'
 import { nextTick, ref, type Ref, shallowRef, watch } from 'vue'
@@ -188,7 +180,51 @@ export default function useAreaOfInterest() {
     extentInteraction.value = null
   }
 
-  function clearResultsAndZoomToGrid(map: Map) {
+  function fitToExtent(
+    map: Map,
+    extent?: Extent,
+    padding: number | null = 0,
+    maxZoom: number = 17,
+  ) {
+    if (
+      !extent ||
+      extent.every((coord: number) => coord === 0) ||
+      extent.some((coord: number) => isNaN(coord))
+    ) {
+      showError('Invalid extent for this result.')
+      return
+    }
+
+    let paddings: [number, number, number, number]
+    if (padding === null) {
+      // Calculate dynamic padding based on screen dimensions
+      const screenWidth = window.innerWidth
+      const screenHeight = window.innerHeight
+      // Use a percentage of screen dimensions for padding
+      // This ensures the geometry fits regardless of screen size
+      const paddingY = Math.max(100, screenHeight * 0.2) // At least 100px or 30% of screen height
+      paddings = [paddingY, screenWidth * 0.25, paddingY, screenWidth * 0.35]
+    } else {
+      paddings = [padding, padding, padding, padding]
+    }
+
+    // Fit the map to the result's extent with dynamic padding
+    map.getView().fit(extent, {
+      duration: 1000,
+      padding: paddings, // [top, right, bottom, left]
+      maxZoom: maxZoom,
+    })
+  }
+
+  function returnToResults(map: Map) {
+    // Zoom back to the stored grid extent if available
+    const extent = vectorLayer.value?.getSource()?.getExtent()
+    if (extent && !isEmpty(extent)) {
+      fitToExtent(map, extent, 50)
+    }
+  }
+
+  function clearResults(map: Map) {
     geoJsonResults.value = []
 
     // Remove the GeoJSON results layer from the map
@@ -198,17 +234,6 @@ export default function useAreaOfInterest() {
       if (vectorLayer.value.getSource) {
         vectorLayer.value.getSource()!.dispose()
       }
-    }
-
-    // Zoom back to the stored grid extent if available
-    if (currentGridExtent.value) {
-      const padding = 50
-      const paddedExtent = buffer(currentGridExtent.value, padding)
-
-      map.getView().fit(paddedExtent, {
-        duration: 1000,
-        maxZoom: 13,
-      })
     }
   }
 
@@ -411,15 +436,8 @@ export default function useAreaOfInterest() {
         currentBBox.value = transformExtent(bboxExtent, 'EPSG:3857', 'EPSG:4326')
         validateBBox(currentBBox.value)
 
-        // Add padding to the extent for view fitting
-        const padding = 50
-
         // Fit the view to the extent
-        map.getView().fit(extentAtClickedPosition, {
-          padding: [padding, padding, padding, padding],
-          duration: 1000,
-          maxZoom: 13,
-        })
+        fitToExtent(map, extentAtClickedPosition, 50, 13)
 
         // Create and add Modify interaction with size restriction
         addExtentInteraction(map, areaValues)
@@ -492,16 +510,9 @@ export default function useAreaOfInterest() {
         const bboxPolygon = fromExtent(bboxExtent)
         extentFeature.setGeometry(bboxPolygon)
 
-        // Add padding to the extent for view fitting
-        const padding = 50
-        const paddedExtent = buffer(extent, padding)
-
         // Fit the view to the extent
         if (fit) {
-          map.getView().fit(paddedExtent, {
-            duration: 1000,
-            maxZoom: 13,
-          })
+          fitToExtent(map, extent)
         }
 
         // Use provided bbox or create a smaller bbox within the grid to avoid overlap with adjacent grids
@@ -547,7 +558,9 @@ export default function useAreaOfInterest() {
     currentGridExtent,
     activeTileId,
     secondActiveTileId,
-    clearResultsAndZoomToGrid,
+    clearResults,
+    returnToResults,
+    fitToExtent,
     triggerTileSelection,
     calculateArea,
     getTileById,

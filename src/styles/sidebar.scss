@@ -10,7 +10,7 @@
   background-color: rgba(0, 0, 0, 0.9);
 }
 
-@media (width <= 1400px) {
+@media (width <=1400px) {
   .sidebar {
     top: 4rem !important;
     max-height: calc(100vh - 5rem);
@@ -83,6 +83,23 @@
   align-items: center;
   min-height: 2.5rem;
   padding: 0.25rem;
+
+  &.download-results {
+    min-width: 115px;
+    width: 115px;
+  }
+
+  &.clear-results {
+    width: 65px;
+    min-width: 65px;
+    flex: 0;
+  }
+
+  &.return-to-results {
+    min-width: 30px;
+    width: 30px;
+    height: 40px;
+  }
 }
 
 .sidebar .action-button:hover:not(:disabled) {

@@ -67,8 +67,24 @@
       </div>
 
       <div class="action-buttons">
-        <v-btn class="action-button" @click="downloadResults" density="compact">Download</v-btn>
-        <v-btn class="action-button" @click="clearResults" color="error" density="compact"
+        <v-btn
+          icon
+          color="primary"
+          variant="flat"
+          @click.stop="returnToResultsHandler"
+          class="action-button return-to-results"
+          title="Zoom to results"
+        >
+          <v-icon :icon="mdiTarget"></v-icon>
+        </v-btn>
+        <v-btn class="action-button download-results" @click="downloadResults" density="comfortable"
+          >Download</v-btn
+        >
+        <v-btn
+          class="action-button clear-results"
+          @click="clearResultsHandler"
+          color="error"
+          density="compact"
           >Clear</v-btn
         >
       </div>
@@ -82,7 +98,7 @@ import useMap from '../composables/useMap'
 import useNotifier from '../composables/useNotifier'
 import useAreaOfInterest from '../composables/useAreaOfInterest'
 import PropertiesDisplay from './PropertiesDisplay.vue'
-import { mdiChevronDown } from '@mdi/js'
+import { mdiChevronDown, mdiTarget } from '@mdi/js'
 import { type Feature } from 'geojson'
 
 const props = defineProps<{
@@ -94,7 +110,7 @@ const emit = defineEmits<{
 }>()
 
 const { map, handleMapClick, vectorLayer, selectedFeature, hidePropertiesBox } = useMap()
-const { clearResultsAndZoomToGrid } = useAreaOfInterest()
+const { clearResults, returnToResults, fitToExtent } = useAreaOfInterest()
 const { showInfo, showError } = useNotifier()
 
 const isOpen = ref(true)
@@ -242,27 +258,7 @@ const fitMapToResult = (result: Feature) => {
   // Get the extent of the feature
   const extent = resultFeature.getGeometry()?.getExtent()
 
-  if (
-    !extent ||
-    extent.every((coord: number) => coord === 0) ||
-    extent.some((coord: number) => isNaN(coord))
-  ) {
-    showError('Invalid extent for this result.')
-    return
-  }
-
-  // Calculate dynamic padding based on screen dimensions
-  const screenWidth = window.innerWidth
-  const screenHeight = window.innerHeight
-  // Use a percentage of screen dimensions for padding
-  // This ensures the geometry fits regardless of screen size
-  const paddingY = Math.max(100, screenHeight * 0.2) // At least 100px or 30% of screen height
-  // Fit the map to the result's extent with dynamic padding
-  map.value?.getView().fit(extent, {
-    duration: 1000,
-    padding: [paddingY, screenWidth * 0.25, paddingY, screenWidth * 0.35], // [top, right, bottom, left]
-    maxZoom: 17,
-  })
+  fitToExtent(map.value!, extent, null)
 }
 
 onMounted(() => {
@@ -283,11 +279,15 @@ onUnmounted(() => {
   }
 })
 
-const clearResults = () => {
+const clearResultsHandler = () => {
   // Clear results and zoom back to S2 grid
-  clearResultsAndZoomToGrid(map.value!)
+  clearResults(map.value!)
   // Emit event to clear results in parent components
   emit('clearResults')
+}
+
+const returnToResultsHandler = () => {
+  returnToResults(map.value!)
 }
 </script>
 
