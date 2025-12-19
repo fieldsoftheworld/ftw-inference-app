@@ -6,7 +6,6 @@ import ProcessingResults from './ProcessingResults.vue'
 import PropertiesDisplay from './PropertiesDisplay.vue'
 import createLabelLayer from '../layers/Label-Layer'
 import createS2GridLayer from '../layers/S2-Grid-Layer'
-import createCloudlessLayer from '../layers/S2-Cloudless-Layer'
 import { generateJWT } from '../functions/generate-jwt'
 import useAreaOfInterest from '../composables/useAreaOfInterest'
 import usePermalink from '../composables/usePermalink'
@@ -22,6 +21,7 @@ const {
   originalClickPosition,
   hidePropertiesBox,
   geoJsonResults,
+  initCloudlessLayer,
 } = useMap()
 
 const { addMapClickHandler } = useAreaOfInterest()
@@ -39,7 +39,7 @@ const critical = ref<string | null>(null)
 onMounted(async () => {
   map.value = new Map({
     target: 'map',
-    layers: [createCloudlessLayer(), createLabelLayer()],
+    layers: [createLabelLayer()],
     view: new View({
       center: [0, 0],
       zoom: 2,
@@ -80,10 +80,12 @@ onMounted(async () => {
 
   // Add S2 Grid layer after map is initialized
   if (map.value) {
+    // Initialize the cloudless base layer
+    initCloudlessLayer()
+
     const s2GridLayer = createS2GridLayer()
     addMapClickHandler(map.value as Map, areaValues.value)
     map.value.addLayer(s2GridLayer)
-
     // Setup permalink functionality
     setupPermalink(map)
   }

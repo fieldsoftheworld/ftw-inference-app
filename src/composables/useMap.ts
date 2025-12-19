@@ -2,11 +2,15 @@ import { ref, shallowRef, watch } from 'vue'
 import type Map from 'ol/Map'
 import VectorSource from 'ol/source/Vector'
 import VectorLayer from 'ol/layer/Vector'
+import TileLayer from 'ol/layer/Tile'
+import type XYZ from 'ol/source/XYZ'
 import GeoJSON from 'ol/format/GeoJSON'
 import { transformExtent } from 'ol/proj'
 import type { Extent } from 'ol/extent'
 import { type FeatureCollection } from 'geojson'
 import useNotifier from './useNotifier'
+import useSettings from './useSettings'
+import createCloudlessLayer from '../layers/S2-Cloudless-Layer'
 import { Fill, Stroke, Style } from 'ol/style'
 import { type FeatureLike } from 'ol/Feature'
 
@@ -34,6 +38,38 @@ const originalClickPosition = ref<{ x: number; y: number } | null>(null)
 const showPropertiesBox = ref(false)
 
 const geoJsonResults = shallowRef<any[]>([])
+
+// Cloudless layer management
+const cloudlessLayer = shallowRef<TileLayer<XYZ> | null>(null)
+const { settings } = useSettings()
+
+// Watch for year changes and update the cloudless layer
+watch(
+  () => settings.value.year,
+  (newYear) => {
+    if (!map.value) {
+      return
+    }
+
+    // Remove the old cloudless layer if it exists
+    if (cloudlessLayer.value) {
+      map.value.removeLayer(cloudlessLayer.value)
+    }
+
+    // Create and add the new cloudless layer with the updated year
+    cloudlessLayer.value = createCloudlessLayer(newYear)
+    // Insert at index 0 to keep it as the base layer
+    map.value.getLayers().insertAt(0, cloudlessLayer.value)
+  },
+)
+
+const initCloudlessLayer = () => {
+  if (!map.value) {
+    return
+  }
+  cloudlessLayer.value = createCloudlessLayer(settings.value.year)
+  map.value.getLayers().insertAt(0, cloudlessLayer.value)
+}
 
 const featureStyle = new Style({
   fill: new Fill({
@@ -221,5 +257,6 @@ export default function useMap() {
     fitMapToBbox,
     displayGeoJSON,
     geoJsonResults,
+    initCloudlessLayer,
   }
 }
