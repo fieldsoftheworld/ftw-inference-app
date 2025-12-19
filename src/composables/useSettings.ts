@@ -46,6 +46,11 @@ const defaultModel = computed(() => {
   return selected?.id || ''
 })
 
+const modelTitle = computed(() => {
+  const model = settings.value.model
+  return model ? availableModels.value.find((m) => m.id === model)?.title || null : null
+})
+
 watch(defaultModel, () => {
   if (defaultModel.value && !settings.value.model) {
     settings.value.model = defaultModel.value
@@ -122,6 +127,7 @@ export default function useSettings() {
     availableModels,
     defaultSettings,
     defaultModel,
+    modelTitle,
     loadSettingsFromStorage,
     setAvailableModels,
     modelIsSingleShot,

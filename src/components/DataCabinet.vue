@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { mdiChevronDown } from '@mdi/js'
 import { ref } from 'vue'
-import useAreaOfInterest from '../composables/useAreaOfInterest'
 import useSearch from '../composables/useSearch'
+import useSettings from '../composables/useSettings'
 import ProcessingPanel from './ProcessingPanel.vue'
 
 const { searchStatus } = useSearch()
-const { currentMgrsTileId } = useAreaOfInterest()
+const { modelTitle, settings } = useSettings()
 
 // Sidebar state
 const isWorking = ref(false)
@@ -33,22 +33,29 @@ const toggleCollapsible = () => {
         <span class="title text-white">
           Processing
           <v-badge
-            v-if="currentMgrsTileId"
+            v-if="modelTitle && !settings.expertMode"
             inline
-            :content="currentMgrsTileId"
-            title="The selected tile identifier"
+            :content="`Model: ${modelTitle}`"
+            @click.stop="($refs.panel as typeof ProcessingPanel).openModelSelection()"
+            class="clickable-badge"
           ></v-badge>
         </span>
       </div>
     </v-card-title>
 
     <v-card-text v-show="isOpen" class="content">
-      <ProcessingPanel @work-state-changed="(v) => (isWorking = v)" />
+      <ProcessingPanel ref="panel" @work-state-changed="(v) => (isWorking = v)" />
     </v-card-text>
   </v-card>
 </template>
 
 <style scoped>
+.clickable-badge {
+  cursor: pointer;
+}
+.clickable-badge:hover :deep(.v-badge__badge) {
+  background-color: white;
+}
 .data-cabinet {
   left: 1rem;
   min-width: 300px;
