@@ -48,7 +48,7 @@ function formattedValue(key: string | number, value: any): string {
   } else if (key === 'area') {
     return `${formatted} ha`
   } else if (key === 'perimeter') {
-    return `${formatted} km`
+    return `${formatted} m`
   }
   return `${formatted}`
 }
