@@ -168,7 +168,7 @@ interface ResaultStats {
 const statFields: ('area' | 'perimeter')[] = ['area', 'perimeter']
 const statUnits: Record<'area' | 'perimeter', (key: string | number) => string> = {
   area: (key) => (key === 'count' ? '' : 'ha'),
-  perimeter: (key) => (key === 'count' ? '' : 'km'),
+  perimeter: (key) => (key === 'count' ? '' : 'm'),
 }
 
 const statistics = computed(() => {
