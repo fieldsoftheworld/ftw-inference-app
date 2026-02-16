@@ -16,17 +16,23 @@
 <script setup lang="ts">
 import { generateJWT } from '../functions/generate-jwt'
 import useProcessing from '../composables/useProcessing'
+import useMap from '../composables/useMap'
 
 const { projects } = useProcessing()
+const { displayGeoJSON } = useMap()
 
-const queryProcess = (id) => {
+const queryProcess = async (id) => {
   const token = generateJWT()
-  fetch(`${import.meta.env.VITE_API_BASE_URL}projects/${id}`, {
+  const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}projects/${id}/inference`, {
     headers: {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${token}`,
     }
-  })
+  }).then( res  => res.json() )
+  const blob = await fetch(res.polygons)
+  const data = await blob.text()
+  const polygons = JSON.parse(data)
+  displayGeoJSON(polygons) //TODO: fit map to bbox
 }
 
 </script>
