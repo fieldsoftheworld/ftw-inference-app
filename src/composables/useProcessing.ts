@@ -282,5 +282,6 @@ export default function useProcessing() {
     isProcessing,
     processBatch,
     processSmallArea,
+    projects
   }
 }

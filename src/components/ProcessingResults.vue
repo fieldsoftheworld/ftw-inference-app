@@ -63,6 +63,15 @@
               </v-btn>
             </v-expansion-panel-text>
           </v-expansion-panel>
+          <v-expansion-panel title="Processes" class="panel processes">
+            <v-expansion-panel-text>
+              <div>
+                <div v-for="project in projects" class="group" :key="project">
+                  <v-label class="text-capitalize mb-1">{{ project }}</v-label>
+                </div>
+              </div>
+            </v-expansion-panel-text>
+          </v-expansion-panel>
         </v-expansion-panels>
       </div>
 
@@ -97,6 +106,7 @@ import { ref, onMounted, onUnmounted, onBeforeUnmount, computed } from 'vue'
 import useMap from '../composables/useMap'
 import useNotifier from '../composables/useNotifier'
 import useAreaOfInterest from '../composables/useAreaOfInterest'
+import useProcessing from '../composables/useProcessing'
 import PropertiesDisplay from './PropertiesDisplay.vue'
 import { mdiChevronDown, mdiTarget } from '@mdi/js'
 import { type Feature } from 'geojson'
@@ -112,6 +122,7 @@ const emit = defineEmits<{
 const { map, handleMapClick, vectorLayer, selectedFeature, hidePropertiesBox } = useMap()
 const { clearResults, returnToResults, fitToExtent } = useAreaOfInterest()
 const { showInfo, showError } = useNotifier()
+const { projects } = useProcessing()
 
 const isOpen = ref(true)
 const limit = ref(50)
