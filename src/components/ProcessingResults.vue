@@ -65,11 +65,16 @@
           </v-expansion-panel>
           <v-expansion-panel title="Processes" class="panel processes">
             <v-expansion-panel-text>
-              <div>
-                <div v-for="project in projects" class="group" :key="project">
-                  <v-label class="text-capitalize mb-1">{{ project }}</v-label>
-                </div>
-              </div>
+              <v-list density="compact" color="transparent" class="pa-0">
+                <v-list-item
+                  v-for="project in projects" 
+                  class="group" 
+                  :key="project"
+                  @click.stop="queryProcess(project)"
+                  >
+                    <v-label class="text-capitalize mb-1">{{ project }}</v-label>
+                </v-list-item>
+              </v-list>
             </v-expansion-panel-text>
           </v-expansion-panel>
         </v-expansion-panels>
@@ -110,6 +115,7 @@ import useProcessing from '../composables/useProcessing'
 import PropertiesDisplay from './PropertiesDisplay.vue'
 import { mdiChevronDown, mdiTarget } from '@mdi/js'
 import { type Feature } from 'geojson'
+import { generateJWT } from '../functions/generate-jwt'
 
 const props = defineProps<{
   geoJsonResults: any[]
@@ -248,6 +254,17 @@ const downloadResults = () => {
     showError('Failed to download results.')
   }
 }
+
+const queryProcess = (id) => {
+  const token = generateJWT()
+  fetch(`${import.meta.env.VITE_API_BASE_URL}projects/${id}`, {
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    }
+  })
+}
+
 
 const fitMapToResult = (result: Feature) => {
   if (!result || !result.id) {
