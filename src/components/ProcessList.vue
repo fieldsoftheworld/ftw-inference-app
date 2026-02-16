@@ -23,17 +23,25 @@ const { displayGeoJSON, fitMapToBbox } = useMap()
 
 const queryProcess = async (id) => {
   const token = generateJWT()
-  const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}projects/${id}`, {
+  
+  try {
+    //initiate loading indicator here
+    let res = await fetch(`${import.meta.env.VITE_API_BASE_URL}projects/${id}`, {
     headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${token}`,
-    }
-  }).then( res  => res.json() )
-  const blob = await fetch(res.results.polygons)
-  const data = await blob.text()
-  const polygons = JSON.parse(data)
-  displayGeoJSON(polygons)
-  fitMapToBbox(res.parameters.inference.bbox) //TODO: add loading throbber
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      }
+      })
+    res = await res.json()
+    const blob = await fetch(res.results.polygons)
+    const polygons = await blob.json()
+    displayGeoJSON(polygons)
+    fitMapToBbox(res.parameters.inference.bbox)
+  } catch (e) {
+    
+  } finally {
+    //stop loading indicator
+  }
 }
 
 </script>
