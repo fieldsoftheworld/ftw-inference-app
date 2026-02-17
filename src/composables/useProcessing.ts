@@ -9,6 +9,10 @@ import useSettings from './useSettings'
 import useStacLayer from './useStacLayer'
 import { type SearchResult } from './useSearch'
 
+const isProjectLoading = ref(false)
+const isProcessing = ref(false)
+const projects = ref<Array<string>>([])
+
 export default function useProcessing() {
   const { currentBBox, isBBox } = useAreaOfInterest()
   const { fitMapToBbox, displayGeoJSON } = useMap()
@@ -17,11 +21,6 @@ export default function useProcessing() {
   const { stacPreviewTileId } = useStacLayer()
 
   const apiBaseUrl = import.meta.env.VITE_API_BASE_URL
-
-  const isProjectLoading = ref(false)
-  const isProcessing = ref(false)
-
-  const projects = ref<Array<string>>([])
 
   const loadProjectsFromStorage = () => {
     const stored = localStorage.getItem('ftw-projects')
@@ -279,24 +278,24 @@ export default function useProcessing() {
     }
   }
 
-  const loadProject = async(id: String) => {
+  const loadProject = async (id: string) => {
     const token = generateJWT()
 
     try {
       isProjectLoading.value = true
-      let res = await fetch(`${import.meta.env.VITE_API_BASE_URL}projects/${id}`, {
-      headers: {
+      const response = await fetch(`${apiBaseUrl}projects/${id}`, {
+        headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
-        }
-        })
-      res = await res.json()
-      const blob = await fetch(res.results.polygons)
+        },
+      })
+      const project = await response.json()
+      const blob = await fetch(project.results.polygons)
       const polygons = await blob.json()
-      polygons.bbox = res.parameters.inference.bbox
+      polygons.bbox = project.parameters.inference.bbox
       return polygons
     } catch (e) {
-      showError((e as Error)?.message || String(e))  
+      showError((e as Error)?.message || String(e))
     } finally {
       isProjectLoading.value = false
     }
@@ -308,6 +307,6 @@ export default function useProcessing() {
     processBatch,
     processSmallArea,
     loadProject,
-    projects
+    projects,
   }
 }
