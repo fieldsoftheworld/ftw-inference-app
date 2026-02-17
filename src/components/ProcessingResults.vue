@@ -18,26 +18,7 @@
       <v-spacer />
 
       <!-- Project List Dialog -->
-      <v-dialog v-if="projects.length > 0" width="auto">
-        <template v-slot:activator="{ props: activatorProps }">
-          <v-btn variant="outlined" density="comfortable" color="primary" v-bind="activatorProps"
-            >Load</v-btn>
-        </template>
-        <template v-slot:default="{ isActive }">
-          <v-card title="Load Project">
-            <ProcessList />
-          
-            <v-card-actions>
-              <v-spacer></v-spacer>
-            
-              <v-btn
-                text="Close Dialog"
-                @click="isActive.value = false"
-              ></v-btn>
-            </v-card-actions>
-          </v-card>
-        </template>
-      </v-dialog>
+      <ProjectSelectionDialog />
     </v-card-title>
 
     <v-card-text v-show="isOpen" class="content">
@@ -131,6 +112,7 @@ import ProcessList from './ProcessList.vue'
 import { mdiChevronDown, mdiTarget } from '@mdi/js'
 import { type Feature } from 'geojson'
 import useProcessing from '../composables/useProcessing'
+import ProjectSelectionDialog from './ProjectSelectionDialog.vue'
 
 const props = defineProps<{
   geoJsonResults: any[]
