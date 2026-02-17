@@ -18,30 +18,14 @@ import { generateJWT } from '../functions/generate-jwt'
 import useProcessing from '../composables/useProcessing'
 import useMap from '../composables/useMap'
 
-const { projects } = useProcessing()
+const { projects, loadProject } = useProcessing()
 const { displayGeoJSON, fitMapToBbox } = useMap()
 
-const queryProcess = async (id) => {
-  const token = generateJWT()
-  
-  try {
-    //initiate loading indicator here
-    let res = await fetch(`${import.meta.env.VITE_API_BASE_URL}projects/${id}`, {
-    headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-      }
-      })
-    res = await res.json()
-    const blob = await fetch(res.results.polygons)
-    const polygons = await blob.json()
-    displayGeoJSON(polygons)
-    fitMapToBbox(res.parameters.inference.bbox)
-  } catch (e) {
-    
-  } finally {
-    //stop loading indicator
-  }
+const queryProcess = async (id: String) => {
+  const polygons = await loadProject(id)  
+  displayGeoJSON(polygons)
+  fitMapToBbox(polygons.bbox)
+
 }
 
 </script>

@@ -18,6 +18,7 @@ export default function useProcessing() {
 
   const apiBaseUrl = import.meta.env.VITE_API_BASE_URL
 
+  const isProjectLoading = ref(false)
   const isProcessing = ref(false)
 
   const projects = ref<Array<string>>([])
@@ -278,10 +279,35 @@ export default function useProcessing() {
     }
   }
 
+  const loadProject = async(id: String) => {
+    const token = generateJWT()
+
+    try {
+      isProjectLoading.value = true
+      let res = await fetch(`${import.meta.env.VITE_API_BASE_URL}projects/${id}`, {
+      headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        }
+        })
+      res = await res.json()
+      const blob = await fetch(res.results.polygons)
+      const polygons = await blob.json()
+      polygons.bbox = res.parameters.inference.bbox
+      return polygons
+    } catch (e) {
+      showError((e as Error)?.message || String(e))  
+    } finally {
+      isProjectLoading.value = false
+    }
+  }
+
   return {
     isProcessing,
+    isProjectLoading,
     processBatch,
     processSmallArea,
+    loadProject,
     projects
   }
 }

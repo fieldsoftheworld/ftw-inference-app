@@ -1,5 +1,8 @@
 <template>
-  <v-card elevation="8" :class="{ closed: !isOpen, 'processing-results': true, sidebar: true }">
+  <v-card elevation="8" 
+    :class="{ closed: !isOpen, 'processing-results': true, sidebar: true }"
+    :loading="isProjectLoading"
+    >
     <v-card-title class="d-flex align-center justify-space-between pa-2">
       <div class="collapse-action" @click="toggleCollapsible">
         <v-icon
@@ -104,6 +107,7 @@ import PropertiesDisplay from './PropertiesDisplay.vue'
 import ProcessList from './ProcessList.vue'
 import { mdiChevronDown, mdiTarget } from '@mdi/js'
 import { type Feature } from 'geojson'
+import useProcessing from '../composables/useProcessing'
 
 const props = defineProps<{
   geoJsonResults: any[]
@@ -116,6 +120,7 @@ const emit = defineEmits<{
 const { map, handleMapClick, vectorLayer, selectedFeature, hidePropertiesBox } = useMap()
 const { clearResults, returnToResults, fitToExtent } = useAreaOfInterest()
 const { showInfo, showError } = useNotifier()
+const { isProjectLoading } = useProcessing()
 
 const isOpen = ref(true)
 const limit = ref(50)
