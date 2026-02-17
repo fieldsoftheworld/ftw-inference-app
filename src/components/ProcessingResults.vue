@@ -12,7 +12,7 @@
           :icon="mdiChevronDown"
         >
         </v-icon>
-        <span class="text-white title"> Results ({{ geoJsonResults.length }}) </span>
+        <span class="text-white title">Results ({{ geoJsonResults.length }})</span>
       </div>
       <span v-else class="text-white title">Results</span>
       <v-spacer />
@@ -102,7 +102,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, onBeforeUnmount, computed, watch } from 'vue'
+import { ref, computed, watch } from 'vue'
 import useMap from '../composables/useMap'
 import useNotifier from '../composables/useNotifier'
 import useAreaOfInterest from '../composables/useAreaOfInterest'
@@ -137,7 +137,20 @@ const hasMoreResults = computed(() => {
 
 watch(
   () => props.geoJsonResults,
-  (results) => (isOpen.value = results.length > 0),
+  (results) => {
+    const hasResults = results.length > 0
+    isOpen.value = hasResults
+    //
+    if (!hasResults) {
+      selectedFeature.value = null
+    }
+    // Map click handler to detect feature clicks and show properties
+    if (map.value) {
+      const action = hasResults ? 'on' : 'un'
+      map.value[action]('singleclick', handleMapClick)
+    }
+  },
+  { immediate: true },
 )
 
 const sortedResults = computed(() => {
@@ -277,24 +290,6 @@ const fitMapToResult = (result: Feature) => {
 
   fitToExtent(map.value!, extent, null)
 }
-
-onMounted(() => {
-  // Add map click handler to detect feature clicks and show properties
-  if (map.value) {
-    map.value.on('singleclick', handleMapClick)
-  }
-})
-
-onBeforeUnmount(() => {
-  selectedFeature.value = null
-})
-
-// Clean up map click handler when component is unmounted
-onUnmounted(() => {
-  if (map.value) {
-    map.value.un('singleclick', handleMapClick)
-  }
-})
 
 const clearResultsHandler = () => {
   // Clear results and zoom back to S2 grid

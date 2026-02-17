@@ -103,11 +103,10 @@ defineExpose({
   <div class="map-wrapper">
     <div id="map" class="map-container"></div>
 
-    <DataCabinet v-if="map" :map="map as Map" :areaValues="areaValues" />
+    <DataCabinet v-if="map" :areaValues="areaValues" />
 
     <ProcessingResults
       v-if="geoJsonResults.length > 0 || projects.length > 0"
-      :map="map as Map"
       :geoJsonResults="geoJsonResults"
       @clearResults="clearResults"
     />
