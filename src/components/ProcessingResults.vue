@@ -108,7 +108,6 @@ import useMap from '../composables/useMap'
 import useNotifier from '../composables/useNotifier'
 import useAreaOfInterest from '../composables/useAreaOfInterest'
 import PropertiesDisplay from './PropertiesDisplay.vue'
-import ProcessList from './ProcessList.vue'
 import { mdiChevronDown, mdiTarget } from '@mdi/js'
 import { type Feature } from 'geojson'
 import useProcessing from '../composables/useProcessing'
@@ -125,7 +124,7 @@ const emit = defineEmits<{
 const { map, handleMapClick, vectorLayer, selectedFeature, hidePropertiesBox } = useMap()
 const { clearResults, returnToResults, fitToExtent } = useAreaOfInterest()
 const { showInfo, showError } = useNotifier()
-const { isProjectLoading, projects } = useProcessing()
+const { isProjectLoading } = useProcessing()
 
 const isOpen = ref(false)
 const limit = ref(50)
