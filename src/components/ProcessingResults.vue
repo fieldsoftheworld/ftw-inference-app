@@ -1,18 +1,22 @@
 <template>
-  <v-card elevation="8" 
+  <v-card
+    elevation="8"
     :class="{ closed: !isOpen, 'processing-results': true, sidebar: true }"
     :loading="isProjectLoading"
-    >
+  >
     <v-card-title class="d-flex align-center justify-space-between pa-2">
-      <div class="collapse-action" @click="toggleCollapsible">
+      <div v-if="geoJsonResults.length > 0" class="collapse-action" @click="toggleCollapsible">
         <v-icon
           :class="{ 'rotate-180': isOpen }"
           class="mr-1 text-white transition-transform"
           :icon="mdiChevronDown"
         >
         </v-icon>
-        <span class="text-white title">Results ({{ geoJsonResults.length }})</span>
+        <span class="text-white title"> Results ({{ geoJsonResults.length }}) </span>
       </div>
+      <span v-else class="text-white title">Results</span>
+      <v-spacer />
+      <v-btn v-if="projects.length > 0">Load</v-btn>
     </v-card-title>
 
     <v-card-text v-show="isOpen" class="content">
@@ -99,7 +103,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, onBeforeUnmount, computed } from 'vue'
+import { ref, onMounted, onUnmounted, onBeforeUnmount, computed, watch } from 'vue'
 import useMap from '../composables/useMap'
 import useNotifier from '../composables/useNotifier'
 import useAreaOfInterest from '../composables/useAreaOfInterest'
@@ -120,9 +124,9 @@ const emit = defineEmits<{
 const { map, handleMapClick, vectorLayer, selectedFeature, hidePropertiesBox } = useMap()
 const { clearResults, returnToResults, fitToExtent } = useAreaOfInterest()
 const { showInfo, showError } = useNotifier()
-const { isProjectLoading } = useProcessing()
+const { isProjectLoading, projects } = useProcessing()
 
-const isOpen = ref(true)
+const isOpen = ref(false)
 const limit = ref(50)
 
 const sortKey = ref<'Id' | 'Area' | 'Perimeter'>('Id')
@@ -130,6 +134,10 @@ const sortOrder = ref<'ascending' | 'descending'>('ascending')
 
 const hasMoreResults = computed(() => {
   return props.geoJsonResults.length > limit.value
+})
+
+watch(props.geoJsonResults, (results) => {
+  isOpen.value = results.length > 0
 })
 
 const sortedResults = computed(() => {
