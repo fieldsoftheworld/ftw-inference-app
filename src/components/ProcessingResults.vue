@@ -16,9 +16,28 @@
       </div>
       <span v-else class="text-white title">Results</span>
       <v-spacer />
-      <v-btn v-if="projects.length > 0" variant="outlined" density="comfortable" color="primary"
-        >Load</v-btn
-      >
+
+      <!-- Project List Dialog -->
+      <v-dialog v-if="projects.length > 0" width="auto">
+        <template v-slot:activator="{ props: activatorProps }">
+          <v-btn variant="outlined" density="comfortable" color="primary" v-bind="activatorProps"
+            >Load</v-btn>
+        </template>
+        <template v-slot:default="{ isActive }">
+          <v-card title="Load Project">
+            <ProcessList />
+          
+            <v-card-actions>
+              <v-spacer></v-spacer>
+            
+              <v-btn
+                text="Close Dialog"
+                @click="isActive.value = false"
+              ></v-btn>
+            </v-card-actions>
+          </v-card>
+        </template>
+      </v-dialog>
     </v-card-title>
 
     <v-card-text v-show="isOpen" class="content">
@@ -72,9 +91,6 @@
               </v-btn>
             </v-expansion-panel-text>
           </v-expansion-panel>
-          <v-expansion-panel title="Processes" class="panel processes">
-            <ProcessList />
-          </v-expansion-panel>
         </v-expansion-panels>
       </div>
 
@@ -101,6 +117,7 @@
         >
       </div>
     </v-card-text>
+
   </v-card>
 </template>
 
