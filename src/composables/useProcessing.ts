@@ -285,10 +285,14 @@ export default function useProcessing() {
         headers: createHeaders()
       })
       const project = await response.json()
-      const blob = await fetch(project.results.polygons)
-      const polygons = await blob.json()
-      polygons.bbox = project.parameters.inference.bbox
-      return polygons
+      if (project.status == "completed") {
+        const blob = await fetch(project.results.polygons)
+        const polygons = await blob.json()
+        polygons.bbox = project.parameters.inference.bbox
+        return polygons
+      } else {
+        throw new Error("Process is not yet completed")
+      }
     } catch (e) {
       showError((e as Error)?.message || String(e))
     } finally {
