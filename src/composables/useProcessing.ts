@@ -279,15 +279,10 @@ export default function useProcessing() {
   }
 
   const loadProject = async (id: string) => {
-    const token = generateJWT()
-
     try {
       isProjectLoading.value = true
       const response = await fetch(`${apiBaseUrl}projects/${id}`, {
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
+        headers: createHeaders()
       })
       const project = await response.json()
       const blob = await fetch(project.results.polygons)
