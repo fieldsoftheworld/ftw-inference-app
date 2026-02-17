@@ -282,16 +282,16 @@ export default function useProcessing() {
     try {
       isProjectLoading.value = true
       const response = await fetch(`${apiBaseUrl}projects/${id}`, {
-        headers: createHeaders()
+        headers: createHeaders(),
       })
       const project = await response.json()
-      if (project.status == "completed") {
+      if (project.status == 'completed') {
         const blob = await fetch(project.results.polygons)
         const polygons = await blob.json()
         polygons.bbox = project.parameters.inference.bbox
         return polygons
       } else {
-        throw new Error("Process is not yet completed")
+        throw new Error("Processing hasn't finished yet. Please try again later.")
       }
     } catch (e) {
       showError((e as Error)?.message || String(e))
