@@ -16,7 +16,9 @@
       </div>
       <span v-else class="text-white title">Results</span>
       <v-spacer />
-      <v-btn v-if="projects.length > 0">Load</v-btn>
+      <v-btn v-if="projects.length > 0" variant="outlined" density="comfortable" color="primary"
+        >Load</v-btn
+      >
     </v-card-title>
 
     <v-card-text v-show="isOpen" class="content">
@@ -136,9 +138,10 @@ const hasMoreResults = computed(() => {
   return props.geoJsonResults.length > limit.value
 })
 
-watch(props.geoJsonResults, (results) => {
-  isOpen.value = results.length > 0
-})
+watch(
+  () => props.geoJsonResults,
+  (results) => (isOpen.value = results.length > 0),
+)
 
 const sortedResults = computed(() => {
   return props.geoJsonResults
