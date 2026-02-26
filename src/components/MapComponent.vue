@@ -6,6 +6,10 @@ import ProcessingResults from './ProcessingResults.vue'
 import PropertiesDisplay from './PropertiesDisplay.vue'
 import createLabelLayer from '../layers/Label-Layer'
 import createS2GridLayer from '../layers/S2-Grid-Layer'
+import {
+  createGlobalPredictionsLayerHighZoom,
+  createGlobalPredictionsLayerLowZoom,
+} from '../layers/Global-Predictions-Layer'
 import { generateJWT } from '../functions/generate-jwt'
 import useAreaOfInterest from '../composables/useAreaOfInterest'
 import usePermalink from '../composables/usePermalink'
@@ -78,10 +82,17 @@ onMounted(async () => {
     critical.value = `Can't connect to server: ${error?.message || error}`
   }
 
-  // Add S2 Grid layer after map is initialized
+  // Add layers after map is initialized
   if (map.value) {
     // Initialize the cloudless base layer
     initCloudlessLayer()
+
+    // Add global predictions pmtiles layer
+    const globalPredictionsLayer = createGlobalPredictionsLayerHighZoom()
+    map.value.addLayer(globalPredictionsLayer)
+
+    const globalPredictionsLayerLowZoom = createGlobalPredictionsLayerLowZoom()
+    map.value.addLayer(globalPredictionsLayerLowZoom)
 
     const s2GridLayer = createS2GridLayer()
     addMapClickHandler(map.value as Map, areaValues.value)
