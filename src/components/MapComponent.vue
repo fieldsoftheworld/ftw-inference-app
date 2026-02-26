@@ -5,11 +5,6 @@ import DataCabinet from './DataCabinet.vue'
 import ProcessingResults from './ProcessingResults.vue'
 import PropertiesDisplay from './PropertiesDisplay.vue'
 import createLabelLayer from '../layers/Label-Layer'
-import createS2GridLayer from '../layers/S2-Grid-Layer'
-import {
-  createGlobalPredictionsLayerHighZoom,
-  createGlobalPredictionsLayerLowZoom,
-} from '../layers/Global-Predictions-Layer'
 import { generateJWT } from '../functions/generate-jwt'
 import useAreaOfInterest from '../composables/useAreaOfInterest'
 import usePermalink from '../composables/usePermalink'
@@ -26,6 +21,7 @@ const {
   hidePropertiesBox,
   geoJsonResults,
   initCloudlessLayer,
+  initGridLayers,
 } = useMap()
 
 const { addMapClickHandler } = useAreaOfInterest()
@@ -87,16 +83,10 @@ onMounted(async () => {
     // Initialize the cloudless base layer
     initCloudlessLayer()
 
-    // Add global predictions pmtiles layer
-    const globalPredictionsLayer = createGlobalPredictionsLayerHighZoom()
-    map.value.addLayer(globalPredictionsLayer)
+    // Initialize grid layers based on globalPredictions setting
+    initGridLayers()
 
-    const globalPredictionsLayerLowZoom = createGlobalPredictionsLayerLowZoom()
-    map.value.addLayer(globalPredictionsLayerLowZoom)
-
-    const s2GridLayer = createS2GridLayer()
     addMapClickHandler(map.value as Map, areaValues.value)
-    map.value.addLayer(s2GridLayer)
     // Setup permalink functionality
     setupPermalink(map)
   }

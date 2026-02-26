@@ -10,6 +10,7 @@ export interface Settings {
   buffer: number
   model: string
   expertMode: boolean
+  globalPredictions: boolean
 }
 
 export interface ModelInfo {
@@ -36,6 +37,7 @@ const defaultSettings: Settings = {
   buffer: 14,
   model: '',
   expertMode: false,
+  globalPredictions: false,
 }
 
 const defaultModel = computed(() => {

@@ -2,6 +2,7 @@ import { ref, shallowRef, watch } from 'vue'
 import type Map from 'ol/Map'
 import VectorSource from 'ol/source/Vector'
 import VectorLayer from 'ol/layer/Vector'
+import VectorTileLayer from 'ol/layer/VectorTile'
 import TileLayer from 'ol/layer/Tile'
 import type XYZ from 'ol/source/XYZ'
 import GeoJSON from 'ol/format/GeoJSON'
@@ -11,6 +12,11 @@ import { type FeatureCollection } from 'geojson'
 import useNotifier from './useNotifier'
 import useSettings from './useSettings'
 import createCloudlessLayer from '../layers/S2-Cloudless-Layer'
+import createS2GridLayer from '../layers/S2-Grid-Layer'
+import {
+  createGlobalPredictionsLayerHighZoom,
+  createGlobalPredictionsLayerLowZoom,
+} from '../layers/Global-Predictions-Layer'
 import { Fill, Stroke, Style } from 'ol/style'
 import { type FeatureLike } from 'ol/Feature'
 
@@ -69,6 +75,70 @@ const initCloudlessLayer = () => {
   }
   cloudlessLayer.value = createCloudlessLayer(settings.value.year)
   map.value.getLayers().insertAt(0, cloudlessLayer.value)
+}
+
+// Global predictions and S2 grid layer management
+const s2GridLayer = shallowRef<VectorLayer<VectorSource> | null>(null)
+const globalPredictionsLayerHighZoom = shallowRef<VectorTileLayer | null>(null)
+const globalPredictionsLayerLowZoom = shallowRef<VectorTileLayer | null>(null)
+
+// Watch for globalPredictions toggle
+watch(
+  () => settings.value.globalPredictions,
+  (showGlobalPredictions) => {
+    if (!map.value) {
+      return
+    }
+
+    if (showGlobalPredictions) {
+      // Remove S2 grid layer
+      if (s2GridLayer.value) {
+        map.value.removeLayer(s2GridLayer.value)
+      }
+
+      // Add global predictions layers if not already added
+      if (!globalPredictionsLayerHighZoom.value) {
+        globalPredictionsLayerHighZoom.value = createGlobalPredictionsLayerHighZoom()
+      }
+      if (!globalPredictionsLayerLowZoom.value) {
+        globalPredictionsLayerLowZoom.value = createGlobalPredictionsLayerLowZoom()
+      }
+      map.value.addLayer(globalPredictionsLayerHighZoom.value)
+      map.value.addLayer(globalPredictionsLayerLowZoom.value)
+    } else {
+      // Remove global predictions layers
+      if (globalPredictionsLayerHighZoom.value) {
+        map.value.removeLayer(globalPredictionsLayerHighZoom.value)
+      }
+      if (globalPredictionsLayerLowZoom.value) {
+        map.value.removeLayer(globalPredictionsLayerLowZoom.value)
+      }
+
+      // Add S2 grid layer if not already added
+      if (!s2GridLayer.value) {
+        s2GridLayer.value = createS2GridLayer()
+      }
+      map.value.addLayer(s2GridLayer.value)
+    }
+  },
+)
+
+const initGridLayers = () => {
+  if (!map.value) {
+    return
+  }
+
+  if (settings.value.globalPredictions) {
+    // Initialize with global predictions layers
+    globalPredictionsLayerHighZoom.value = createGlobalPredictionsLayerHighZoom()
+    globalPredictionsLayerLowZoom.value = createGlobalPredictionsLayerLowZoom()
+    map.value.addLayer(globalPredictionsLayerHighZoom.value)
+    map.value.addLayer(globalPredictionsLayerLowZoom.value)
+  } else {
+    // Initialize with S2 grid layer
+    s2GridLayer.value = createS2GridLayer()
+    map.value.addLayer(s2GridLayer.value)
+  }
 }
 
 const featureStyle = new Style({
@@ -258,5 +328,6 @@ export default function useMap() {
     displayGeoJSON,
     geoJsonResults,
     initCloudlessLayer,
+    initGridLayers,
   }
 }
