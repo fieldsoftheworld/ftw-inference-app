@@ -74,6 +74,12 @@ echo "VITE_FTW_INFERENCE_OUTPUT_URL=http://127.0.0.1:3000/" > .env.development
 
 The app will be available at `http://localhost:5173`
 
+### Benchmark page
+
+Open [http://localhost:5173/benchmark](http://localhost:5173/benchmark) when your API supports FTW benchmark runs. Pick models and benchmark countries, then review scores and (optionally) the map: **gold** dashed outline = chip footprint, **green** = ground truth fields, **blue** = model predictions.
+
+![Benchmark map: Corsica test chip — ground truth vs predictions](docs/images/benchmark-map-output.png)
+
 ## Alternative API Setup
 
 If you prefer not to use conda, you can install the API manually:

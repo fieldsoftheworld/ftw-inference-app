@@ -8,6 +8,11 @@ const router = createRouter({
       name: 'map',
       component: () => import('../views/MapView.vue'),
     },
+    {
+      path: '/benchmark',
+      name: 'benchmark',
+      component: () => import('../views/BenchmarkView.vue'),
+    },
   ],
 })
 

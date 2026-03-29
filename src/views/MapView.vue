@@ -2,6 +2,7 @@
 import MapComponent from '../components/MapComponent.vue'
 import { mdiInformation } from '@mdi/js'
 import { ref, watch } from 'vue'
+import { RouterLink } from 'vue-router'
 
 const ftwAboutDialogShown = localStorage.getItem('ftw-about-dialog-shown') !== 'true'
 const aboutDialog = ref(ftwAboutDialogShown)
@@ -16,6 +17,7 @@ watch(dontShowAgain, (newValue) => {
   <div class="map-view">
     <header id="title">
       Fields of The World: Inference App
+      <RouterLink id="benchmark-link" to="/benchmark">Benchmark</RouterLink>
       <v-btn
         density="compact"
         variant="plain"
@@ -58,6 +60,18 @@ watch(dontShowAgain, (newValue) => {
   font-size: 1.33rem;
   font-weight: 600;
   white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+#benchmark-link {
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: #90caf9;
+  text-decoration: none;
+}
+#benchmark-link:hover {
+  text-decoration: underline;
 }
 .map-view {
   position: absolute;
