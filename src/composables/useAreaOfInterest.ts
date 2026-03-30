@@ -243,9 +243,26 @@ export default function useAreaOfInterest() {
       removeExtentInteraction()
     } else {
       blockMapClicks.value = false
-      addExtentInteraction(map.value!, areaValues.value)
+      if (settings.value.mode !== 'global') {
+        addExtentInteraction(map.value!, areaValues.value)
+      }
     }
   })
+
+  watch(
+    () => settings.value.mode,
+    (mode) => {
+      if (mode === 'global') {
+        blockMapClicks.value = true
+        removeExtentInteraction()
+      } else {
+        blockMapClicks.value = false
+        if (geoJsonResults.value.length === 0 && map.value) {
+          addExtentInteraction(map.value, areaValues.value)
+        }
+      }
+    },
+  )
 
   watch(activeTileId, () => {
     if (modelIsSingleShot.value) {

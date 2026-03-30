@@ -84,13 +84,13 @@ const globalPredictionsLayerLowZoom = shallowRef<VectorTileLayer | null>(null)
 
 // Watch for globalPredictions toggle
 watch(
-  () => settings.value.globalPredictions,
-  (showGlobalPredictions) => {
+  () => settings.value.mode,
+  (mode) => {
     if (!map.value) {
       return
     }
 
-    if (showGlobalPredictions) {
+    if (mode === 'global') {
       // Remove S2 grid layer
       if (s2GridLayer.value) {
         map.value.removeLayer(s2GridLayer.value)
@@ -123,12 +123,12 @@ watch(
   },
 )
 
-const initGridLayers = () => {
+const initLayers = () => {
   if (!map.value) {
     return
   }
 
-  if (settings.value.globalPredictions) {
+  if (settings.value.mode === 'global') {
     // Initialize with global predictions layers
     globalPredictionsLayerHighZoom.value = createGlobalPredictionsLayerHighZoom()
     globalPredictionsLayerLowZoom.value = createGlobalPredictionsLayerLowZoom()
@@ -328,6 +328,6 @@ export default function useMap() {
     displayGeoJSON,
     geoJsonResults,
     initCloudlessLayer,
-    initGridLayers,
+    initLayers,
   }
 }

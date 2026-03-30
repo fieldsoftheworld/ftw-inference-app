@@ -10,7 +10,10 @@ export interface Settings {
   buffer: number
   model: string
   expertMode: boolean
-  globalPredictions: boolean
+  mode: string
+  fieldBoundaries: boolean
+  confidence: boolean
+  confidenceThreshold: number
 }
 
 export interface ModelInfo {
@@ -23,6 +26,23 @@ export interface ModelInfo {
   legacy?: boolean
   default?: boolean
 }
+
+const defaultMode = 'global'
+
+const availableModes: { id: string; label: string }[] = [
+  {
+    id: 'global',
+    label: 'Global Predictions',
+  },
+  {
+    id: 'inference',
+    label: 'Inference',
+  },
+  // {
+  //   id: 'edit',
+  //   label: 'Editing',
+  // },
+]
 
 const availableModels = shallowRef<ModelInfo[]>([])
 
@@ -37,7 +57,10 @@ const defaultSettings: Settings = {
   buffer: 14,
   model: '',
   expertMode: false,
-  globalPredictions: false,
+  mode: defaultMode,
+  fieldBoundaries: true,
+  confidence: true,
+  confidenceThreshold: 0.5,
 }
 
 const defaultModel = computed(() => {
@@ -127,6 +150,8 @@ export default function useSettings() {
   return {
     settings,
     availableModels,
+    defaultMode,
+    availableModes,
     defaultSettings,
     defaultModel,
     modelTitle,

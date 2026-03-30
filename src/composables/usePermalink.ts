@@ -9,8 +9,12 @@ import { type Extent } from 'ol/extent'
 import { type Coordinate } from 'ol/coordinate'
 
 export interface PermalinkState {
+  mode: string
   zoom: number
   center: Coordinate
+}
+
+export interface PermalinkStateInference extends PermalinkState {
   currentMgrsTileId: string | null
   activeTileId: string | null
   secondActiveTileId: string | null
@@ -24,9 +28,15 @@ export interface PermalinkState {
   buffer?: number
 }
 
+export interface PermalinkStateGlobal extends PermalinkState {
+  confidence: boolean
+  fieldBoundaries: boolean
+  confidenceThreshold: number
+}
+
 export default function usePermalink() {
   const { handleSearchResults } = useSearch()
-  const { settings } = useSettings()
+  const { settings, defaultMode, availableModes } = useSettings()
   const { activeTileId, currentMgrsTileId, drawnExtent, secondActiveTileId, triggerTileSelection } =
     useAreaOfInterest()
   const { areaValues } = useMap()
@@ -35,7 +45,8 @@ export default function usePermalink() {
   let shouldUpdate = true
 
   // Default values
-  const defaultState: PermalinkState = {
+  const defaultInferenceState: PermalinkStateInference = {
+    mode: 'inference',
     zoom: 2,
     center: [0, 0],
     currentMgrsTileId: null,
@@ -43,10 +54,31 @@ export default function usePermalink() {
     secondActiveTileId: null,
   }
 
+  const defaultGlobalState: PermalinkStateGlobal = {
+    mode: 'global',
+    zoom: 2,
+    center: [0, 0],
+    confidence: true,
+    fieldBoundaries: true,
+    confidenceThreshold: 0.5,
+  }
+
+  const getDefaultState = (mode: string): PermalinkStateInference | PermalinkStateGlobal => {
+    return mode === 'inference' ? { ...defaultInferenceState } : { ...defaultGlobalState }
+  }
+
+  function isInferenceState(state: PermalinkState): state is PermalinkStateInference {
+    return state.mode === 'inference'
+  }
+
+  function isGlobalState(state: PermalinkState): state is PermalinkStateGlobal {
+    return state.mode === 'global'
+  }
+
   // Parse permalink from URL hash
-  const parsePermalink = (): PermalinkState => {
+  const parsePermalink = (): PermalinkStateInference | PermalinkStateGlobal => {
     if (window.location.hash === '') {
-      return defaultState
+      return getDefaultState(defaultMode)
     }
 
     try {
@@ -54,88 +86,130 @@ export default function usePermalink() {
       const parts = hash.split('/')
 
       if (parts.length >= 3) {
-        const result: PermalinkState = {
-          zoom: parseFloat(parts[0]) || defaultState.zoom,
-          center: [parseFloat(parts[1]), parseFloat(parts[2])] as [number, number],
-          currentMgrsTileId: null,
-          activeTileId: null,
-          secondActiveTileId: null,
-        }
+        const zoom = parseFloat(parts[0]) || 2
+        const center: Coordinate = [parseFloat(parts[1]), parseFloat(parts[2])]
 
-        // Parse additional parts as tile IDs (only if they exist and are not null)
-        if (parts.length >= 4 && parts[3]) {
-          result.currentMgrsTileId = parts[3]
-        }
-        if (parts.length >= 5 && parts[4]) {
-          result.activeTileId = parts[4]
-        }
-        if (parts.length >= 6 && parts[5]) {
-          result.secondActiveTileId = parts[5]
-        }
+        // First pass: separate key-value parts from positional parts, and extract mode
+        const keyValuePrefixes = [
+          'mode:',
+          'start_month:',
+          'end_month:',
+          'cloud_cover:',
+          'area_coverage:',
+          'buffer:',
+          'bbox:',
+          'year:',
+          'confidence:',
+          'field_boundaries:',
+          'confidence_threshold:',
+        ]
+        let mode = defaultMode
+        let hasExplicitMode = false
+        const keyValueParts: string[] = []
+        const positionalParts: string[] = []
 
-        // Parse search settings
-        for (let i = 6; i < parts.length; i++) {
+        for (let i = 3; i < parts.length; i++) {
           const part = parts[i]
-          if (part.startsWith('start_month:')) {
-            const startMonth = parseInt(part.substring(12), 10)
-            if (startMonth > 0) {
-              result.startMonth = startMonth
+          if (keyValuePrefixes.some((prefix) => part.startsWith(prefix))) {
+            keyValueParts.push(part)
+            if (part.startsWith('mode:')) {
+              const parsedMode = part.substring(5).trim()
+              if (availableModes.some((m) => m.id === parsedMode)) {
+                mode = parsedMode
+                hasExplicitMode = true
+              }
             }
-          } else if (part.startsWith('end_month:')) {
-            const endMonth = parseInt(part.substring(10), 10)
-            if (endMonth > 0) {
-              result.endMonth = endMonth
-            }
-          } else if (part.startsWith('cloud_cover:')) {
-            const cloudCover = parseInt(part.substring(12), 10)
-            if (!isNaN(cloudCover)) {
-              result.cloudCover = cloudCover
-            }
-          } else if (part.startsWith('area_coverage:')) {
-            const areaCoverage = parseInt(part.substring(14), 10)
-            if (!isNaN(areaCoverage)) {
-              result.areaCoverage = areaCoverage
-            }
-          } else if (part.startsWith('buffer:')) {
-            const buffer = parseInt(part.substring(7), 10)
-            if (!isNaN(buffer)) {
-              result.buffer = buffer
-            }
-          } else if (part.startsWith('bbox:')) {
-            const bbox = part.substring(5).split(',').map(Number)
-            if (bbox.length === 4 && bbox.every((num) => !isNaN(num))) {
-              result.bbox = bbox
-            }
-          } else if (part.startsWith('year:')) {
-            const year = parseInt(part.substring(5), 10)
-            if (!isNaN(year)) {
-              result.year = year
-            }
+          } else if (part) {
+            positionalParts.push(part)
           }
         }
 
-        return result
+        // Backward compatibility: if tile IDs are present, default to inference
+        if (!hasExplicitMode && positionalParts.length > 0) {
+          mode = 'inference'
+        }
+
+        if (mode === 'inference') {
+          const result: PermalinkStateInference = {
+            mode,
+            zoom,
+            center,
+            currentMgrsTileId: null,
+            activeTileId: null,
+            secondActiveTileId: null,
+          }
+
+          for (const part of keyValueParts) {
+            if (part.startsWith('start_month:')) {
+              const startMonth = parseInt(part.substring(12), 10)
+              if (startMonth > 0) result.startMonth = startMonth
+            } else if (part.startsWith('end_month:')) {
+              const endMonth = parseInt(part.substring(10), 10)
+              if (endMonth > 0) result.endMonth = endMonth
+            } else if (part.startsWith('cloud_cover:')) {
+              const cloudCover = parseInt(part.substring(12), 10)
+              if (!isNaN(cloudCover)) result.cloudCover = cloudCover
+            } else if (part.startsWith('area_coverage:')) {
+              const areaCoverage = parseInt(part.substring(14), 10)
+              if (!isNaN(areaCoverage)) result.areaCoverage = areaCoverage
+            } else if (part.startsWith('buffer:')) {
+              const buffer = parseInt(part.substring(7), 10)
+              if (!isNaN(buffer)) result.buffer = buffer
+            } else if (part.startsWith('bbox:')) {
+              const bbox = part.substring(5).split(',').map(Number)
+              if (bbox.length === 4 && bbox.every((num) => !isNaN(num))) result.bbox = bbox
+            } else if (part.startsWith('year:')) {
+              const year = parseInt(part.substring(5), 10)
+              if (!isNaN(year)) result.year = year
+            }
+          }
+
+          // Assign positional parts as tile IDs
+          if (positionalParts.length >= 1) result.currentMgrsTileId = positionalParts[0]
+          if (positionalParts.length >= 2) result.activeTileId = positionalParts[1]
+          if (positionalParts.length >= 3) result.secondActiveTileId = positionalParts[2]
+
+          return result
+        } else {
+          // Global mode
+          const result: PermalinkStateGlobal = {
+            mode,
+            zoom,
+            center,
+            confidence: defaultGlobalState.confidence,
+            fieldBoundaries: defaultGlobalState.fieldBoundaries,
+            confidenceThreshold: defaultGlobalState.confidenceThreshold,
+          }
+
+          for (const part of keyValueParts) {
+            if (part.startsWith('confidence_threshold:')) {
+              const val = parseFloat(part.substring(21))
+              if (!isNaN(val)) result.confidenceThreshold = val
+            } else if (part.startsWith('confidence:')) {
+              result.confidence = part.substring(11) === 'y'
+            } else if (part.startsWith('field_boundaries:')) {
+              result.fieldBoundaries = part.substring(17) === 'y'
+            }
+          }
+
+          return result
+        }
       }
     } catch (error) {
       console.error('Error parsing permalink:', error)
     }
 
-    return defaultState
+    return getDefaultState(defaultMode)
   }
 
   // Update permalink in URL
-  const updatePermalink = (
-    map: Map,
-    drawnExtent: Extent | null,
-    currentMgrsTileId: string | null,
-    activeTileId: string | null,
-    secondActiveTileId: string | null,
-  ) => {
+  const updatePermalink = (map: Map) => {
     if (!shouldUpdate) {
       shouldUpdate = true
       return
     }
 
+    const mode = settings.value.mode || defaultMode
     const view = map.getView()
     const viewCenter = view.getCenter()
     const zoom = view.getZoom()
@@ -143,60 +217,91 @@ export default function usePermalink() {
 
     const center = toLonLat(viewCenter)
 
-    const extent = drawnExtent
-      ? transformExtent(drawnExtent, 'EPSG:3857', 'EPSG:4326').map((coord) =>
-          Number(coord.toFixed(4)),
-        )
-      : null
-
     // Build hash parts, excluding null values
     const hashParts = [zoom.toFixed(2), center[0].toFixed(4), center[1].toFixed(4)]
 
-    if (currentMgrsTileId) {
-      // Add tile IDs
-      hashParts.push(currentMgrsTileId)
-      hashParts.push(String(!settings.value.autoSceneSelection && activeTileId ? activeTileId : ''))
-      hashParts.push(
-        String(!settings.value.autoSceneSelection && secondActiveTileId ? secondActiveTileId : ''),
-      )
+    if (mode) {
+      hashParts.push(`mode:${mode}`)
+    }
 
-      if (extent) {
-        hashParts.push(`bbox:${extent.join(',')}`)
-      }
+    let state: PermalinkStateInference | PermalinkStateGlobal
 
-      if (settings.value.year) {
-        hashParts.push(`year:${settings.value.year}`)
-      }
+    if (mode === 'inference') {
+      const extent = drawnExtent.value
+        ? transformExtent(drawnExtent.value, 'EPSG:3857', 'EPSG:4326').map((coord) =>
+            Number(coord.toFixed(4)),
+          )
+        : null
 
-      // If we have a currentMgrsTileId, include search settings
-      const stored = localStorage.getItem('ftw-search-settings')
-      if (stored) {
-        try {
-          const parsed = JSON.parse(stored)
-          // Add search settings to the hash
-          if (parsed.startMonth) hashParts.push(`start_month:${parsed.startMonth}`)
-          if (parsed.endMonth) hashParts.push(`end_month:${parsed.endMonth}`)
-          if (parsed.cloudCover !== undefined) hashParts.push(`cloud_cover:${parsed.cloudCover}`)
-          if (parsed.areaCoverage !== undefined) {
-            hashParts.push(`area_coverage:${parsed.areaCoverage}`)
-          }
-          if (parsed.buffer !== undefined) hashParts.push(`buffer:${parsed.buffer}`)
-        } catch (error) {
-          console.error('Error parsing stored settings for permalink:', error)
+      if (currentMgrsTileId.value) {
+        // Add tile IDs
+        hashParts.push(currentMgrsTileId.value)
+        hashParts.push(
+          String(
+            !settings.value.autoSceneSelection && activeTileId.value ? activeTileId.value : '',
+          ),
+        )
+        hashParts.push(
+          String(
+            !settings.value.autoSceneSelection && secondActiveTileId.value
+              ? secondActiveTileId.value
+              : '',
+          ),
+        )
+
+        if (extent) {
+          hashParts.push(`bbox:${extent.join(',')}`)
         }
+
+        if (settings.value.year) {
+          hashParts.push(`year:${settings.value.year}`)
+        }
+
+        // If we have a currentMgrsTileId, include search settings
+        const stored = localStorage.getItem('ftw-search-settings')
+        if (stored) {
+          try {
+            const parsed = JSON.parse(stored)
+            // Add search settings to the hash
+            if (parsed.startMonth) hashParts.push(`start_month:${parsed.startMonth}`)
+            if (parsed.endMonth) hashParts.push(`end_month:${parsed.endMonth}`)
+            if (parsed.cloudCover !== undefined) hashParts.push(`cloud_cover:${parsed.cloudCover}`)
+            if (parsed.areaCoverage !== undefined) {
+              hashParts.push(`area_coverage:${parsed.areaCoverage}`)
+            }
+            if (parsed.buffer !== undefined) hashParts.push(`buffer:${parsed.buffer}`)
+          } catch (error) {
+            console.error('Error parsing stored settings for permalink:', error)
+          }
+        }
+      }
+
+      state = {
+        mode,
+        zoom,
+        center,
+        currentMgrsTileId: currentMgrsTileId.value,
+        activeTileId: activeTileId.value,
+        secondActiveTileId: secondActiveTileId.value,
+        bbox: extent || undefined,
+      }
+    } else {
+      // Global mode
+      hashParts.push(`confidence:${settings.value.confidence ? 'y' : 'n'}`)
+      hashParts.push(`field_boundaries:${settings.value.fieldBoundaries ? 'y' : 'n'}`)
+      hashParts.push(`confidence_threshold:${settings.value.confidenceThreshold}`)
+
+      state = {
+        mode,
+        zoom,
+        center,
+        confidence: settings.value.confidence,
+        fieldBoundaries: settings.value.fieldBoundaries,
+        confidenceThreshold: settings.value.confidenceThreshold,
       }
     }
 
     const hash = `#map=${hashParts.join('/')}`
-
-    const state: PermalinkState = {
-      zoom,
-      center,
-      currentMgrsTileId,
-      activeTileId,
-      secondActiveTileId,
-      bbox: extent || undefined,
-    }
     try {
       window.history.pushState(state, 'map', hash)
     } catch (error) {
@@ -207,16 +312,11 @@ export default function usePermalink() {
   // Restore map state from permalink
   const restoreMapState = (map: Map, state: PermalinkState) => {
     const view = map.getView()
-
-    // Set center and zoom
     view.setCenter(fromLonLat(state.center))
     view.setZoom(state.zoom)
-
-    // Note: Tile IDs will be restored by the calling component
-    // since they need to be set in the composable state
   }
 
-  function restoreAutoSceneState(state: PermalinkState) {
+  function restoreInferenceState(state: PermalinkStateInference) {
     let newAutoSceneSelectionValue = true
     if (state.year) {
       settings.value.year = state.year
@@ -226,6 +326,16 @@ export default function usePermalink() {
       newAutoSceneSelectionValue = false
     }
     settings.value.autoSceneSelection = newAutoSceneSelectionValue
+
+    currentMgrsTileId.value = state.currentMgrsTileId
+    activeTileId.value = state.activeTileId
+    secondActiveTileId.value = state.secondActiveTileId
+  }
+
+  function restoreGlobalState(state: PermalinkStateGlobal) {
+    settings.value.confidence = state.confidence
+    settings.value.fieldBoundaries = state.fieldBoundaries
+    settings.value.confidenceThreshold = state.confidenceThreshold
   }
 
   // Setup permalink functionality
@@ -245,6 +355,7 @@ export default function usePermalink() {
         currentMgrsTileId.value,
         activeTileId.value,
         secondActiveTileId.value,
+        settings.value.mode,
         settings.value.autoSceneSelection,
         settings.value.year,
         settings.value.endMonth,
@@ -252,57 +363,46 @@ export default function usePermalink() {
         settings.value.cloudCover,
         settings.value.areaCoverage,
         settings.value.buffer,
+        settings.value.confidence,
+        settings.value.fieldBoundaries,
+        settings.value.confidenceThreshold,
       ],
       () => {
         if (!map.value) {
           return
         }
-        // Update permalink after tile selection changes
-        updatePermalink(
-          map.value,
-          drawnExtent.value,
-          currentMgrsTileId.value,
-          activeTileId.value,
-          secondActiveTileId.value,
-        )
+        updatePermalink(map.value)
       },
     )
 
     // Restore initial state from URL
     const initialState = parsePermalink()
+    settings.value.mode = initialState.mode
     restoreMapState(map.value, initialState)
-    restoreAutoSceneState(initialState)
 
-    // Update the refs with the restored values
-    currentMgrsTileId.value = initialState.currentMgrsTileId
-    activeTileId.value = initialState.activeTileId
-    secondActiveTileId.value = initialState.secondActiveTileId
+    if (isInferenceState(initialState)) {
+      restoreInferenceState(initialState)
 
-    // If we have a restored MGRS tile ID, trigger the search
-    if (initialState.currentMgrsTileId) {
-      await triggerTileSelection(
-        map.value!,
-        currentMgrsTileId.value!,
-        areaValues.value!,
-        handleSearchResults,
-        undefined,
-        false,
-      )
-    }
-    const initialBbox = initialState.bbox
-    if (initialBbox) {
-      drawnExtent.value = transformExtent(initialBbox, 'EPSG:4326', 'EPSG:3857')
+      if (initialState.currentMgrsTileId) {
+        await triggerTileSelection(
+          map.value!,
+          currentMgrsTileId.value!,
+          areaValues.value!,
+          handleSearchResults,
+          undefined,
+          false,
+        )
+      }
+      if (initialState.bbox) {
+        drawnExtent.value = transformExtent(initialState.bbox, 'EPSG:4326', 'EPSG:3857')
+      }
+    } else if (isGlobalState(initialState)) {
+      restoreGlobalState(initialState)
     }
 
     // Update permalink when map moves
     map.value.on('moveend', () => {
-      updatePermalink(
-        map.value!,
-        drawnExtent.value,
-        currentMgrsTileId.value,
-        activeTileId.value,
-        secondActiveTileId.value,
-      )
+      updatePermalink(map.value!)
     })
 
     // Handle browser back/forward navigation
@@ -312,24 +412,24 @@ export default function usePermalink() {
       }
 
       const state = event.state as PermalinkState
+      settings.value.mode = state.mode
       restoreMapState(map.value!, state)
-      restoreAutoSceneState(state)
 
-      // Update the refs
-      currentMgrsTileId.value = state.currentMgrsTileId
-      activeTileId.value = state.activeTileId
-      secondActiveTileId.value = state.secondActiveTileId
+      if (isInferenceState(state)) {
+        restoreInferenceState(state)
 
-      // If we have a restored MGRS tile ID, trigger the search
-      if (state.currentMgrsTileId) {
-        triggerTileSelection(
-          map.value!,
-          currentMgrsTileId.value!,
-          areaValues.value!,
-          handleSearchResults,
-          undefined,
-          false,
-        )
+        if (state.currentMgrsTileId) {
+          triggerTileSelection(
+            map.value!,
+            currentMgrsTileId.value!,
+            areaValues.value!,
+            handleSearchResults,
+            undefined,
+            false,
+          )
+        }
+      } else if (isGlobalState(state)) {
+        restoreGlobalState(state)
       }
 
       shouldUpdate = false

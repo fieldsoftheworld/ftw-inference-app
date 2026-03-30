@@ -21,7 +21,7 @@ const {
   hidePropertiesBox,
   geoJsonResults,
   initCloudlessLayer,
-  initGridLayers,
+  initLayers,
 } = useMap()
 
 const { addMapClickHandler } = useAreaOfInterest()
@@ -83,8 +83,8 @@ onMounted(async () => {
     // Initialize the cloudless base layer
     initCloudlessLayer()
 
-    // Initialize grid layers based on globalPredictions setting
-    initGridLayers()
+    // Initialize layers
+    initLayers()
 
     addMapClickHandler(map.value as Map, areaValues.value)
     // Setup permalink functionality

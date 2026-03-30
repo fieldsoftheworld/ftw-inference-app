@@ -270,7 +270,7 @@ watch(sceneSelectionStatus, (newValue) => {
 })
 
 // Display Scene A image by default when auto scene selection is enabled and a scene is selected
-watch([settings.value.autoSceneSelection, activeTileId], ([autoSelection, tileId]) => {
+watch([() => settings.value.autoSceneSelection, activeTileId], ([autoSelection, tileId]) => {
   if (autoSelection && tileId) {
     stacPreviewTileId.value = tileId
   }
@@ -413,11 +413,7 @@ defineExpose({ openModelSelection })
       :color="isBatchProcessing ? 'warning' : 'gray'"
       class="mb-2"
     >
-      <template v-if="settings.globalPredictions">
-        <strong>Global Fields of the World (FTW).</strong> provides global-scale estimates of
-        agricultural fields for 2024–2025. The dataset includes both model inputs and outputs.
-      </template>
-      <template v-else-if="!currentMgrsTileId">
+      <template v-if="!currentMgrsTileId">
         <strong>Please select an area of interest.</strong> Click on the map to select an area or
         use the search box below.
       </template>
@@ -437,343 +433,371 @@ defineExpose({ openModelSelection })
           v-model="settings.expertMode"
           label="Expert Mode"
           density="compact"
-          :disabled="settings.globalPredictions"
-          hide-details
-          class
-        ></v-switch>
-      </v-col>
-      <v-col>
-        <v-switch
-          v-model="settings.globalPredictions"
-          label="Global Predictions"
-          density="compact"
           hide-details
           class
         ></v-switch>
       </v-col>
     </v-row>
-    <template v-if="!settings.globalPredictions">
-      <v-expansion-panels v-model="activePanel">
-        <v-expansion-panel v-if="currentMgrsTileId && isBatchProcessing" value="project">
-          <v-expansion-panel-title>
-            <span class="header-text">
-              <v-badge v-bind="getStatus(projectTitle)"></v-badge>
-              Project
-              <v-badge v-if="projectTitle" inline color="teal" :content="projectTitle"></v-badge>
-            </span>
-          </v-expansion-panel-title>
-          <v-expansion-panel-text>
-            <v-text-field
-              v-model="projectTitle"
-              label="Title"
-              variant="outlined"
-              density="compact"
-              hide-details
-            />
-          </v-expansion-panel-text>
-        </v-expansion-panel>
-        <!-- Model -->
-        <v-expansion-panel v-if="currentMgrsTileId && settings.expertMode" value="model">
-          <v-expansion-panel-title>
-            <span class="header-text">
-              <v-badge v-bind="getStatus(modelTitle)"></v-badge>
-              Model
-              <v-badge v-if="modelTitle" inline color="teal" :content="modelTitle"></v-badge>
-            </span>
-          </v-expansion-panel-title>
-          <v-expansion-panel-text>
-            <v-radio-group v-model="settings.model" inline hide-details>
-              <v-radio
-                v-for="model in availableModels"
-                :key="model.id"
-                :value="model.id"
-                color="teal"
-                ><template v-slot:label>
-                  {{ model.title }}
-                  <v-tooltip v-if="model.description" max-width="400" open-on-click>
-                    <template #activator="{ props }">
-                      <v-icon
-                        class="ml-1"
-                        :icon="mdiHelpCircleOutline"
-                        size="x-small"
-                        v-bind="props"
-                      ></v-icon>
+    <v-expansion-panels v-model="activePanel">
+      <v-expansion-panel v-if="currentMgrsTileId && isBatchProcessing" value="project">
+        <v-expansion-panel-title>
+          <span class="header-text">
+            <v-badge v-bind="getStatus(projectTitle)"></v-badge>
+            Project
+            <v-badge v-if="projectTitle" inline color="teal" :content="projectTitle"></v-badge>
+          </span>
+        </v-expansion-panel-title>
+        <v-expansion-panel-text>
+          <v-text-field
+            v-model="projectTitle"
+            label="Title"
+            variant="outlined"
+            density="compact"
+            hide-details
+          />
+        </v-expansion-panel-text>
+      </v-expansion-panel>
+      <!-- Model -->
+      <v-expansion-panel v-if="currentMgrsTileId && settings.expertMode" value="model">
+        <v-expansion-panel-title>
+          <span class="header-text">
+            <v-badge v-bind="getStatus(modelTitle)"></v-badge>
+            Model
+            <v-badge v-if="modelTitle" inline color="teal" :content="modelTitle"></v-badge>
+          </span>
+        </v-expansion-panel-title>
+        <v-expansion-panel-text>
+          <v-radio-group v-model="settings.model" inline hide-details>
+            <v-radio v-for="model in availableModels" :key="model.id" :value="model.id" color="teal"
+              ><template v-slot:label>
+                {{ model.title }}
+                <v-tooltip v-if="model.description" max-width="400" open-on-click>
+                  <template #activator="{ props }">
+                    <v-icon
+                      class="ml-1"
+                      :icon="mdiHelpCircleOutline"
+                      size="x-small"
+                      v-bind="props"
+                    ></v-icon>
+                  </template>
+                  <div>
+                    <template v-if="model.version"
+                      ><strong>Version:</strong> {{ model.version }}<br
+                    /></template>
+                    <strong>License:</strong> {{ model.license || 'unknown' }}<br />
+                    <template v-if="model.description">
+                      <strong>Description:</strong>
+                      <div style="white-space: pre-wrap">
+                        {{ model.description }}
+                      </div>
                     </template>
-                    <div>
-                      <template v-if="model.version"
-                        ><strong>Version:</strong> {{ model.version }}<br
-                      /></template>
-                      <strong>License:</strong> {{ model.license || 'unknown' }}<br />
-                      <template v-if="model.description">
-                        <strong>Description:</strong>
-                        <div style="white-space: pre-wrap">
-                          {{ model.description }}
-                        </div>
-                      </template>
-                    </div>
-                  </v-tooltip>
-                  <v-badge
-                    v-if="model.legacy"
-                    inline
-                    color="black"
-                    title="Legacy Model"
-                    content="Legacy"
-                  ></v-badge>
-                  <v-badge
-                    v-if="model.default"
-                    inline
-                    color="success"
-                    title="Default model, recommended choice by the FTW team"
-                    content="Recommended"
-                  ></v-badge> </template
-              ></v-radio>
-            </v-radio-group>
-          </v-expansion-panel-text>
-        </v-expansion-panel>
-        <!-- Area of Interest -->
-        <v-expansion-panel value="aoi">
-          <v-expansion-panel-title>
-            <span class="header-text">
-              <v-badge v-bind="getStatus(currentMgrsTileId && currentBBoxValid === true)"></v-badge>
-              Area
-              <v-badge
-                v-if="currentMgrsTileId"
-                inline
-                color="teal"
-                :content="`Tile: ${currentMgrsTileId}`"
-              ></v-badge>
-            </span>
-          </v-expansion-panel-title>
-          <v-expansion-panel-text>
-            <!-- Geocoding -->
-            <v-row>
-              <v-col>
-                <v-autocomplete
-                  @update:model-value="handleLocationSelected"
-                  v-model:search="placeSearch"
-                  :loading="isLoadingPlaces"
-                  :items="suggestedPlaces"
-                  label="Search for a place"
-                  hide-details
-                  dense
-                  variant="outlined"
-                ></v-autocomplete>
-              </v-col>
-            </v-row>
+                  </div>
+                </v-tooltip>
+                <v-badge
+                  v-if="model.legacy"
+                  inline
+                  color="black"
+                  title="Legacy Model"
+                  content="Legacy"
+                ></v-badge>
+                <v-badge
+                  v-if="model.default"
+                  inline
+                  color="success"
+                  title="Default model, recommended choice by the FTW team"
+                  content="Recommended"
+                ></v-badge> </template
+            ></v-radio>
+          </v-radio-group>
+        </v-expansion-panel-text>
+      </v-expansion-panel>
+      <!-- Area of Interest -->
+      <v-expansion-panel value="aoi">
+        <v-expansion-panel-title>
+          <span class="header-text">
+            <v-badge v-bind="getStatus(currentMgrsTileId && currentBBoxValid === true)"></v-badge>
+            Area
+            <v-badge
+              v-if="currentMgrsTileId"
+              inline
+              color="teal"
+              :content="`Tile: ${currentMgrsTileId}`"
+            ></v-badge>
+          </span>
+        </v-expansion-panel-title>
+        <v-expansion-panel-text>
+          <!-- Geocoding -->
+          <v-row>
+            <v-col>
+              <v-autocomplete
+                @update:model-value="handleLocationSelected"
+                v-model:search="placeSearch"
+                :loading="isLoadingPlaces"
+                :items="suggestedPlaces"
+                label="Search for a place"
+                hide-details
+                dense
+                variant="outlined"
+              ></v-autocomplete>
+            </v-col>
+          </v-row>
 
-            <!-- Grid Selection Dropdown -->
-            <v-row v-if="settings.expertMode">
-              <v-col>
-                <v-autocomplete
-                  v-model="currentMgrsTileId"
-                  @update:model-value="handleTileSelected"
-                  label="MGRS Tile Selection"
-                  hide-details
-                  dense
-                  variant="outlined"
-                  :items="availableTiles"
-                  item-title="name"
-                  item-value="name"
-                ></v-autocomplete>
-              </v-col>
-            </v-row>
+          <!-- Grid Selection Dropdown -->
+          <v-row v-if="settings.expertMode">
+            <v-col>
+              <v-autocomplete
+                v-model="currentMgrsTileId"
+                @update:model-value="handleTileSelected"
+                label="MGRS Tile Selection"
+                hide-details
+                dense
+                variant="outlined"
+                :items="availableTiles"
+                item-title="name"
+                item-value="name"
+              ></v-autocomplete>
+            </v-col>
+          </v-row>
 
-            <!-- Bbox Input Section -->
+          <!-- Bbox Input Section -->
+          <v-row>
+            <v-col>
+              <v-label> Bounding Box </v-label>
+            </v-col>
+          </v-row>
+          <template v-if="settings.expertMode">
             <v-row>
-              <v-col>
-                <v-label> Bounding Box </v-label>
+              <v-col cols="3"> </v-col>
+              <v-col cols="6">
+                <v-number-input
+                  :model-value="bbox[3]"
+                  @update:model-value="(value) => updateBBox(3, value)"
+                  label="max. Latitude"
+                  :min="-180.0"
+                  :max="180.0"
+                  :step="0.0001"
+                  :precision="4"
+                  density="compact"
+                  variant="outlined"
+                  control-variant="stacked"
+                  hide-details
+                ></v-number-input>
               </v-col>
+              <v-col cols="3"> </v-col>
             </v-row>
-            <template v-if="settings.expertMode">
-              <v-row>
-                <v-col cols="3"> </v-col>
-                <v-col cols="6">
-                  <v-number-input
-                    :model-value="bbox[3]"
-                    @update:model-value="(value) => updateBBox(3, value)"
-                    label="max. Latitude"
-                    :min="-180.0"
-                    :max="180.0"
-                    :step="0.0001"
-                    :precision="4"
-                    density="compact"
-                    variant="outlined"
-                    control-variant="stacked"
-                    hide-details
-                  ></v-number-input>
-                </v-col>
-                <v-col cols="3"> </v-col>
-              </v-row>
-              <v-row>
-                <v-col cols="5">
-                  <v-number-input
-                    :model-value="bbox[0]"
-                    @update:model-value="(value) => updateBBox(0, value)"
-                    label="min. Longitude"
-                    :min="-180.0"
-                    :max="180.0"
-                    :step="0.0001"
-                    :precision="4"
-                    density="compact"
-                    variant="outlined"
-                    control-variant="stacked"
-                    hide-details
-                  ></v-number-input
-                ></v-col>
-                <v-col cols="2"> </v-col>
-                <v-col cols="5">
-                  <v-number-input
-                    :model-value="bbox[2]"
-                    @update:model-value="(value) => updateBBox(2, value)"
-                    label="max. Longitude"
-                    :min="-180.0"
-                    :max="180.0"
-                    :step="0.0001"
-                    :precision="4"
-                    density="compact"
-                    variant="outlined"
-                    control-variant="stacked"
-                    hide-details
-                  ></v-number-input
-                ></v-col>
-              </v-row>
-              <v-row>
-                <v-col cols="3"> </v-col>
-                <v-col cols="6">
-                  <v-number-input
-                    :model-value="bbox[1]"
-                    @update:model-value="(value) => updateBBox(1, value)"
-                    label="min. Latitude"
-                    :min="-180.0"
-                    :max="180.0"
-                    :step="0.0001"
-                    :precision="4"
-                    density="compact"
-                    variant="outlined"
-                    control-variant="stacked"
-                    hide-details
-                  ></v-number-input>
-                </v-col>
-                <v-col cols="3"></v-col>
-              </v-row>
-            </template>
-            <v-row v-if="typeof currentBBoxValid === 'string'">
-              <v-col>
-                <v-alert color="error" type="error" variant="tonal" density="compact">
-                  {{ currentBBoxValid }}
-                </v-alert>
+            <v-row>
+              <v-col cols="5">
+                <v-number-input
+                  :model-value="bbox[0]"
+                  @update:model-value="(value) => updateBBox(0, value)"
+                  label="min. Longitude"
+                  :min="-180.0"
+                  :max="180.0"
+                  :step="0.0001"
+                  :precision="4"
+                  density="compact"
+                  variant="outlined"
+                  control-variant="stacked"
+                  hide-details
+                ></v-number-input
+              ></v-col>
+              <v-col cols="2"> </v-col>
+              <v-col cols="5">
+                <v-number-input
+                  :model-value="bbox[2]"
+                  @update:model-value="(value) => updateBBox(2, value)"
+                  label="max. Longitude"
+                  :min="-180.0"
+                  :max="180.0"
+                  :step="0.0001"
+                  :precision="4"
+                  density="compact"
+                  variant="outlined"
+                  control-variant="stacked"
+                  hide-details
+                ></v-number-input
+              ></v-col>
+            </v-row>
+            <v-row>
+              <v-col cols="3"> </v-col>
+              <v-col cols="6">
+                <v-number-input
+                  :model-value="bbox[1]"
+                  @update:model-value="(value) => updateBBox(1, value)"
+                  label="min. Latitude"
+                  :min="-180.0"
+                  :max="180.0"
+                  :step="0.0001"
+                  :precision="4"
+                  density="compact"
+                  variant="outlined"
+                  control-variant="stacked"
+                  hide-details
+                ></v-number-input>
               </v-col>
+              <v-col cols="3"></v-col>
             </v-row>
-            <v-row v-else-if="!settings.expertMode">
-              <v-col>
-                <v-alert color="gray" type="info" variant="tonal" density="compact"
-                  >Please select an area of interest on the map by clicking on the map. Then adjust
-                  the bounding box.</v-alert
+          </template>
+          <v-row v-if="typeof currentBBoxValid === 'string'">
+            <v-col>
+              <v-alert color="error" type="error" variant="tonal" density="compact">
+                {{ currentBBoxValid }}
+              </v-alert>
+            </v-col>
+          </v-row>
+          <v-row v-else-if="!settings.expertMode">
+            <v-col>
+              <v-alert color="gray" type="info" variant="tonal" density="compact"
+                >Please select an area of interest on the map by clicking on the map. Then adjust
+                the bounding box.</v-alert
+              >
+            </v-col>
+          </v-row>
+        </v-expansion-panel-text>
+      </v-expansion-panel>
+      <!-- Time -->
+      <v-expansion-panel v-if="currentMgrsTileId" value="time">
+        <v-expansion-panel-title>
+          <span class="header-text">
+            <v-badge v-bind="getStatus(settings.year)"></v-badge>
+            Time
+            <v-badge
+              v-if="settings.year"
+              inline
+              color="teal"
+              :content="`Year: ${settings.year}`"
+            ></v-badge>
+          </span>
+        </v-expansion-panel-title>
+        <v-expansion-panel-text>
+          <v-row>
+            <v-col>
+              <v-select
+                type="number"
+                v-model.number="settings.year"
+                :items="sceneYears"
+                label="Year of planting"
+                hide-details
+                variant="outlined"
+              />
+            </v-col>
+          </v-row>
+
+          <v-row>
+            <v-col cols="6">
+              <v-select
+                v-model="settings.startMonth"
+                :items="months"
+                label=" Start Month"
+                variant="outlined"
+                density="compact"
+                hide-details
+                :disabled="settings.autoSceneSelection"
+                item-value="value"
+                item-title="title"
+              />
+            </v-col>
+            <v-col cols="6">
+              <v-select
+                v-model="settings.endMonth"
+                :items="months"
+                label="End Month"
+                variant="outlined"
+                density="compact"
+                hide-details
+                :disabled="settings.autoSceneSelection"
+                item-value="value"
+                item-title="title"
+              />
+            </v-col>
+          </v-row>
+          <v-row>
+            <v-col>
+              <v-alert color="gray" type="info" variant="tonal" density="compact">
+                Select a year for the scene selection. Automatic scene selection will automatically
+                choose start and end dates based on crop calendars. Thus, start and end date
+                selection will only be available for manual scene selection.
+                <v-btn
+                  @click="settings.autoSceneSelection = !settings.autoSceneSelection"
+                  size="small"
+                  class="mt-2"
                 >
-              </v-col>
-            </v-row>
-          </v-expansion-panel-text>
-        </v-expansion-panel>
-        <!-- Time -->
-        <v-expansion-panel v-if="currentMgrsTileId" value="time">
-          <v-expansion-panel-title>
-            <span class="header-text">
-              <v-badge v-bind="getStatus(settings.year)"></v-badge>
-              Time
-              <v-badge
-                v-if="settings.year"
-                inline
+                  <template v-if="settings.autoSceneSelection">Disable</template>
+                  <template v-else>Enable</template>
+                  automatic scene selection
+                </v-btn>
+              </v-alert>
+            </v-col>
+          </v-row>
+        </v-expansion-panel-text>
+      </v-expansion-panel>
+      <!-- Coverage -->
+      <v-expansion-panel v-if="currentMgrsTileId && settings.expertMode" value="coverage">
+        <v-expansion-panel-title>
+          <span class="header-text">
+            <v-badge v-bind="getStatus(settings.cloudCover <= 50, true)"></v-badge>
+            Coverage
+            <v-badge inline color="blue" :content="`Cloud: ${settings.cloudCover}%`"></v-badge>
+            <v-badge
+              v-if="!settings.autoSceneSelection"
+              inline
+              color="brown"
+              :content="`Area: ${settings.areaCoverage}%`"
+            ></v-badge>
+          </span>
+        </v-expansion-panel-title>
+        <v-expansion-panel-text>
+          <!-- Cloud Coverage -->
+          <v-row>
+            <v-col cols="6">
+              <v-label class="text-subtitle-2">Cloud Cover (%)</v-label>
+            </v-col>
+            <v-col cols="6" class="d-flex justify-end">
+              <v-number-input
+                v-model.number="settings.cloudCover"
+                :min="1"
+                :max="100"
+                :step="1"
+                :precision="0"
+                density="compact"
+                variant="outlined"
+                control-variant="stacked"
+                hide-details
+                class="coverage-input"
+              ></v-number-input>
+            </v-col>
+          </v-row>
+          <v-row>
+            <v-col>
+              <v-slider
+                v-model.number="settings.cloudCover"
+                :min="1"
+                :max="100"
+                :step="1"
                 color="teal"
-                :content="`Year: ${settings.year}`"
-              ></v-badge>
-            </span>
-          </v-expansion-panel-title>
-          <v-expansion-panel-text>
-            <v-row>
-              <v-col>
-                <v-select
-                  type="number"
-                  v-model.number="settings.year"
-                  :items="sceneYears"
-                  label="Year of planting"
-                  hide-details
-                  variant="outlined"
-                />
-              </v-col>
-            </v-row>
-
+                track-color="grey-darken-2"
+                thumb-color="teal"
+                hide-details
+              />
+            </v-col>
+          </v-row>
+          <v-row v-if="settings.cloudCover > 50">
+            <v-col>
+              <v-alert type="warning" variant="tonal" density="compact">
+                Cloud cover above 50% may decrease the probability of getting accurate results. Try
+                to select an area without clouds.
+              </v-alert>
+            </v-col>
+          </v-row>
+          <!-- Area Coverage -->
+          <template v-if="!settings.autoSceneSelection">
             <v-row>
               <v-col cols="6">
-                <v-select
-                  v-model="settings.startMonth"
-                  :items="months"
-                  label=" Start Month"
-                  variant="outlined"
-                  density="compact"
-                  hide-details
-                  :disabled="settings.autoSceneSelection"
-                  item-value="value"
-                  item-title="title"
-                />
-              </v-col>
-              <v-col cols="6">
-                <v-select
-                  v-model="settings.endMonth"
-                  :items="months"
-                  label="End Month"
-                  variant="outlined"
-                  density="compact"
-                  hide-details
-                  :disabled="settings.autoSceneSelection"
-                  item-value="value"
-                  item-title="title"
-                />
-              </v-col>
-            </v-row>
-            <v-row>
-              <v-col>
-                <v-alert color="gray" type="info" variant="tonal" density="compact">
-                  Select a year for the scene selection. Automatic scene selection will
-                  automatically choose start and end dates based on crop calendars. Thus, start and
-                  end date selection will only be available for manual scene selection.
-                  <v-btn
-                    @click="settings.autoSceneSelection = !settings.autoSceneSelection"
-                    size="small"
-                    class="mt-2"
-                  >
-                    <template v-if="settings.autoSceneSelection">Disable</template>
-                    <template v-else>Enable</template>
-                    automatic scene selection
-                  </v-btn>
-                </v-alert>
-              </v-col>
-            </v-row>
-          </v-expansion-panel-text>
-        </v-expansion-panel>
-        <!-- Coverage -->
-        <v-expansion-panel v-if="currentMgrsTileId && settings.expertMode" value="coverage">
-          <v-expansion-panel-title>
-            <span class="header-text">
-              <v-badge v-bind="getStatus(settings.cloudCover <= 50, true)"></v-badge>
-              Coverage
-              <v-badge inline color="blue" :content="`Cloud: ${settings.cloudCover}%`"></v-badge>
-              <v-badge
-                v-if="!settings.autoSceneSelection"
-                inline
-                color="brown"
-                :content="`Area: ${settings.areaCoverage}%`"
-              ></v-badge>
-            </span>
-          </v-expansion-panel-title>
-          <v-expansion-panel-text>
-            <!-- Cloud Coverage -->
-            <v-row>
-              <v-col cols="6">
-                <v-label class="text-subtitle-2">Cloud Cover (%)</v-label>
+                <v-label class="text-subtitle-2">Area Coverage (%)</v-label>
               </v-col>
               <v-col cols="6" class="d-flex justify-end">
                 <v-number-input
-                  v-model.number="settings.cloudCover"
+                  v-model.number="settings.areaCoverage"
                   :min="1"
                   :max="100"
                   :step="1"
@@ -789,7 +813,7 @@ defineExpose({ openModelSelection })
             <v-row>
               <v-col>
                 <v-slider
-                  v-model.number="settings.cloudCover"
+                  v-model.number="settings.areaCoverage"
                   :min="1"
                   :max="100"
                   :step="1"
@@ -800,336 +824,286 @@ defineExpose({ openModelSelection })
                 />
               </v-col>
             </v-row>
-            <v-row v-if="settings.cloudCover > 50">
-              <v-col>
-                <v-alert type="warning" variant="tonal" density="compact">
-                  Cloud cover above 50% may decrease the probability of getting accurate results.
-                  Try to select an area without clouds.
-                </v-alert>
-              </v-col>
-            </v-row>
-            <!-- Area Coverage -->
-            <template v-if="!settings.autoSceneSelection">
-              <v-row>
-                <v-col cols="6">
-                  <v-label class="text-subtitle-2">Area Coverage (%)</v-label>
-                </v-col>
-                <v-col cols="6" class="d-flex justify-end">
-                  <v-number-input
-                    v-model.number="settings.areaCoverage"
-                    :min="1"
-                    :max="100"
-                    :step="1"
-                    :precision="0"
-                    density="compact"
-                    variant="outlined"
-                    control-variant="stacked"
-                    hide-details
-                    class="coverage-input"
-                  ></v-number-input>
-                </v-col>
-              </v-row>
-              <v-row>
-                <v-col>
-                  <v-slider
-                    v-model.number="settings.areaCoverage"
-                    :min="1"
-                    :max="100"
-                    :step="1"
-                    color="teal"
-                    track-color="grey-darken-2"
-                    thumb-color="teal"
-                    hide-details
-                  />
-                </v-col>
-              </v-row>
-            </template>
-          </v-expansion-panel-text>
-        </v-expansion-panel>
-        <!-- Scene Selection -->
-        <v-expansion-panel v-if="currentMgrsTileId" value="scene-selection">
-          <v-expansion-panel-title>
-            <span class="header-text">
-              <v-badge
-                v-bind="
-                  getStatus(
-                    settings.autoSceneSelection &&
-                      (!settings.autoSceneSelection || settings.buffer >= 14),
-                    true,
-                  )
-                "
-              ></v-badge>
-              Scene Selection
-              <v-badge
-                v-if="settings.autoSceneSelection"
-                inline
-                color="teal"
-                content="Automatic"
-              ></v-badge>
-              <v-badge v-else inline color="warning" content="Manual"></v-badge>
-              <v-badge
-                v-if="settings.autoSceneSelection"
-                inline
-                color="teal"
-                :content="`Buffer: ${settings.buffer} days`"
-              ></v-badge>
-            </span>
-          </v-expansion-panel-title>
-          <v-expansion-panel-text>
-            <v-row>
-              <v-col>
-                <v-checkbox v-model="settings.autoSceneSelection" density="compact" hide-details
-                  ><template v-slot:label>Automatic Scene Selection</template>
-                </v-checkbox>
-              </v-col>
-            </v-row>
-            <v-row>
-              <v-col>
-                <v-alert color="gray" type="info" density="compact">
-                  When checked, a suitable scene will be automatically chosen based on the selected
-                  year and the crop calendar for the selected area. When not checked, two scenes
-                  have to be selected manually - one for the time around planting and one for the
-                  time around harvest.
-                </v-alert>
-              </v-col>
-            </v-row>
+          </template>
+        </v-expansion-panel-text>
+      </v-expansion-panel>
+      <!-- Scene Selection -->
+      <v-expansion-panel v-if="currentMgrsTileId" value="scene-selection">
+        <v-expansion-panel-title>
+          <span class="header-text">
+            <v-badge
+              v-bind="
+                getStatus(
+                  settings.autoSceneSelection &&
+                    (!settings.autoSceneSelection || settings.buffer >= 14),
+                  true,
+                )
+              "
+            ></v-badge>
+            Scene Selection
+            <v-badge
+              v-if="settings.autoSceneSelection"
+              inline
+              color="teal"
+              content="Automatic"
+            ></v-badge>
+            <v-badge v-else inline color="warning" content="Manual"></v-badge>
+            <v-badge
+              v-if="settings.autoSceneSelection"
+              inline
+              color="teal"
+              :content="`Buffer: ${settings.buffer} days`"
+            ></v-badge>
+          </span>
+        </v-expansion-panel-title>
+        <v-expansion-panel-text>
+          <v-row>
+            <v-col>
+              <v-checkbox v-model="settings.autoSceneSelection" density="compact" hide-details
+                ><template v-slot:label>Automatic Scene Selection</template>
+              </v-checkbox>
+            </v-col>
+          </v-row>
+          <v-row>
+            <v-col>
+              <v-alert color="gray" type="info" density="compact">
+                When checked, a suitable scene will be automatically chosen based on the selected
+                year and the crop calendar for the selected area. When not checked, two scenes have
+                to be selected manually - one for the time around planting and one for the time
+                around harvest.
+              </v-alert>
+            </v-col>
+          </v-row>
 
-            <template v-if="settings.autoSceneSelection">
-              <v-row>
-                <v-col cols="6">
-                  <v-label class="text-subtitle-2">Search Buffer (days)</v-label>
-                </v-col>
-                <v-col cols="6" class="d-flex justify-end">
-                  <v-number-input
-                    v-model.number="settings.buffer"
-                    :min="1"
-                    :max="60"
-                    :step="1"
-                    :precision="0"
-                    density="compact"
-                    variant="outlined"
-                    control-variant="stacked"
-                    hide-details
-                    class="coverage-input"
-                  ></v-number-input>
-                </v-col>
-              </v-row>
-              <v-row>
-                <v-col>
-                  <v-slider
-                    v-model.number="settings.buffer"
-                    :min="1"
-                    :max="60"
-                    :step="1"
-                    color="teal"
-                    track-color="grey-darken-2"
-                    thumb-color="teal"
-                    hide-details
-                  />
-                </v-col>
-              </v-row>
-              <v-row>
-                <v-col>
-                  <v-alert
-                    v-if="settings.buffer < 14"
-                    type="warning"
-                    variant="tonal"
-                    density="compact"
-                  >
-                    A search buffer of less than 14 days may decrease the probability of getting
-                    results for automatic scene selection.
-                  </v-alert>
-                </v-col>
-              </v-row>
-            </template>
-          </v-expansion-panel-text>
-        </v-expansion-panel>
-        <!-- Scene A -->
-        <v-expansion-panel v-if="currentMgrsTileId" value="win-a" class="scenes">
-          <v-expansion-panel-title>
-            <span class="header-text">
-              <v-badge v-bind="getStatus(activeTileId)"></v-badge>
-              Scene<template v-if="!modelIsSingleShot">&nbsp;A</template>
-              <v-badge
-                v-if="activeTileId"
-                inline
-                color="teal"
-                :content="firstTile?.date || activeTileId"
-              ></v-badge>
-            </span>
-            <v-spacer></v-spacer>
-            <v-tooltip
+          <template v-if="settings.autoSceneSelection">
+            <v-row>
+              <v-col cols="6">
+                <v-label class="text-subtitle-2">Search Buffer (days)</v-label>
+              </v-col>
+              <v-col cols="6" class="d-flex justify-end">
+                <v-number-input
+                  v-model.number="settings.buffer"
+                  :min="1"
+                  :max="60"
+                  :step="1"
+                  :precision="0"
+                  density="compact"
+                  variant="outlined"
+                  control-variant="stacked"
+                  hide-details
+                  class="coverage-input"
+                ></v-number-input>
+              </v-col>
+            </v-row>
+            <v-row>
+              <v-col>
+                <v-slider
+                  v-model.number="settings.buffer"
+                  :min="1"
+                  :max="60"
+                  :step="1"
+                  color="teal"
+                  track-color="grey-darken-2"
+                  thumb-color="teal"
+                  hide-details
+                />
+              </v-col>
+            </v-row>
+            <v-row>
+              <v-col>
+                <v-alert
+                  v-if="settings.buffer < 14"
+                  type="warning"
+                  variant="tonal"
+                  density="compact"
+                >
+                  A search buffer of less than 14 days may decrease the probability of getting
+                  results for automatic scene selection.
+                </v-alert>
+              </v-col>
+            </v-row>
+          </template>
+        </v-expansion-panel-text>
+      </v-expansion-panel>
+      <!-- Scene A -->
+      <v-expansion-panel v-if="currentMgrsTileId" value="win-a" class="scenes">
+        <v-expansion-panel-title>
+          <span class="header-text">
+            <v-badge v-bind="getStatus(activeTileId)"></v-badge>
+            Scene<template v-if="!modelIsSingleShot">&nbsp;A</template>
+            <v-badge
               v-if="activeTileId"
-              :text="
-                stacPreviewTileId === activeTileId ? 'Hide scene A image' : 'Show scene A image'
-              "
-              open-on-click
-            >
-              <template v-slot:activator="{ props }">
-                <v-btn
-                  v-bind="props"
-                  :icon="stacPreviewTileId === activeTileId ? mdiEyeOutline : mdiEyeOffOutline"
-                  density="compact"
-                  @click.stop="
-                    stacPreviewTileId = stacPreviewTileId === activeTileId ? null : activeTileId
-                  "
-                ></v-btn>
-              </template>
-            </v-tooltip>
-          </v-expansion-panel-title>
-          <v-expansion-panel-text>
-            <div class="results">
-              <!-- Show first accordion's active tile first -->
-              <template v-if="activeTileId">
-                <v-row
-                  ><v-col class="text-center"
-                    ><v-label class="text-overline ma-1">Selected</v-label></v-col
-                  ></v-row
-                >
-                <TilePreview :tileId="activeTileId" win="a" />
-              </template>
-              <!-- Show other results -->
-              <v-row v-if="resultsA.length > 0"
+              inline
+              color="teal"
+              :content="firstTile?.date || activeTileId"
+            ></v-badge>
+          </span>
+          <v-spacer></v-spacer>
+          <v-tooltip
+            v-if="activeTileId"
+            :text="stacPreviewTileId === activeTileId ? 'Hide scene A image' : 'Show scene A image'"
+            open-on-click
+          >
+            <template v-slot:activator="{ props }">
+              <v-btn
+                v-bind="props"
+                :icon="stacPreviewTileId === activeTileId ? mdiEyeOutline : mdiEyeOffOutline"
+                density="compact"
+                @click.stop="
+                  stacPreviewTileId = stacPreviewTileId === activeTileId ? null : activeTileId
+                "
+              ></v-btn>
+            </template>
+          </v-tooltip>
+        </v-expansion-panel-title>
+        <v-expansion-panel-text>
+          <div class="results">
+            <!-- Show first accordion's active tile first -->
+            <template v-if="activeTileId">
+              <v-row
                 ><v-col class="text-center"
-                  ><v-label class="text-overline ma-1 mt-4">All Search Results</v-label></v-col
+                  ><v-label class="text-overline ma-1">Selected</v-label></v-col
                 ></v-row
               >
-              <TilePreview
-                v-for="result in resultsA"
-                :key="result?.id"
-                win="a"
-                :tileId="result?.id"
-              />
-              <v-alert v-if="!hasMore" class="mb-2 mt-2" color="teal" type="info" density="compact">
-                <p class="mb-2">
-                  No more images found. Try adjusting your filters (date range, cloud cover, area
-                  coverage) to increase the likelihood of finding more results.
-                </p>
-                <p>
-                  You can provide your own EarthSearch STAC Item ID if you didn't find what you were
-                  looking for:<br />
-                  <v-text-field
-                    v-model="activeTileId"
-                    type="text"
-                    label="STAC Item ID"
-                    variant="outlined"
-                    density="compact"
-                    hide-details
-                    class="mt-2"
-                  />
-                </p>
-              </v-alert>
-              <v-btn
-                v-if="hasMore"
-                @click="loadMore"
-                class="action-button mt-4"
-                :disabled="isLoading"
-              >
-                <template v-if="isLoading">Loading...</template>
-                <template v-else>Load more</template>
-              </v-btn>
-            </div>
-          </v-expansion-panel-text>
-        </v-expansion-panel>
-        <!-- Scene B -->
-        <v-expansion-panel
-          v-if="currentMgrsTileId && !modelIsSingleShot"
-          class="scenes"
-          value="win-b"
-          :disabled="!activeTileId"
-        >
-          <v-expansion-panel-title>
-            <span class="header-text">
-              <v-badge v-bind="getStatus(secondActiveTileId)"></v-badge>
-              Scene B
-              <v-badge
-                v-if="secondActiveTileId"
-                inline
-                color="teal"
-                :content="secondTile?.date || secondActiveTileId"
-              ></v-badge>
-            </span>
-            <v-spacer></v-spacer>
-            <v-tooltip
+              <TilePreview :tileId="activeTileId" win="a" />
+            </template>
+            <!-- Show other results -->
+            <v-row v-if="resultsA.length > 0"
+              ><v-col class="text-center"
+                ><v-label class="text-overline ma-1 mt-4">All Search Results</v-label></v-col
+              ></v-row
+            >
+            <TilePreview
+              v-for="result in resultsA"
+              :key="result?.id"
+              win="a"
+              :tileId="result?.id"
+            />
+            <v-alert v-if="!hasMore" class="mb-2 mt-2" color="teal" type="info" density="compact">
+              <p class="mb-2">
+                No more images found. Try adjusting your filters (date range, cloud cover, area
+                coverage) to increase the likelihood of finding more results.
+              </p>
+              <p>
+                You can provide your own EarthSearch STAC Item ID if you didn't find what you were
+                looking for:<br />
+                <v-text-field
+                  v-model="activeTileId"
+                  type="text"
+                  label="STAC Item ID"
+                  variant="outlined"
+                  density="compact"
+                  hide-details
+                  class="mt-2"
+                />
+              </p>
+            </v-alert>
+            <v-btn
+              v-if="hasMore"
+              @click="loadMore"
+              class="action-button mt-4"
+              :disabled="isLoading"
+            >
+              <template v-if="isLoading">Loading...</template>
+              <template v-else>Load more</template>
+            </v-btn>
+          </div>
+        </v-expansion-panel-text>
+      </v-expansion-panel>
+      <!-- Scene B -->
+      <v-expansion-panel
+        v-if="currentMgrsTileId && !modelIsSingleShot"
+        class="scenes"
+        value="win-b"
+        :disabled="!activeTileId"
+      >
+        <v-expansion-panel-title>
+          <span class="header-text">
+            <v-badge v-bind="getStatus(secondActiveTileId)"></v-badge>
+            Scene B
+            <v-badge
               v-if="secondActiveTileId"
-              :text="
-                stacPreviewTileId === secondActiveTileId
-                  ? 'Hide scene B image'
-                  : 'Show scene B image'
-              "
-              open-on-click
-            >
-              <template v-slot:activator="{ props }">
-                <v-btn
-                  v-bind="props"
-                  :icon="
-                    stacPreviewTileId === secondActiveTileId ? mdiEyeOutline : mdiEyeOffOutline
-                  "
-                  density="compact"
-                  @click.stop="
-                    stacPreviewTileId =
-                      stacPreviewTileId === secondActiveTileId ? null : secondActiveTileId
-                  "
-                ></v-btn>
-              </template>
-            </v-tooltip>
-          </v-expansion-panel-title>
-          <v-expansion-panel-text>
-            <div class="results">
-              <!-- Show second accordion's active tile first -->
-              <template v-if="secondActiveTileId">
-                <v-row
-                  ><v-col class="text-center"
-                    ><v-label class="text-overline ma-1">Selected</v-label></v-col
-                  ></v-row
-                >
-                <TilePreview :tileId="secondActiveTileId" win="b" />
-              </template>
-              <!-- Show other results -->
-              <v-row v-if="resultsB.length > 0"
+              inline
+              color="teal"
+              :content="secondTile?.date || secondActiveTileId"
+            ></v-badge>
+          </span>
+          <v-spacer></v-spacer>
+          <v-tooltip
+            v-if="secondActiveTileId"
+            :text="
+              stacPreviewTileId === secondActiveTileId ? 'Hide scene B image' : 'Show scene B image'
+            "
+            open-on-click
+          >
+            <template v-slot:activator="{ props }">
+              <v-btn
+                v-bind="props"
+                :icon="stacPreviewTileId === secondActiveTileId ? mdiEyeOutline : mdiEyeOffOutline"
+                density="compact"
+                @click.stop="
+                  stacPreviewTileId =
+                    stacPreviewTileId === secondActiveTileId ? null : secondActiveTileId
+                "
+              ></v-btn>
+            </template>
+          </v-tooltip>
+        </v-expansion-panel-title>
+        <v-expansion-panel-text>
+          <div class="results">
+            <!-- Show second accordion's active tile first -->
+            <template v-if="secondActiveTileId">
+              <v-row
                 ><v-col class="text-center"
-                  ><v-label class="text-overline ma-1 mt-4">All Search Results</v-label></v-col
+                  ><v-label class="text-overline ma-1">Selected</v-label></v-col
                 ></v-row
               >
-              <TilePreview
-                v-for="result in resultsB"
-                :key="result?.id"
-                win="b"
-                :tileId="result?.id"
-              />
-              <v-alert v-if="!hasMore" class="mb-2 mt-2" color="teal" type="info" density="compact">
-                <p class="mb-2">
-                  No more images found. Try adjusting your filters (date range, cloud cover, area
-                  coverage) to increase the likelihood of finding more results.
-                </p>
-                <p>
-                  You can provide your own EarthSearch STAC Item ID if you didn't find what you were
-                  looking for:<br />
-                  <v-text-field
-                    v-model="secondActiveTileId"
-                    type="text"
-                    label="STAC Item ID"
-                    variant="outlined"
-                    density="compact"
-                    hide-details
-                    class="mt-2"
-                  />
-                </p>
-              </v-alert>
-              <v-btn
-                v-if="hasMore"
-                @click="loadMore"
-                class="action-button mt-4"
-                :disabled="isLoading"
-              >
-                <template v-if="isLoading">Loading...</template>
-                <template v-else>Load more</template>
-              </v-btn>
-            </div>
-          </v-expansion-panel-text>
-        </v-expansion-panel>
-      </v-expansion-panels>
-    </template>
+              <TilePreview :tileId="secondActiveTileId" win="b" />
+            </template>
+            <!-- Show other results -->
+            <v-row v-if="resultsB.length > 0"
+              ><v-col class="text-center"
+                ><v-label class="text-overline ma-1 mt-4">All Search Results</v-label></v-col
+              ></v-row
+            >
+            <TilePreview
+              v-for="result in resultsB"
+              :key="result?.id"
+              win="b"
+              :tileId="result?.id"
+            />
+            <v-alert v-if="!hasMore" class="mb-2 mt-2" color="teal" type="info" density="compact">
+              <p class="mb-2">
+                No more images found. Try adjusting your filters (date range, cloud cover, area
+                coverage) to increase the likelihood of finding more results.
+              </p>
+              <p>
+                You can provide your own EarthSearch STAC Item ID if you didn't find what you were
+                looking for:<br />
+                <v-text-field
+                  v-model="secondActiveTileId"
+                  type="text"
+                  label="STAC Item ID"
+                  variant="outlined"
+                  density="compact"
+                  hide-details
+                  class="mt-2"
+                />
+              </p>
+            </v-alert>
+            <v-btn
+              v-if="hasMore"
+              @click="loadMore"
+              class="action-button mt-4"
+              :disabled="isLoading"
+            >
+              <template v-if="isLoading">Loading...</template>
+              <template v-else>Load more</template>
+            </v-btn>
+          </div>
+        </v-expansion-panel-text>
+      </v-expansion-panel>
+    </v-expansion-panels>
   </div>
 
   <div class="action-buttons">
