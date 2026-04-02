@@ -12,6 +12,7 @@ export interface PermalinkState {
   mode: string
   zoom: number
   center: Coordinate
+  year?: number
 }
 
 export interface PermalinkStateInference extends PermalinkState {
@@ -20,7 +21,6 @@ export interface PermalinkStateInference extends PermalinkState {
   secondActiveTileId: string | null
   bbox?: Extent
   // Search settings - only included when currentMgrsTileId is present
-  year?: number
   startMonth?: number
   endMonth?: number
   cloudCover?: number
@@ -29,9 +29,8 @@ export interface PermalinkStateInference extends PermalinkState {
 }
 
 export interface PermalinkStateGlobal extends PermalinkState {
-  confidence: boolean
-  fieldBoundaries: boolean
-  confidenceThreshold: number
+  aggregate: string
+  threshold: number
 }
 
 export default function usePermalink() {
@@ -58,9 +57,9 @@ export default function usePermalink() {
     mode: 'global',
     zoom: 2,
     center: [0, 0],
-    confidence: true,
-    fieldBoundaries: true,
-    confidenceThreshold: 0.5,
+    year: 2025,
+    aggregate: 'confidence',
+    threshold: 0.4,
   }
 
   const getDefaultState = (mode: string): PermalinkStateInference | PermalinkStateGlobal => {
@@ -99,9 +98,9 @@ export default function usePermalink() {
           'buffer:',
           'bbox:',
           'year:',
-          'confidence:',
+          'aggregate:',
           'field_boundaries:',
-          'confidence_threshold:',
+          'threshold:',
         ]
         let mode = defaultMode
         let hasExplicitMode = false
@@ -176,19 +175,19 @@ export default function usePermalink() {
             mode,
             zoom,
             center,
-            confidence: defaultGlobalState.confidence,
-            fieldBoundaries: defaultGlobalState.fieldBoundaries,
-            confidenceThreshold: defaultGlobalState.confidenceThreshold,
+            aggregate: defaultGlobalState.aggregate,
+            threshold: defaultGlobalState.threshold,
           }
 
           for (const part of keyValueParts) {
-            if (part.startsWith('confidence_threshold:')) {
-              const val = parseFloat(part.substring(21))
-              if (!isNaN(val)) result.confidenceThreshold = val
-            } else if (part.startsWith('confidence:')) {
-              result.confidence = part.substring(11) === 'y'
-            } else if (part.startsWith('field_boundaries:')) {
-              result.fieldBoundaries = part.substring(17) === 'y'
+            if (part.startsWith('threshold:')) {
+              const val = parseFloat(part.substring(10))
+              if (!isNaN(val)) result.threshold = val
+            } else if (part.startsWith('aggregate:')) {
+              result.aggregate = part.substring(10)
+            } else if (part.startsWith('year:')) {
+              const year = parseInt(part.substring(5), 10)
+              if (!isNaN(year)) result.year = year
             }
           }
 
@@ -287,17 +286,19 @@ export default function usePermalink() {
       }
     } else {
       // Global mode
-      hashParts.push(`confidence:${settings.value.confidence ? 'y' : 'n'}`)
-      hashParts.push(`field_boundaries:${settings.value.fieldBoundaries ? 'y' : 'n'}`)
-      hashParts.push(`confidence_threshold:${settings.value.confidenceThreshold}`)
+      hashParts.push(`aggregate:${settings.value.aggregate}`)
+      hashParts.push(`threshold:${settings.value.threshold}`)
+      if (settings.value.year) {
+        hashParts.push(`year:${settings.value.year}`)
+      }
 
       state = {
         mode,
         zoom,
         center,
-        confidence: settings.value.confidence,
-        fieldBoundaries: settings.value.fieldBoundaries,
-        confidenceThreshold: settings.value.confidenceThreshold,
+        aggregate: settings.value.aggregate,
+        threshold: settings.value.threshold,
+        year: settings.value.year,
       }
     }
 
@@ -333,9 +334,11 @@ export default function usePermalink() {
   }
 
   function restoreGlobalState(state: PermalinkStateGlobal) {
-    settings.value.confidence = state.confidence
-    settings.value.fieldBoundaries = state.fieldBoundaries
-    settings.value.confidenceThreshold = state.confidenceThreshold
+    settings.value.aggregate = state.aggregate
+    settings.value.threshold = state.threshold
+    if (state.year) {
+      settings.value.year = state.year
+    }
   }
 
   // Setup permalink functionality
@@ -363,9 +366,8 @@ export default function usePermalink() {
         settings.value.cloudCover,
         settings.value.areaCoverage,
         settings.value.buffer,
-        settings.value.confidence,
-        settings.value.fieldBoundaries,
-        settings.value.confidenceThreshold,
+        settings.value.aggregate,
+        settings.value.threshold,
       ],
       () => {
         if (!map.value) {

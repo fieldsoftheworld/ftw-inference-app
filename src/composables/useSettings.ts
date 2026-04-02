@@ -11,9 +11,8 @@ export interface Settings {
   model: string
   expertMode: boolean
   mode: string
-  fieldBoundaries: boolean
-  confidence: boolean
-  confidenceThreshold: number
+  aggregate: string
+  threshold: number
 }
 
 export interface ModelInfo {
@@ -58,9 +57,8 @@ const defaultSettings: Settings = {
   model: '',
   expertMode: false,
   mode: defaultMode,
-  fieldBoundaries: true,
-  confidence: true,
-  confidenceThreshold: 0.5,
+  aggregate: 'area',
+  threshold: 0.4,
 }
 
 const defaultModel = computed(() => {
@@ -70,6 +68,8 @@ const defaultModel = computed(() => {
   }
   return selected?.id || ''
 })
+
+const defaultYearGlobal = 2024
 
 const modelTitle = computed(() => {
   const model = settings.value.model
@@ -139,6 +139,18 @@ watch(
     localStorage.setItem('ftw-search-settings', JSON.stringify(newSettings))
   },
   { deep: true },
+)
+
+watch(
+  () => settings.value.mode,
+  () => {
+    if (
+      settings.value.mode === 'global' &&
+      (settings.value.year < 2024 || settings.value.year > 2025)
+    ) {
+      settings.value.year = defaultYearGlobal
+    }
+  },
 )
 
 const modelIsSingleShot = computed(() => {

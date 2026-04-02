@@ -13,19 +13,20 @@ const { settings } = useSettings()
 
     <v-row class="d-flex justify-center w-100 mx-auto">
       <v-col>
-        <h3 class="group">Layers</h3>
-        <v-switch v-model="settings.fieldBoundaries" density="compact" hide-details class>
-          <template #label> Field Boundaries </template>
-        </v-switch>
-        <v-switch v-model="settings.confidence" density="compact" hide-details class>
-          <template #label> Confidence scores </template>
-        </v-switch>
+        <h3 class="group">Year</h3>
+        <v-radio-group v-model="settings.year" density="compact" hide-details>
+          <v-radio label="2024" :value="2024"></v-radio>
+          <v-radio label="2025" :value="2025"></v-radio>
+        </v-radio-group>
+        <h3 class="group">Overviews</h3>
+        <v-radio-group v-model="settings.aggregate" density="compact" hide-details>
+          <v-radio label="Field Area" value="area"></v-radio>
+          <v-radio label="Confidence" value="confidence"></v-radio>
+        </v-radio-group>
 
-        <h3 class="group">
-          Confidence Threshold: {{ (settings.confidenceThreshold * 100).toFixed(0) }}%
-        </h3>
+        <h3 class="group">Threshold: {{ (settings.threshold * 100).toFixed(0) }}%</h3>
         <v-slider
-          v-model.number="settings.confidenceThreshold"
+          v-model.number="settings.threshold"
           :min="0"
           :max="1"
           :step="0.01"

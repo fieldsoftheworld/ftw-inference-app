@@ -3,6 +3,7 @@ import type Map from 'ol/Map'
 import VectorSource from 'ol/source/Vector'
 import VectorLayer from 'ol/layer/Vector'
 import VectorTileLayer from 'ol/layer/VectorTile'
+import GlTileLayer from 'ol/layer/WebGLTile.js'
 import TileLayer from 'ol/layer/Tile'
 import type XYZ from 'ol/source/XYZ'
 import GeoJSON from 'ol/format/GeoJSON'
@@ -14,11 +15,15 @@ import useSettings from './useSettings'
 import createCloudlessLayer from '../layers/S2-Cloudless-Layer'
 import createS2GridLayer from '../layers/S2-Grid-Layer'
 import {
-  createGlobalPredictionsLayerHighZoom,
-  createGlobalPredictionsLayerLowZoom,
+  createGlobalPredictionsLayer,
+  updateGlobalPredictionsLayer,
 } from '../layers/Global-Predictions-Layer'
 import { Fill, Stroke, Style } from 'ol/style'
 import { type FeatureLike } from 'ol/Feature'
+import {
+  createGlobalOverviewLayer,
+  updateGlobalOverviewLayer,
+} from '../layers/Global-Overview-Layers'
 
 let featureId = 0
 
@@ -27,6 +32,8 @@ export interface AreaValues {
   max_area_km2: number
   default?: boolean
 }
+
+const { settings } = useSettings()
 
 export const map = shallowRef<Map | null>(null)
 const areaValues = ref<AreaValues>({
@@ -47,7 +54,6 @@ const geoJsonResults = shallowRef<any[]>([])
 
 // Cloudless layer management
 const cloudlessLayer = shallowRef<TileLayer<XYZ> | null>(null)
-const { settings } = useSettings()
 
 // Watch for year changes and update the cloudless layer
 watch(
@@ -79,67 +85,91 @@ const initCloudlessLayer = () => {
 
 // Global predictions and S2 grid layer management
 const s2GridLayer = shallowRef<VectorLayer<VectorSource> | null>(null)
-const globalPredictionsLayerHighZoom = shallowRef<VectorTileLayer | null>(null)
-const globalPredictionsLayerLowZoom = shallowRef<VectorTileLayer | null>(null)
+const globalPredictionsLayer = shallowRef<VectorTileLayer | null>(null)
+const globalOverviewLayer = shallowRef<GlTileLayer | null>(null)
 
-// Watch for globalPredictions toggle
 watch(
-  () => settings.value.mode,
-  (mode) => {
-    if (!map.value) {
-      return
-    }
-
-    if (mode === 'global') {
-      // Remove S2 grid layer
-      if (s2GridLayer.value) {
-        map.value.removeLayer(s2GridLayer.value)
-      }
-
-      // Add global predictions layers if not already added
-      if (!globalPredictionsLayerHighZoom.value) {
-        globalPredictionsLayerHighZoom.value = createGlobalPredictionsLayerHighZoom()
-      }
-      if (!globalPredictionsLayerLowZoom.value) {
-        globalPredictionsLayerLowZoom.value = createGlobalPredictionsLayerLowZoom()
-      }
-      map.value.addLayer(globalPredictionsLayerHighZoom.value)
-      map.value.addLayer(globalPredictionsLayerLowZoom.value)
-    } else {
-      // Remove global predictions layers
-      if (globalPredictionsLayerHighZoom.value) {
-        map.value.removeLayer(globalPredictionsLayerHighZoom.value)
-      }
-      if (globalPredictionsLayerLowZoom.value) {
-        map.value.removeLayer(globalPredictionsLayerLowZoom.value)
-      }
-
-      // Add S2 grid layer if not already added
-      if (!s2GridLayer.value) {
-        s2GridLayer.value = createS2GridLayer()
-      }
-      map.value.addLayer(s2GridLayer.value)
+  () => settings.value.threshold,
+  () => {
+    if (globalOverviewLayer.value) {
+      updateGlobalOverviewLayer(globalOverviewLayer.value, settings.value)
     }
   },
 )
 
-const initLayers = () => {
+const updateAggregateLayer = () => {
+  if (!map.value) {
+    return
+  }
+  if (globalOverviewLayer.value) {
+    map.value.removeLayer(globalOverviewLayer.value)
+    globalOverviewLayer.value = null
+  }
+
+  if (settings.value.aggregate) {
+    globalOverviewLayer.value = createGlobalOverviewLayer(settings.value)
+    map.value.addLayer(globalOverviewLayer.value)
+  }
+}
+
+watch(() => settings.value.aggregate, updateAggregateLayer)
+
+watch(
+  () => settings.value.year,
+  () => {
+    if (globalPredictionsLayer.value) {
+      updateGlobalPredictionsLayer(globalPredictionsLayer.value, settings.value.year)
+    }
+  },
+)
+
+const updateLayers = () => {
   if (!map.value) {
     return
   }
 
   if (settings.value.mode === 'global') {
+    if (s2GridLayer.value) {
+      map.value.removeLayer(s2GridLayer.value)
+      s2GridLayer.value = null
+    }
+
     // Initialize with global predictions layers
-    globalPredictionsLayerHighZoom.value = createGlobalPredictionsLayerHighZoom()
-    globalPredictionsLayerLowZoom.value = createGlobalPredictionsLayerLowZoom()
-    map.value.addLayer(globalPredictionsLayerHighZoom.value)
-    map.value.addLayer(globalPredictionsLayerLowZoom.value)
+    if (!globalPredictionsLayer.value) {
+      globalPredictionsLayer.value = createGlobalPredictionsLayer(settings.value.year)
+      map.value.addLayer(globalPredictionsLayer.value)
+    }
+    if (settings.value.aggregate) {
+      if (!globalOverviewLayer.value) {
+        globalOverviewLayer.value = createGlobalOverviewLayer(settings.value)
+        map.value.addLayer(globalOverviewLayer.value)
+      }
+    } else {
+      if (globalOverviewLayer.value) {
+        map.value.removeLayer(globalOverviewLayer.value)
+        globalOverviewLayer.value = null
+      }
+    }
   } else {
     // Initialize with S2 grid layer
-    s2GridLayer.value = createS2GridLayer()
-    map.value.addLayer(s2GridLayer.value)
+    if (!s2GridLayer.value) {
+      s2GridLayer.value = createS2GridLayer()
+      map.value.addLayer(s2GridLayer.value)
+    }
+
+    // Remove global predictions layers if they exist
+    if (globalPredictionsLayer.value) {
+      map.value.removeLayer(globalPredictionsLayer.value)
+      globalPredictionsLayer.value = null
+    }
+    if (globalOverviewLayer.value) {
+      map.value.removeLayer(globalOverviewLayer.value)
+      globalOverviewLayer.value = null
+    }
   }
 }
+
+watch(() => settings.value.mode, updateLayers)
 
 const featureStyle = new Style({
   fill: new Fill({
@@ -328,6 +358,6 @@ export default function useMap() {
     displayGeoJSON,
     geoJsonResults,
     initCloudlessLayer,
-    initLayers,
+    updateLayers,
   }
 }

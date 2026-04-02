@@ -21,7 +21,7 @@ const {
   hidePropertiesBox,
   geoJsonResults,
   initCloudlessLayer,
-  initLayers,
+  updateLayers,
 } = useMap()
 
 const { addMapClickHandler } = useAreaOfInterest()
@@ -84,7 +84,7 @@ onMounted(async () => {
     initCloudlessLayer()
 
     // Initialize layers
-    initLayers()
+    updateLayers()
 
     addMapClickHandler(map.value as Map, areaValues.value)
     // Setup permalink functionality
