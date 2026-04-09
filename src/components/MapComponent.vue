@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onBeforeUnmount } from 'vue'
 import { Map, View } from 'ol'
 import DataCabinet from './DataCabinet.vue'
 import GlobalFeedbackWidget from './GlobalFeedbackWidget.vue'
@@ -20,6 +20,7 @@ const {
   propertiesBoxPosition,
   originalClickPosition,
   hidePropertiesBox,
+  handleMapClick,
   geoJsonResults,
   initCloudlessLayer,
   updateLayers,
@@ -88,8 +89,15 @@ onMounted(async () => {
     updateLayers()
 
     addMapClickHandler(map.value as Map, areaValues.value)
+    map.value.on('singleclick', handleMapClick)
     // Setup permalink functionality
     setupPermalink(map)
+  }
+})
+
+onBeforeUnmount(() => {
+  if (map.value) {
+    map.value.un('singleclick', handleMapClick)
   }
 })
 
