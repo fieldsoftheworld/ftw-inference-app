@@ -1,6 +1,11 @@
 import GeoTIFF from 'ol/source/GeoTIFF'
 import GlTileLayer from 'ol/layer/WebGLTile.js'
-import type { Settings } from '../composables/useSettings'
+import {
+  AREA_OVERVIEW_COG,
+  CONFIDENCE_OVERVIEW_COG,
+  GLOBAL_DATA_MAP_FIELD_START_ZOOM_LEVEL,
+  type Settings,
+} from '../composables/useSettings'
 import { areaColorScale, confidenceColorScale, type ColorStop } from './color-scales'
 
 const ALPHA = 'aa'
@@ -28,25 +33,20 @@ export const confidenceStyle = (settings: Settings) => {
   }
 }
 
-const areaCogUrl =
-  'https://s3.us-west-2.amazonaws.com/us-west-2.opendata.source.coop/m-mohr/ftw-confidence-layers/prue_v1_field_area_500m_fieldsonly.tif'
-const confidenceCogUrl =
-  'https://s3.us-west-2.amazonaws.com/us-west-2.opendata.source.coop/m-mohr/ftw-confidence-layers/prue_v1_confidence_global.tif'
-
 export const createGlobalOverviewLayer = (settings: Settings) => {
   const layer = new GlTileLayer({
     source: new GeoTIFF({
       sources: [
         {
           // todo: try https://tiles.rdnt.io/tiles/{z}/{x}/{y}@2x?url=
-          url: settings.aggregate === 'confidence' ? confidenceCogUrl : areaCogUrl,
+          url: settings.aggregate === 'confidence' ? CONFIDENCE_OVERVIEW_COG : AREA_OVERVIEW_COG,
           min: 0,
           max: settings.aggregate === 'confidence' ? 1 : 2500,
         },
       ],
     }),
     minZoom: 0,
-    maxZoom: 10,
+    maxZoom: GLOBAL_DATA_MAP_FIELD_START_ZOOM_LEVEL,
   })
   updateGlobalOverviewLayer(layer, settings)
   return layer

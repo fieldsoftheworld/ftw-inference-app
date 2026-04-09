@@ -1,16 +1,18 @@
 import VectorTileLayer from 'ol/layer/VectorTile'
 import { PMTilesVectorSource } from 'ol-pmtiles'
 import { Fill, Stroke, Style } from 'ol/style'
-
-const PMTILES_URL =
-  'https://s3.us-west-2.amazonaws.com/us-west-2.opendata.source.coop/tge-labs/ftw-global-data/predictions/vectors/alpha/global.pmtiles'
+import {
+  GLOBAL_DATA_MAP_FIELD_START_ZOOM_LEVEL,
+  GLOBAL_DATA_PMTILES,
+} from '../composables/useSettings'
+import { globalPredictionsStyle } from './color-scales'
 
 export function createGlobalPredictionsLayer(year: number) {
   const layer = new VectorTileLayer({
     source: new PMTilesVectorSource({
-      url: PMTILES_URL,
+      url: GLOBAL_DATA_PMTILES,
     }),
-    minZoom: 10,
+    minZoom: GLOBAL_DATA_MAP_FIELD_START_ZOOM_LEVEL,
     properties: {
       name: 'global-predictions',
     },
@@ -25,11 +27,11 @@ export function updateGlobalPredictionsLayer(layer: VectorTileLayer, year: numbe
     if (layer === `field-${year}-01-01 00:00:00`) {
       return new Style({
         stroke: new Stroke({
-          color: 'rgba(255, 100, 0, 0.8)',
+          color: globalPredictionsStyle.stroke,
           width: 1,
         }),
         fill: new Fill({
-          color: 'rgba(255, 100, 0, 0.2)',
+          color: globalPredictionsStyle.fill,
         }),
       })
     }

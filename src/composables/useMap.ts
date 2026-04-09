@@ -24,6 +24,7 @@ import {
   createGlobalOverviewLayer,
   updateGlobalOverviewLayer,
 } from '../layers/Global-Overview-Layers'
+import { inferenceStyle } from '../layers/color-scales'
 
 let featureId = 0
 
@@ -50,7 +51,7 @@ const propertiesBoxPosition = ref<{ x: number; y: number } | null>(null)
 const originalClickPosition = ref<{ x: number; y: number } | null>(null)
 const showPropertiesBox = ref(false)
 
-const geoJsonResults = shallowRef<any[]>([])
+export const geoJsonResults = shallowRef<any[]>([])
 
 // Cloudless layer management
 const cloudlessLayer = shallowRef<TileLayer<XYZ> | null>(null)
@@ -173,10 +174,10 @@ watch(() => settings.value.mode, updateLayers)
 
 const featureStyle = new Style({
   fill: new Fill({
-    color: 'rgba(255, 255, 0, 0.1)',
+    color: inferenceStyle.fill,
   }),
   stroke: new Stroke({
-    color: 'rgba(255, 255, 0, 1)',
+    color: inferenceStyle.stroke,
     width: 2,
   }),
 })

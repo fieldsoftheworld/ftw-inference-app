@@ -5,6 +5,10 @@ import { toLonLat } from 'ol/proj'
 import { unByKey } from 'ol/Observable'
 import type { EventsKey } from 'ol/events'
 import useNotifier from './useNotifier'
+import {
+  GLOBAL_DATA_MAP_COMPLETE_ZOOM_LEVEL,
+  GLOBAL_DATA_MAP_FIELD_START_ZOOM_LEVEL,
+} from './useSettings'
 import { generateJWT } from '../functions/generate-jwt'
 
 export type FeedbackRating = 1 | 2 | 3
@@ -40,9 +44,6 @@ const FEEDBACK_OPTIONS: FeedbackOption[] = [
     description: 'This works for my use case',
   },
 ]
-
-const REQUIRED_ZOOM_LEVEL = 13
-const REQUIRED_RESOLUTION = 13
 
 function isValidEmail(email: string) {
   if (!email) {
@@ -124,17 +125,17 @@ export default function useGlobalFeedback(mapRef: ShallowRef<Map | null>) {
   })
 
   const canProvideFeedback = computed(() => {
-    const zoomEligible = mapZoom.value >= REQUIRED_ZOOM_LEVEL
-    // Kept for requirement compatibility even if OpenLayers resolution units are not zoom-like.
-    const resolutionEligible = Math.round(mapResolution.value) === REQUIRED_RESOLUTION
-    return zoomEligible || resolutionEligible
+    return mapZoom.value >= GLOBAL_DATA_MAP_COMPLETE_ZOOM_LEVEL
   })
 
   const zoomGateMessage = computed(() => {
-    if (canProvideFeedback.value) {
-      return ''
+    if (mapZoom.value < GLOBAL_DATA_MAP_FIELD_START_ZOOM_LEVEL) {
+      return 'Zoom in to see the fields and to be able to give feedback.'
     }
-    return 'Zoom more to be able to add feedback.'
+    if (mapZoom.value < GLOBAL_DATA_MAP_COMPLETE_ZOOM_LEVEL) {
+      return 'Zoom in more to show all fields and to be able to give feedback.'
+    }
+    return ''
   })
 
   const selectedOption = computed(() => {
@@ -277,7 +278,7 @@ export default function useGlobalFeedback(mapRef: ShallowRef<Map | null>) {
       return
     }
     if (!selectedLevel.value) {
-      showError('Please select Not Great, Ok, or Great before submitting.')
+      showError('Please select one of the options before submitting.')
       return
     }
     if (!detailsForm.value.qualityFeedback.trim() || !detailsForm.value.useCase.trim()) {

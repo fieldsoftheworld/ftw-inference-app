@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import useMap from '../composables/useMap'
+import { geoJsonResults } from '../composables/useMap'
 import useSettings from '../composables/useSettings'
 import useGlobalFeedback from '../composables/useGlobalFeedback'
 
 const { settings } = useSettings()
 const { map } = useMap()
+const hasInferenceResults = computed(() => geoJsonResults.value.length > 0)
 
 const {
   options,
@@ -31,10 +33,10 @@ const sliderLabels = computed(() => {
 </script>
 
 <template>
-  <div v-if="settings.mode === 'global'" class="feedback-wrapper">
+  <div v-if="settings.mode === 'global' && !hasInferenceResults" class="feedback-wrapper">
     <v-card class="feedback-card" elevation="10">
       <v-card-text class="pa-3">
-        <h4 class="feedback-title">Rate this View</h4>
+        <h4 class="feedback-title" v-if="canProvideFeedback">Rate the Fields in this View</h4>
 
         <template v-if="canProvideFeedback">
           <div class="slider-container">
@@ -161,7 +163,7 @@ const sliderLabels = computed(() => {
   bottom: 1rem;
   transform: translateX(-50%);
   z-index: 2000;
-  width: min(90vw, 400px);
+  width: min(90vw, 350px);
 }
 
 .feedback-card {
@@ -175,9 +177,9 @@ const sliderLabels = computed(() => {
 }
 
 .feedback-title {
-  margin-bottom: 0.6rem;
+  margin: 0;
   color: rgba(255, 255, 255, 0.95);
-  font-size: 0.85rem;
+  font-size: 1rem;
   font-weight: 600;
   text-align: center;
 }
@@ -217,7 +219,7 @@ const sliderLabels = computed(() => {
 }
 
 .zoom-message {
-  font-size: 0.95rem;
+  font-size: 0.8rem;
   text-align: center;
   color: rgba(255, 255, 255, 0.95);
 }

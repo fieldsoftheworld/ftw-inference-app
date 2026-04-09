@@ -4,6 +4,24 @@ export interface ColorStop {
   label: string
 }
 
+export interface FeatureStyle {
+  fill: string
+  stroke: string
+  label: string
+}
+
+export const globalPredictionsStyle: FeatureStyle = {
+  fill: 'rgba(255, 100, 0, 0.2)',
+  stroke: 'rgba(255, 100, 0, 0.8)',
+  label: 'Global Predictions',
+}
+
+export const inferenceStyle: FeatureStyle = {
+  fill: 'rgba(255, 255, 0, 0.1)',
+  stroke: 'rgba(255, 255, 0, 1)',
+  label: 'Inference',
+}
+
 export const areaColorScale: ColorStop[] = [
   { value: 0, color: '#d7191c', label: '0' },
   { value: 0.25, color: '#fec379', label: '25' },
