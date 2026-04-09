@@ -5,7 +5,7 @@ import ExtentInteraction from 'ol/interaction/Extent'
 import { Fill, Stroke, Style } from 'ol/style'
 import { nextTick, ref, type Ref, shallowRef, watch } from 'vue'
 import Polygon, { fromExtent } from 'ol/geom/Polygon'
-import { transformExtent } from 'ol/proj'
+import { fromLonLat, transformExtent } from 'ol/proj'
 import { getArea } from 'ol/sphere'
 import { booleanWithin as turfBooleanWithin } from '@turf/boolean-within'
 import type { Feature as GeoJSONFeature, Polygon as GeoJSONPolygon } from 'geojson'
@@ -16,6 +16,13 @@ import { searchResults, type SearchResult } from './useSearch'
 import useSettings from './useSettings'
 import { tileDataFromStacFeature } from '../functions/search-stac-api'
 import { debounce } from 'vuetify/lib/util/helpers.mjs'
+
+export interface PlaceResult {
+  lon: string
+  lat: string
+  display_name: string
+  boundingbox: [string, string, string, string]
+}
 
 const extentInteraction = shallowRef<ExtentInteraction | null>(null)
 const currentMgrsTileId = ref<string | null>(null)
@@ -85,6 +92,25 @@ export default function useAreaOfInterest() {
   const { maxArea, vectorLayer, areaValues, geoJsonResults, map } = useMap()
   const { updateProcessingMode } = useProcessingMode()
   const { showWarning, showError } = useNotifier()
+
+  function handleLocationSelected(place: PlaceResult) {
+    if (!map.value) return
+    const lon = parseFloat(place.lon)
+    const lat = parseFloat(place.lat)
+    if (isNaN(lon) || isNaN(lat)) {
+      showError('Invalid coordinates for the selected location provided by geocoding service.')
+      return
+    }
+    const transformedCoord = fromLonLat([lon, lat])
+    const view = map.value.getView()
+    view.setCenter(transformedCoord)
+    map.value.once('rendercomplete', () => {
+      const pixel = map.value?.getPixelFromCoordinate(transformedCoord)
+      if (pixel) {
+        addBBoxAtPixel(pixel, map.value!, areaValues.value)
+      }
+    })
+  }
 
   let updatingDrawnExtent = false
   watch(
@@ -584,6 +610,7 @@ export default function useAreaOfInterest() {
     getTileById,
     isBBox,
     validateBBox,
+    handleLocationSelected,
   }
   return moduleLevelComposable
 }

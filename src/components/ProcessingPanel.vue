@@ -10,7 +10,6 @@ import useSettings, { type Settings } from '../composables/useSettings'
 import useNotifier from '../composables/useNotifier'
 import useAreaOfInterest from '../composables/useAreaOfInterest'
 import useProcessingMode from '../composables/useProcessingMode'
-import useGeocoding from '../composables/useGeocoding'
 import useMap from '../composables/useMap'
 import {
   mdiHelpCircleOutline,
@@ -21,6 +20,7 @@ import {
   mdiEyeOffOutline,
 } from '@mdi/js'
 import TilePreview from './TilePreview.vue'
+import GeocodingSearch from './GeocodingSearch.vue'
 import useStacLayer from '../composables/useStacLayer'
 import { debounce } from 'vuetify/lib/util/helpers.mjs'
 
@@ -30,14 +30,14 @@ const emit = defineEmits<{
 
 const { map, areaValues } = useMap()
 const { stacPreviewTileId } = useStacLayer()
-const { drawnExtent, validateBBox, getTileById, triggerTileSelection } = useAreaOfInterest()
+const { drawnExtent, validateBBox, getTileById, triggerTileSelection, handleLocationSelected } =
+  useAreaOfInterest()
 const { showError, showSuccess } = useNotifier()
 const { hasMore, isLoading, searchResults, searchStatus, handleSearchResults } = useSearch()
 const { activeTileId, currentBBox, currentBBoxValid, secondActiveTileId, currentMgrsTileId } =
   useAreaOfInterest()
 const { settings, availableModels, modelIsSingleShot, modelTitle } = useSettings()
 const { isBatchProcessing } = useProcessingMode()
-const { placeSearch, isLoadingPlaces, suggestedPlaces, handleLocationSelected } = useGeocoding()
 const { processBatch, processSmallArea, isProcessing } = useBatchProcessing()
 
 const months = [
@@ -529,16 +529,7 @@ defineExpose({ openModelSelection })
           <!-- Geocoding -->
           <v-row>
             <v-col>
-              <v-autocomplete
-                @update:model-value="handleLocationSelected"
-                v-model:search="placeSearch"
-                :loading="isLoadingPlaces"
-                :items="suggestedPlaces"
-                label="Search for a place"
-                hide-details
-                dense
-                variant="outlined"
-              ></v-autocomplete>
+              <GeocodingSearch @location-selected="handleLocationSelected" />
             </v-col>
           </v-row>
 

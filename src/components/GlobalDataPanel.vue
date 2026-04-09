@@ -1,7 +1,27 @@
 <script setup lang="ts">
 import useSettings from '../composables/useSettings'
+import useMap from '../composables/useMap'
+import useAreaOfInterest from '../composables/useAreaOfInterest'
+import type { PlaceResult } from '../composables/useAreaOfInterest'
+import useNotifier from '../composables/useNotifier'
+import { transformExtent } from 'ol/proj'
+import GeocodingSearch from './GeocodingSearch.vue'
 
 const { settings } = useSettings()
+const { map } = useMap()
+const { fitToExtent } = useAreaOfInterest()
+const { showError } = useNotifier()
+
+const handleLocationSelected = (place: PlaceResult) => {
+  if (!map.value) return
+  if (!place.boundingbox) {
+    showError('Selected place does not have a bounding box.')
+    return
+  }
+  const [south, north, west, east] = place.boundingbox.map(Number)
+  const extent = transformExtent([west, south, east, north], 'EPSG:4326', 'EPSG:3857')
+  fitToExtent(map.value, extent, 0, 15)
+}
 </script>
 
 <template>
@@ -13,6 +33,8 @@ const { settings } = useSettings()
 
     <v-row class="d-flex justify-center w-100 mx-auto">
       <v-col>
+        <h3 class="group">Location</h3>
+        <GeocodingSearch @location-selected="handleLocationSelected" />
         <h3 class="group">Year</h3>
         <v-radio-group v-model="settings.year" density="compact" hide-details inline>
           <v-radio label="2024" :value="2024"></v-radio>
