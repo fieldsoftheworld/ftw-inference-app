@@ -3,7 +3,7 @@ import { PMTilesVectorSource } from 'ol-pmtiles'
 import { Fill, Stroke, Style } from 'ol/style'
 
 const PMTILES_URL =
-  'https://s3.us-west-2.amazonaws.com/us-west-2.opendata.source.coop/ftw/global-data/predictions/vectors/alpha/global.pmtiles'
+  'https://s3.us-west-2.amazonaws.com/us-west-2.opendata.source.coop/tge-labs/ftw-global-data/predictions/vectors/alpha/global.pmtiles'
 
 export function createGlobalPredictionsLayer(year: number) {
   const layer = new VectorTileLayer({
