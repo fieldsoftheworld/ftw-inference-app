@@ -2,6 +2,7 @@
 import { ref, onMounted } from 'vue'
 import { Map, View } from 'ol'
 import DataCabinet from './DataCabinet.vue'
+import GlobalFeedbackWidget from './GlobalFeedbackWidget.vue'
 import ProcessingResults from './ProcessingResults.vue'
 import PropertiesDisplay from './PropertiesDisplay.vue'
 import createLabelLayer from '../layers/Label-Layer'
@@ -25,7 +26,7 @@ const {
 } = useMap()
 
 const { addMapClickHandler } = useAreaOfInterest()
-const { setAvailableModels } = useSettings()
+const { setAvailableModels, settings } = useSettings()
 
 const clearResults = () => {
   geoJsonResults.value = []
@@ -110,6 +111,8 @@ defineExpose({
       :geoJsonResults="geoJsonResults"
       @clearResults="clearResults"
     />
+
+    <GlobalFeedbackWidget v-if="map && settings.mode === 'global'" />
   </div>
 
   <!-- Properties Box -->
