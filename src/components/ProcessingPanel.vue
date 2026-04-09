@@ -716,7 +716,7 @@ defineExpose({ openModelSelection })
               <v-alert color="gray" type="info" variant="tonal" density="compact">
                 Select a year for the scene selection. Automatic scene selection will automatically
                 choose start and end dates based on crop calendars. Thus, start and end date
-                selection will only be available for manual scene selection.
+                selection will only be available for manual scene selection.<br />
                 <v-btn
                   @click="settings.autoSceneSelection = !settings.autoSceneSelection"
                   size="small"

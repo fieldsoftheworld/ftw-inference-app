@@ -67,8 +67,8 @@ const toggleCollapsible = () => {
 }
 .data-cabinet {
   left: 1rem;
-  min-width: 300px;
-  width: 30vw;
+  min-width: 350px;
+  width: 27.5vw;
   max-width: 45vw;
 }
 </style>

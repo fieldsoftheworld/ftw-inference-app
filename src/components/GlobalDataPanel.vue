@@ -14,12 +14,12 @@ const { settings } = useSettings()
     <v-row class="d-flex justify-center w-100 mx-auto">
       <v-col>
         <h3 class="group">Year</h3>
-        <v-radio-group v-model="settings.year" density="compact" hide-details>
+        <v-radio-group v-model="settings.year" density="compact" hide-details inline>
           <v-radio label="2024" :value="2024"></v-radio>
           <v-radio label="2025" :value="2025"></v-radio>
         </v-radio-group>
         <h3 class="group">Overviews</h3>
-        <v-radio-group v-model="settings.aggregate" density="compact" hide-details>
+        <v-radio-group v-model="settings.aggregate" density="compact" hide-details inline>
           <v-radio label="Field Area" value="area"></v-radio>
           <v-radio label="Confidence" value="confidence"></v-radio>
         </v-radio-group>
@@ -45,5 +45,8 @@ const { settings } = useSettings()
   margin: 0.5rem -0.5rem;
   font-weight: 500;
   font-size: 1.1rem;
+}
+:deep(.v-selection-control-group--inline) {
+  gap: 1rem;
 }
 </style>

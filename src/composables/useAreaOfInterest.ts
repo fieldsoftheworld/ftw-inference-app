@@ -243,8 +243,8 @@ export default function useAreaOfInterest() {
       removeExtentInteraction()
     } else {
       blockMapClicks.value = false
-      if (settings.value.mode !== 'global') {
-        addExtentInteraction(map.value!, areaValues.value)
+      if (settings.value.mode !== 'global' && drawnExtent.value && map.value) {
+        addExtentInteraction(map.value, areaValues.value)
       }
     }
   })
@@ -257,11 +257,12 @@ export default function useAreaOfInterest() {
         removeExtentInteraction()
       } else {
         blockMapClicks.value = false
-        if (geoJsonResults.value.length === 0 && map.value) {
+        if (geoJsonResults.value.length === 0 && drawnExtent.value && map.value) {
           addExtentInteraction(map.value, areaValues.value)
         }
       }
     },
+    { immediate: true },
   )
 
   watch(activeTileId, () => {
