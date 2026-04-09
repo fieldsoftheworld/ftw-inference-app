@@ -34,7 +34,7 @@ const sliderLabels = computed(() => {
   <div v-if="settings.mode === 'global'" class="feedback-wrapper">
     <v-card class="feedback-card" elevation="10">
       <v-card-text class="pa-3">
-        <h4 class="feedback-title">Rate this Tile</h4>
+        <h4 class="feedback-title">Rate this View</h4>
 
         <template v-if="canProvideFeedback">
           <div class="slider-container">

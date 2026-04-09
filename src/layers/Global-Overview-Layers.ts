@@ -2,33 +2,30 @@ import GeoTIFF from 'ol/source/GeoTIFF'
 import GlTileLayer from 'ol/layer/WebGLTile.js'
 import type { Settings } from '../composables/useSettings'
 
-export const areaStyle = (settings: Settings) => {
-  return {
-    color: [
-      'case',
-      ['<=', ['band', 1], settings.threshold],
-      '#00000000',
-      [
-        'interpolate',
-        ['linear'],
-        ['band', 1],
-        0,
-        '#d7191caa',
-        0.25,
-        '#fec379aa',
-        0.5,
-        '#f3fabbaa',
-        0.75,
-        '#cfecb0aa',
-        1,
-        '#33a02caa',
-      ],
+export const areaStyle = {
+  color: [
+    'case',
+    ['<=', ['band', 1], 0],
+    '#00000000',
+    [
+      'interpolate',
+      ['linear'],
+      ['band', 1],
+      0,
+      '#d7191caa',
+      0.25, // 0.25 * 2500 = 625
+      '#fec379aa',
+      0.5, // 0.5 * 2500 = 1250
+      '#f3fabbaa',
+      0.75, // 0.75 * 2500 = 1875
+      '#cfecb0aa',
+      1, // 2500
+      '#33a02caa',
     ],
-  }
+  ],
 }
 
 export const confidenceStyle = (settings: Settings) => {
-  // todo: Use threshold
   return {
     color: [
       'case',
@@ -42,11 +39,11 @@ export const confidenceStyle = (settings: Settings) => {
         '#d7191caa',
         0.4,
         '#fec379aa',
-        0.55,
+        0.45,
         '#f3fabbaa',
-        0.7,
+        0.5,
         '#cfecb0aa',
-        1,
+        0.58,
         '#33a02caa',
       ],
     ],
@@ -65,7 +62,7 @@ export const createGlobalOverviewLayer = (settings: Settings) => {
         {
           // todo: try https://tiles.rdnt.io/tiles/{z}/{x}/{y}@2x?url=
           url: settings.aggregate === 'confidence' ? confidenceCogUrl : areaCogUrl,
-          min: settings.aggregate === 'confidence' ? 0 : 0,
+          min: 0,
           max: settings.aggregate === 'confidence' ? 1 : 2500,
         },
       ],
@@ -78,7 +75,5 @@ export const createGlobalOverviewLayer = (settings: Settings) => {
 }
 
 export const updateGlobalOverviewLayer = (layer: GlTileLayer, settings: Settings) => {
-  layer.setStyle(
-    settings.aggregate === 'confidence' ? confidenceStyle(settings) : areaStyle(settings),
-  )
+  layer.setStyle(settings.aggregate === 'confidence' ? confidenceStyle(settings) : areaStyle)
 }

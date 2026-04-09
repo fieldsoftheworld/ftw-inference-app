@@ -34,8 +34,10 @@ watch(
   }, 500),
 )
 
-const onLocationSelected = (item: { value: PlaceResult; title: string }) => {
-  emit('location-selected', item.value)
+const onLocationSelected = (item: { value: PlaceResult; title: string } | null) => {
+  if (item) {
+    emit('location-selected', item.value)
+  }
 }
 </script>
 
