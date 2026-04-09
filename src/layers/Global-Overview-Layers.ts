@@ -1,28 +1,20 @@
 import GeoTIFF from 'ol/source/GeoTIFF'
 import GlTileLayer from 'ol/layer/WebGLTile.js'
 import type { Settings } from '../composables/useSettings'
+import { areaColorScale, confidenceColorScale, type ColorStop } from './color-scales'
+
+const ALPHA = 'aa'
+
+function buildInterpolation(stops: ColorStop[]): unknown[] {
+  const entries: unknown[] = []
+  for (const stop of stops) {
+    entries.push(stop.value, stop.color + ALPHA)
+  }
+  return ['interpolate', ['linear'], ['band', 1], ...entries]
+}
 
 export const areaStyle = {
-  color: [
-    'case',
-    ['<=', ['band', 1], 0],
-    '#00000000',
-    [
-      'interpolate',
-      ['linear'],
-      ['band', 1],
-      0,
-      '#d7191caa',
-      0.25, // 0.25 * 2500 = 625
-      '#fec379aa',
-      0.5, // 0.5 * 2500 = 1250
-      '#f3fabbaa',
-      0.75, // 0.75 * 2500 = 1875
-      '#cfecb0aa',
-      1, // 2500
-      '#33a02caa',
-    ],
-  ],
+  color: ['case', ['<=', ['band', 1], 0], '#00000000', buildInterpolation(areaColorScale)],
 }
 
 export const confidenceStyle = (settings: Settings) => {
@@ -31,21 +23,7 @@ export const confidenceStyle = (settings: Settings) => {
       'case',
       ['<=', ['band', 1], settings.threshold],
       '#00000000',
-      [
-        'interpolate',
-        ['linear'],
-        ['band', 1],
-        0,
-        '#d7191caa',
-        0.4,
-        '#fec379aa',
-        0.45,
-        '#f3fabbaa',
-        0.5,
-        '#cfecb0aa',
-        0.58,
-        '#33a02caa',
-      ],
+      buildInterpolation(confidenceColorScale),
     ],
   }
 }
