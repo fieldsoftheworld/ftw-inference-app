@@ -34,8 +34,8 @@ watch(
   }, 500),
 )
 
-const onLocationSelected = (place: PlaceResult) => {
-  emit('location-selected', place)
+const onLocationSelected = (item: { value: PlaceResult; title: string }) => {
+  emit('location-selected', item.value)
 }
 </script>
 
@@ -46,6 +46,8 @@ const onLocationSelected = (place: PlaceResult) => {
     :loading="isLoadingPlaces"
     :items="suggestedPlaces"
     label="Search for a place"
+    item-title="title"
+    return-object
     hide-details
     dense
     variant="outlined"
