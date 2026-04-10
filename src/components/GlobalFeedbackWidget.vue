@@ -159,11 +159,11 @@ const sliderLabels = computed(() => {
 
 <style scoped>
 .feedback-wrapper {
-  position: fixed;
+  position: absolute;
   left: 50%;
   bottom: 1rem;
   transform: translateX(-50%);
-  z-index: 2000;
+  z-index: 1001;
   width: min(90vw, 350px);
 }
 

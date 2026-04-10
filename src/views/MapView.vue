@@ -37,39 +37,21 @@ function setModeValue(newValue: number) {
       <img
         src="https://fieldsofthe.world/static/images/brand/logos/ftw-logo-light.svg"
         alt="Fields of The World (FTW) App"
-        height="64"
-      />
-      <v-btn
-        density="compact"
-        variant="plain"
-        :icon="mdiInformation"
+        class="logo"
         @click="aboutDialog = true"
-        title="About"
-        class="info-btn"
-      ></v-btn>
+      />
       <v-item-group
         selected-class="bg-primary"
         mandatory
         v-model="modeValue"
         @update:model-value="setModeValue"
+        class="mode-switch"
       >
-        <v-container>
-          <v-row>
-            <v-col
-              v-for="tab in availableModes"
-              :key="tab.id"
-              cols="12"
-              :md="12 / availableModes.length"
-              class="mode-switch-col"
-            >
-              <v-item v-slot="{ selectedClass, toggle }">
-                <v-card :class="['d-flex align-center', selectedClass]" @click="toggle">
-                  <div class="mode-switch-btn flex-grow-1 text-center">{{ tab.label }}</div>
-                </v-card>
-              </v-item>
-            </v-col>
-          </v-row>
-        </v-container>
+        <v-item v-for="tab in availableModes" :key="tab.id" v-slot="{ selectedClass, toggle }">
+          <v-card :class="['d-flex align-center', selectedClass]" @click="toggle">
+            <div class="mode-switch-btn flex-grow-1 text-center">{{ tab.label }}</div>
+          </v-card>
+        </v-item>
       </v-item-group>
     </header>
 
@@ -106,10 +88,14 @@ function setModeValue(newValue: number) {
   border-radius: 0 0 1rem 1rem;
   font-size: 1.33rem;
   font-weight: 600;
-  white-space: nowrap;
-  min-width: 400px;
   text-align: center;
 }
+
+#title .logo {
+  height: 64px;
+  cursor: pointer;
+}
+
 .map-view {
   position: absolute;
   top: 0;
@@ -119,12 +105,15 @@ function setModeValue(newValue: number) {
   width: 100%;
   height: 100%;
 }
-.mode-switch-col {
-  padding: 0 0.25rem 0.25rem 0.25rem;
+
+.mode-switch {
+  display: flex;
+  gap: 0.5rem;
 }
+
 .mode-switch-btn {
   font-size: 1.1rem;
-  padding: 0.25rem;
+  padding: 0.2rem 0.5rem;
   white-space: nowrap;
 }
 .info-btn {
@@ -132,5 +121,17 @@ function setModeValue(newValue: number) {
   top: 0.5rem;
   right: 0.5rem;
   z-index: 1001;
+}
+
+@media (width <= 1200px) {
+  #title {
+    display: flex;
+  }
+  #title .logo {
+    height: 40px;
+  }
+  .mode-switch-btn {
+    font-size: 1rem;
+  }
 }
 </style>
