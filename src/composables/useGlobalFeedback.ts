@@ -31,17 +31,17 @@ const FEEDBACK_OPTIONS: FeedbackOption[] = [
   {
     rating: 1,
     title: 'Not Great',
-    description: "These boundaries won't work for me",
+    description: "These fields won't work for me",
   },
   {
     rating: 2,
-    title: 'Ok',
-    description: 'I can use these, but they need some work',
+    title: 'Somewhat OK',
+    description: 'I can use these fields, but they need some work',
   },
   {
     rating: 3,
     title: 'Great!',
-    description: 'This works for my use case',
+    description: 'These fields work for my use case',
   },
 ]
 

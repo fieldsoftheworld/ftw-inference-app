@@ -192,28 +192,25 @@ const sliderLabels = computed(() => {
 }
 
 .feedback-slider {
-  margin-top: 0.3rem;
   margin-bottom: 0.3rem;
 }
 
 .feedback-slider :deep(.v-slider__tick-label) {
-  font-size: 0.75rem;
   color: rgba(255, 255, 255, 0.7);
-  font-weight: 500;
 }
 
 .feedback-slider :deep(.v-slider-thumb__label) {
-  min-width: 210px;
-  min-height: 45px;
-  background-color: rgba(0, 136, 136, 0.9);
-  padding: 6px 10px;
-  bottom: 12px;
+  background-color: rgba(0, 136, 136, 1);
+  min-width: 220px;
+  min-height: 50px;
+  padding: 10px;
 }
 
 .thumb-label-description {
-  font-size: 0.9rem;
+  font-size: 1rem;
   color: rgba(255, 255, 255, 0.85);
   line-height: 1.3;
+  text-align: center;
 }
 
 .feedback-actions {
@@ -227,17 +224,5 @@ const sliderLabels = computed(() => {
   font-size: 0.8rem;
   text-align: center;
   color: rgba(255, 255, 255, 0.95);
-}
-
-@media (max-width: 768px) {
-  .feedback-actions {
-    justify-content: space-between;
-  }
-
-  .feedback-slider :deep(.v-slider-thumb__label) {
-    min-width: 180px;
-    max-width: 220px;
-    height: auto;
-  }
 }
 </style>
