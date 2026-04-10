@@ -129,12 +129,12 @@ const rampStyle = computed(() => {
 <style scoped>
 .ol-legend {
   position: absolute;
-  bottom: 1rem;
-  left: 1rem;
-  z-index: 1;
+  bottom: calc(2rem + 6px);
+  left: calc(2rem + 10px);
   display: flex;
   flex-direction: row;
   align-items: flex-end;
+  z-index: 10000;
 }
 
 .ol-legend button {
@@ -143,7 +143,7 @@ const rampStyle = computed(() => {
   justify-content: center;
   width: 1.375em;
   height: 1.375em;
-  margin: 0;
+  margin: 1px;
   padding: 0;
   border: none;
   border-radius: 2px;

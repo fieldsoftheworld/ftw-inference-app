@@ -10,5 +10,6 @@ import { RouterView } from 'vue-router'
 <style>
 #notifier > div {
   position: absolute;
+  width: 400px !important;
 }
 </style>
