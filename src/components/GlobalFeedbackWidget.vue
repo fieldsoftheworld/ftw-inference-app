@@ -13,7 +13,6 @@ const {
   options,
   sliderValue,
   selectedLevel,
-  selectedOption,
   detailsDialogOpen,
   detailsForm,
   canProvideFeedback,
@@ -45,18 +44,20 @@ const sliderLabels = computed(() => {
               :min="0"
               :max="2"
               :step="1"
+              thumb-label
               :ticks="sliderLabels"
               show-ticks="always"
               color="teal"
               track-size="8"
+              tick-size="4"
               thumb-size="25"
               class="feedback-slider"
               hide-details
-            ></v-slider>
-          </div>
-
-          <div v-if="selectedOption" class="feedback-description mt-3">
-            {{ selectedOption.description }}
+            >
+              <template #thumb-label="{ modelValue }">
+                <div class="thumb-label-description">{{ options[modelValue]?.description }}</div>
+              </template>
+            </v-slider>
           </div>
 
           <div class="feedback-actions mt-3">
@@ -170,6 +171,7 @@ const sliderLabels = computed(() => {
   background-color: rgba(0, 0, 0, 0.9);
   border: 1px solid rgba(0, 136, 136, 0.65);
   backdrop-filter: blur(8px);
+  overflow: visible;
 }
 
 .feedback-card :deep(.v-card-text) {
@@ -186,28 +188,28 @@ const sliderLabels = computed(() => {
 
 .slider-container {
   margin-bottom: 0.6rem;
-  padding: 0.6rem 0.4rem;
+  padding: 1.2rem 0.4rem 0.6rem 0.4rem;
 }
 
 .feedback-slider {
-  margin-top: 0.3rem;
   margin-bottom: 0.3rem;
 }
 
 .feedback-slider :deep(.v-slider__tick-label) {
-  font-size: 0.75rem;
   color: rgba(255, 255, 255, 0.7);
-  font-weight: 500;
 }
 
-.feedback-description {
-  font-size: 0.85rem;
+.feedback-slider :deep(.v-slider-thumb__label) {
+  background-color: rgba(0, 136, 136, 1);
+  min-width: 220px;
+  min-height: 50px;
+  padding: 10px;
+}
+
+.thumb-label-description {
+  font-size: 1rem;
   color: rgba(255, 255, 255, 0.85);
-  background-color: rgba(0, 136, 136, 0.15);
-  padding: 0.5rem;
-  border-radius: 4px;
   line-height: 1.3;
-  margin-top: 0.6rem !important;
   text-align: center;
 }
 
@@ -215,18 +217,12 @@ const sliderLabels = computed(() => {
   display: flex;
   justify-content: flex-end;
   gap: 0.35rem;
-  margin-top: 0.6rem !important;
+  margin-top: 1.2rem;
 }
 
 .zoom-message {
   font-size: 0.8rem;
   text-align: center;
   color: rgba(255, 255, 255, 0.95);
-}
-
-@media (max-width: 768px) {
-  .feedback-actions {
-    justify-content: space-between;
-  }
 }
 </style>
