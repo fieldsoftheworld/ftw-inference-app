@@ -3,7 +3,9 @@ import { computed } from 'vue'
 import useMap from '../composables/useMap'
 import { geoJsonResults } from '../composables/useMap'
 import useSettings from '../composables/useSettings'
+import GlobalContributeModal from './GlobalContributeModal.vue'
 import useGlobalFeedback from '../composables/useGlobalFeedback'
+import useGlobalContribute from '../composables/useGlobalContribute'
 
 const { settings } = useSettings()
 const { map } = useMap()
@@ -26,6 +28,17 @@ const {
   submitQuickFeedback,
   submitDetailedFeedback,
 } = useGlobalFeedback(map)
+
+const {
+  CONTRIBUTION_OPTIONS,
+  contributeDialogOpen,
+  contributeForm,
+  canSubmit: canSubmitContribute,
+  isSubmitting: isSubmittingContribute,
+  openContributeDialog,
+  submitContribute,
+  updateFormField,
+} = useGlobalContribute()
 
 const sliderLabels = computed(() => {
   return Object.fromEntries(options.map((opt, i) => [i, opt.title]))
@@ -60,6 +73,9 @@ const sliderLabels = computed(() => {
           </div>
 
           <div class="feedback-actions mt-3">
+            <v-btn variant="outlined" color="teal" size="small" @click="openContributeDialog">
+              Contribute
+            </v-btn>
             <v-btn
               variant="outlined"
               color="teal"
@@ -153,6 +169,16 @@ const sliderLabels = computed(() => {
         </v-card-actions>
       </v-card>
     </v-dialog>
+
+    <GlobalContributeModal
+      v-model="contributeDialogOpen"
+      :contribute-form="contributeForm"
+      :contribution-options="CONTRIBUTION_OPTIONS"
+      :can-submit="canSubmitContribute"
+      :is-submitting="isSubmittingContribute"
+      @update:form="updateFormField"
+      @submit="submitContribute"
+    />
   </div>
 </template>
 

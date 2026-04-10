@@ -19,7 +19,7 @@ interface FeedbackOption {
   description: string
 }
 
-interface DetailedFeedbackForm {
+export interface DetailedFeedbackForm {
   qualityFeedback: string
   useCase: string
   name: string
