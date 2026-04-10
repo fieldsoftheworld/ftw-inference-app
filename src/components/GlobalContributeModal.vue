@@ -55,6 +55,7 @@ const toggleContributionType = (type: ContributionType, form: ContributeForm) =>
               @update:model-value="toggleContributionType(option.value, contributeForm)"
               class="pa-0 ma-0"
               density="compact"
+              hide-details
             ></v-checkbox>
           </div>
         </div>
