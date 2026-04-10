@@ -138,13 +138,6 @@ export default function useGlobalFeedback(mapRef: ShallowRef<Map | null>) {
     return ''
   })
 
-  const selectedOption = computed(() => {
-    if (!selectedLevel.value) {
-      return null
-    }
-    return FEEDBACK_OPTIONS.find((option) => option.rating === selectedLevel.value) || null
-  })
-
   const canSubmitDetailed = computed(() => {
     return (
       Boolean(selectedLevel.value) &&
@@ -329,7 +322,6 @@ export default function useGlobalFeedback(mapRef: ShallowRef<Map | null>) {
     options: FEEDBACK_OPTIONS,
     sliderValue,
     selectedLevel,
-    selectedOption,
     detailsDialogOpen,
     detailsForm,
     canProvideFeedback,
