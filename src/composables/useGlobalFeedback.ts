@@ -90,6 +90,8 @@ export default function useGlobalFeedback(mapRef: ShallowRef<Map | null>) {
   const { showError, showSuccess } = useNotifier()
   const { tileRating: tileRatingEndpoint, tellUsMore: tellUsMoreEndpoint } = getEndpoints()
 
+  const FEEDBACK_FORM_DATA_KEY = 'ftw-feedback-form-data'
+
   const sliderValue = ref<number>(0)
   const detailsDialogOpen = ref(false)
   const isSubmittingQuick = ref(false)
@@ -105,6 +107,18 @@ export default function useGlobalFeedback(mapRef: ShallowRef<Map | null>) {
     email: '',
     organization: '',
   })
+
+  const storedData = localStorage.getItem(FEEDBACK_FORM_DATA_KEY)
+  if (storedData) {
+    try {
+      const parsed = JSON.parse(storedData)
+      detailsForm.value.name = parsed.name || ''
+      detailsForm.value.email = parsed.email || ''
+      detailsForm.value.organization = parsed.organization || ''
+    } catch (error) {
+      console.error('Failed to parse stored form data:', error)
+    }
+  }
 
   const levelToSliderValue = (rating: FeedbackRating | null): number => {
     if (!rating) return 0
@@ -316,6 +330,20 @@ export default function useGlobalFeedback(mapRef: ShallowRef<Map | null>) {
 
       await postToEndpoint(tellUsMoreEndpoint, payload)
       showSuccess('Detailed feedback submitted. Thank you!')
+
+      try {
+        localStorage.setItem(
+          FEEDBACK_FORM_DATA_KEY,
+          JSON.stringify({
+            name: detailsForm.value.name.trim(),
+            email: detailsForm.value.email.trim(),
+            organization: detailsForm.value.organization.trim(),
+          }),
+        )
+      } catch (error) {
+        console.error('Failed to save form data to localStorage:', error)
+      }
+
       closeDetailsDialog()
       resetDetailsForm()
     } catch (error) {

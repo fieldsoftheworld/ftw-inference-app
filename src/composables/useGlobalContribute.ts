@@ -91,6 +91,8 @@ export default function useGlobalContribute() {
   const { showError, showSuccess } = useNotifier()
   const contributeEndpoint = getContributeEndpoint()
 
+  const FEEDBACK_FORM_DATA_KEY = 'ftw-feedback-form-data'
+
   const contributeDialogOpen = ref(false)
   const isSubmitting = ref(false)
 
@@ -102,6 +104,18 @@ export default function useGlobalContribute() {
     email: '',
     organization: '',
   })
+
+  const storedData = localStorage.getItem(FEEDBACK_FORM_DATA_KEY)
+  if (storedData) {
+    try {
+      const parsed = JSON.parse(storedData)
+      contributeForm.value.name = parsed.name || ''
+      contributeForm.value.email = parsed.email || ''
+      contributeForm.value.organization = parsed.organization || ''
+    } catch (error) {
+      console.error('Failed to parse stored form data:', error)
+    }
+  }
 
   const canSubmit = computed(() => {
     if (
@@ -192,6 +206,19 @@ export default function useGlobalContribute() {
 
       await postToEndpoint(contributeEndpoint, payload)
       showSuccess('Thank you for contributing! We will be in touch.')
+
+      try {
+        localStorage.setItem(
+          FEEDBACK_FORM_DATA_KEY,
+          JSON.stringify({
+            name: contributeForm.value.name.trim(),
+            email: contributeForm.value.email.trim(),
+            organization: contributeForm.value.organization.trim(),
+          }),
+        )
+      } catch (error) {
+        console.error('Failed to save form data to localStorage:', error)
+      }
       closeContributeDialog()
       resetContributeForm()
     } catch (error) {
