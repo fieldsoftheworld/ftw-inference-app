@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import Map from '../MapComponent.vue'
 import ResizeObserver from 'resize-observer-polyfill'
@@ -7,6 +7,21 @@ import * as components from 'vuetify/components'
 import * as directives from 'vuetify/directives'
 import VuetifyNotifier from 'vuetify-notifier'
 import MatchMediaMock from 'vitest-matchmedia-mock'
+
+vi.mock('../../layers/Global-Predictions-Layer', async () => {
+  const { default: VectorTileLayer } = await import('ol/layer/VectorTile')
+  return {
+    createGlobalPredictionsLayer: vi.fn(() => new VectorTileLayer()),
+    updateGlobalPredictionsLayer: vi.fn(),
+  }
+})
+vi.mock('../../layers/Global-Overview-Layers', async () => {
+  const { default: GlTileLayer } = await import('ol/layer/WebGLTile.js')
+  return {
+    createGlobalOverviewLayer: vi.fn(() => new GlTileLayer()),
+    updateGlobalOverviewLayer: vi.fn(),
+  }
+})
 
 global.ResizeObserver = ResizeObserver
 
