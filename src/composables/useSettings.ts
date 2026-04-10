@@ -35,7 +35,7 @@ const availableModes: { id: string; label: string }[] = [
   },
   {
     id: 'inference',
-    label: 'Inference',
+    label: 'My Inference',
   },
   // {
   //   id: 'edit',

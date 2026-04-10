@@ -229,16 +229,25 @@ defineExpose({
 
 :deep(.ol-zoom) {
   top: unset;
-  left: unset;
+  right: unset;
   bottom: 1rem;
-  right: 1rem;
+  left: 1rem;
+  z-index: 10000;
 }
 
 :deep(.ol-attribution) {
   top: unset;
-  left: unset;
+  right: unset;
   bottom: 1rem;
-  right: calc(2rem + 20px);
+  left: calc(2rem + 10px);
+  z-index: 10000;
+  flex-direction: row;
+  max-width: 90vw;
+  align-items: end;
+}
+
+:deep(.ol-attribution button) {
+  order: -1;
 }
 
 :deep(.ol-zoom button),

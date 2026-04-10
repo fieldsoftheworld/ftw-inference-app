@@ -31,17 +31,17 @@ const FEEDBACK_OPTIONS: FeedbackOption[] = [
   {
     rating: 1,
     title: 'Not Great',
-    description: "These boundaries won't work for me",
+    description: "These fields won't work for me",
   },
   {
     rating: 2,
-    title: 'Ok',
-    description: 'I can use these, but they need some work',
+    title: 'Somewhat OK',
+    description: 'I can use these fields, but they need some work',
   },
   {
     rating: 3,
     title: 'Great!',
-    description: 'This works for my use case',
+    description: 'These fields work for my use case',
   },
 ]
 
@@ -150,13 +150,6 @@ export default function useGlobalFeedback(mapRef: ShallowRef<Map | null>) {
       return 'Zoom in more to show all fields and to be able to give feedback.'
     }
     return ''
-  })
-
-  const selectedOption = computed(() => {
-    if (!selectedLevel.value) {
-      return null
-    }
-    return FEEDBACK_OPTIONS.find((option) => option.rating === selectedLevel.value) || null
   })
 
   const canSubmitDetailed = computed(() => {
@@ -357,7 +350,6 @@ export default function useGlobalFeedback(mapRef: ShallowRef<Map | null>) {
     options: FEEDBACK_OPTIONS,
     sliderValue,
     selectedLevel,
-    selectedOption,
     detailsDialogOpen,
     detailsForm,
     canProvideFeedback,
