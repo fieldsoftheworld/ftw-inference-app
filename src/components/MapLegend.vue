@@ -1,17 +1,13 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { mdiMapLegend } from '@mdi/js'
+import useMap from '../composables/useMap'
 import useSettings from '../composables/useSettings'
 import { GLOBAL_DATA_MAP_FIELD_START_ZOOM_LEVEL } from '../composables/useSettings'
-import { map, geoJsonResults } from '../composables/useMap'
-import {
-  areaColorScale,
-  confidenceColorScale,
-  globalPredictionsStyle,
-  inferenceStyle,
-} from '../layers/color-scales'
+import { areaColorScale, confidenceColorScale, inferenceStyle } from '../layers/color-scales'
 
 const { settings } = useSettings()
+const { map, geoJsonResults } = useMap()
 
 const collapsed = ref(true)
 const zoom = ref(0)
@@ -34,22 +30,33 @@ onUnmounted(() => {
 const showFields = computed(() => zoom.value >= GLOBAL_DATA_MAP_FIELD_START_ZOOM_LEVEL)
 const hasInferenceResults = computed(() => geoJsonResults.value.length > 0)
 
-const stops = computed(() =>
-  settings.value.aggregate === 'confidence' ? confidenceColorScale : areaColorScale,
+// When zoomed in, always use the confidence scale; zoomed out, use whichever aggregate is selected
+const legendStops = computed(() =>
+  showFields.value || settings.value.aggregate === 'confidence'
+    ? confidenceColorScale
+    : areaColorScale,
 )
-const title = computed(() =>
-  settings.value.aggregate === 'confidence' ? 'Confidence (%)' : 'Field Area (%)',
+const legendTitle = computed(() =>
+  showFields.value || settings.value.aggregate === 'confidence'
+    ? 'Confidence (%)'
+    : 'Field Area (%)',
+)
+const legendShowThreshold = computed(
+  () => showFields.value || settings.value.aggregate === 'confidence',
 )
 
-const isConfidence = computed(() => settings.value.aggregate === 'confidence')
+const legendRampGradient = computed(() => {
+  const s = legendStops.value
+  const n = s.length - 1
+  const colorStops = s.map((stop, i) => `${stop.color} ${(i / n) * 100}%`)
+  return `linear-gradient(to right, ${colorStops.join(', ')})`
+})
 
-// Compute threshold position based on evenly-spaced stop indices (matching label layout)
-const thresholdPct = computed(() => {
-  if (!isConfidence.value) return 0
-  const s = stops.value
+const legendThresholdPct = computed(() => {
+  if (!legendShowThreshold.value) return 0
+  const s = legendStops.value
   const threshold = settings.value.threshold
   const n = s.length - 1
-  // Find which segment the threshold falls in
   for (let i = 0; i < n; i++) {
     if (threshold <= s[i].value) return (i / n) * 100
     if (threshold <= s[i + 1].value) {
@@ -58,14 +65,6 @@ const thresholdPct = computed(() => {
     }
   }
   return 100
-})
-
-const rampStyle = computed(() => {
-  // Always use evenly-spaced full ramp
-  const s = stops.value
-  const n = s.length - 1
-  const colorStops = s.map((stop, i) => `${stop.color} ${(i / n) * 100}%`)
-  return { background: `linear-gradient(to right, ${colorStops.join(', ')})` }
 })
 </script>
 
@@ -85,17 +84,6 @@ const rampStyle = computed(() => {
       </svg>
     </button>
     <div v-show="!collapsed" class="ol-legend-content">
-      <!-- Global predictions swatch (zoomed in) -->
-      <div v-if="settings.mode === 'global' && showFields" class="ol-legend-item">
-        <span
-          class="ol-legend-swatch"
-          :style="{
-            backgroundColor: globalPredictionsStyle.fill,
-            borderColor: globalPredictionsStyle.stroke,
-          }"
-        ></span>
-        <span>{{ globalPredictionsStyle.label }}</span>
-      </div>
       <!-- Inference results swatch -->
       <div v-if="hasInferenceResults" class="ol-legend-item">
         <span
@@ -107,19 +95,33 @@ const rampStyle = computed(() => {
         ></span>
         <span>{{ inferenceStyle.label }}</span>
       </div>
-      <!-- Overview ramp legend (global mode, zoomed out) -->
-      <template v-if="settings.mode === 'global' && settings.aggregate && !showFields">
-        <div class="ol-legend-title">{{ title }}</div>
+      <!-- Global fields swatch -->
+      <div v-if="showFields" class="ol-legend-item">
+        <span
+          class="ol-legend-swatch"
+          :style="{
+            background: 'transparent',
+            borderImage: `${legendRampGradient} 2`,
+          }"
+        ></span>
+        <span>Global Predictions</span>
+      </div>
+      <!-- Color ramp legend -->
+      <template v-if="showFields || settings.aggregate">
+        <div class="ol-legend-title" :class="{ showFields }">
+          <template v-if="showFields">with colors based on confidence:</template>
+          <template v-else>{{ legendTitle }}</template>
+        </div>
         <div class="ol-legend-bar">
-          <div class="ol-legend-bar-ramp" :style="rampStyle"></div>
+          <div class="ol-legend-bar-ramp" :style="{ background: legendRampGradient }"></div>
           <div
-            v-if="isConfidence && thresholdPct > 0"
+            v-if="legendThresholdPct > 0"
             class="ol-legend-bar-transparent"
-            :style="{ width: thresholdPct + '%' }"
+            :style="{ width: legendThresholdPct + '%' }"
           ></div>
         </div>
         <div class="ol-legend-labels">
-          <span v-for="(stop, i) in stops" :key="i">{{ stop.label }}</span>
+          <span v-for="(stop, i) in legendStops" :key="i">{{ stop.label }}</span>
         </div>
       </template>
     </div>
@@ -173,6 +175,10 @@ const rampStyle = computed(() => {
   font-weight: 600;
   margin-bottom: 0.35em;
   text-align: center;
+}
+.ol-legend-title.showFields {
+  font-weight: 500;
+  text-align: left;
 }
 
 .ol-legend-bar {

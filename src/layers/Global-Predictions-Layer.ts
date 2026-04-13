@@ -7,7 +7,7 @@ import {
   get_global_pmtiles_url,
   type Settings,
 } from '../composables/useSettings'
-import { globalPredictionsStyle } from './color-scales'
+import { confidenceColorScale, getColorForValue } from './color-scales'
 
 export function createGlobalPredictionsLayer(settings: Settings) {
   const layer = new VectorTileLayer({
@@ -25,14 +25,17 @@ export function createGlobalPredictionsLayer(settings: Settings) {
 
 export function updateGlobalPredictionsLayer(layer: VectorTileLayer, settings: Settings) {
   const key = `confidence_${GLOBAL_DATA_PMTILES_THRESHOLD_METRIC}`
-  const style = new Style({
-    stroke: new Stroke({
-      color: globalPredictionsStyle.stroke,
-      width: 1,
-    }),
-    fill: new Fill({
-      color: globalPredictionsStyle.fill,
-    }),
+  layer.setStyle((feature) => {
+    const confidence = feature.get(key)
+    if (confidence <= settings.threshold) return undefined
+    return new Style({
+      stroke: new Stroke({
+        color: getColorForValue(confidenceColorScale, confidence, 1),
+        width: 1,
+      }),
+      fill: new Fill({
+        color: getColorForValue(confidenceColorScale, confidence, 0.3),
+      }),
+    })
   })
-  layer.setStyle((feature) => (feature.get(key) <= settings.threshold ? undefined : style))
 }
