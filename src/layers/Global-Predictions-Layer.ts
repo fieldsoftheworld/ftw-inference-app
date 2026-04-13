@@ -19,7 +19,11 @@ export function createGlobalPredictionsLayer(settings: Settings) {
       name: `global-predictions`,
     },
   })
+  updateGlobalPredictionsLayer(layer, settings)
+  return layer
+}
 
+export function updateGlobalPredictionsLayer(layer: VectorTileLayer, settings: Settings) {
   const key = `confidence_${GLOBAL_DATA_PMTILES_THRESHOLD_METRIC}`
   const style = new Style({
     stroke: new Stroke({
@@ -31,6 +35,4 @@ export function createGlobalPredictionsLayer(settings: Settings) {
     }),
   })
   layer.setStyle((feature) => (feature.get(key) <= settings.threshold ? undefined : style))
-
-  return layer
 }

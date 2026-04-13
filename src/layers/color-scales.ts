@@ -17,8 +17,8 @@ export const globalPredictionsStyle: FeatureStyle = {
 }
 
 export const inferenceStyle: FeatureStyle = {
-  fill: 'rgba(255, 255, 0, 0.1)',
-  stroke: 'rgba(255, 255, 0, 1)',
+  fill: 'rgba(0, 255, 255, 0.1)',
+  stroke: 'rgba(0, 255, 255, 0.8)',
   label: 'Inference',
 }
 

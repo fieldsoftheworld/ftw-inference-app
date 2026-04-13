@@ -14,7 +14,10 @@ import useNotifier from './useNotifier'
 import useSettings from './useSettings'
 import createCloudlessLayer from '../layers/S2-Cloudless-Layer'
 import createS2GridLayer from '../layers/S2-Grid-Layer'
-import { createGlobalPredictionsLayer } from '../layers/Global-Predictions-Layer'
+import {
+  createGlobalPredictionsLayer,
+  updateGlobalPredictionsLayer,
+} from '../layers/Global-Predictions-Layer'
 import { Fill, Stroke, Style } from 'ol/style'
 import { type FeatureLike } from 'ol/Feature'
 import {
@@ -101,6 +104,9 @@ watch(
   () => {
     if (globalOverviewLayer.value) {
       updateGlobalOverviewLayer(globalOverviewLayer.value, settings.value)
+    }
+    if (globalPredictionsLayer.value) {
+      updateGlobalPredictionsLayer(globalPredictionsLayer.value, settings.value)
     }
   },
 )
