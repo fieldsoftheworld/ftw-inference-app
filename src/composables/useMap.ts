@@ -14,10 +14,7 @@ import useNotifier from './useNotifier'
 import useSettings from './useSettings'
 import createCloudlessLayer from '../layers/S2-Cloudless-Layer'
 import createS2GridLayer from '../layers/S2-Grid-Layer'
-import {
-  createGlobalPredictionsLayer,
-  updateGlobalPredictionsLayer,
-} from '../layers/Global-Predictions-Layer'
+import { createGlobalPredictionsLayer } from '../layers/Global-Predictions-Layer'
 import { Fill, Stroke, Style } from 'ol/style'
 import { type FeatureLike } from 'ol/Feature'
 import {
@@ -73,6 +70,16 @@ watch(
     cloudlessLayer.value = createCloudlessLayer(newYear)
     // Insert at index 0 to keep it as the base layer
     map.value.getLayers().insertAt(0, cloudlessLayer.value)
+
+    if (settings.value.mode === 'global') {
+      if (globalPredictionsLayer.value) {
+        map.value.removeLayer(globalPredictionsLayer.value)
+        globalPredictionsLayer.value = null
+      }
+
+      globalPredictionsLayer.value = createGlobalPredictionsLayer(settings.value)
+      map.value.addLayer(globalPredictionsLayer.value)
+    }
   },
 )
 
@@ -115,15 +122,6 @@ const updateAggregateLayer = () => {
 
 watch(() => settings.value.aggregate, updateAggregateLayer)
 
-watch(
-  () => settings.value.year,
-  () => {
-    if (globalPredictionsLayer.value) {
-      updateGlobalPredictionsLayer(globalPredictionsLayer.value, settings.value.year)
-    }
-  },
-)
-
 const updateLayers = () => {
   if (!map.value) {
     return
@@ -137,7 +135,8 @@ const updateLayers = () => {
 
     // Initialize with global predictions layers
     if (!globalPredictionsLayer.value) {
-      globalPredictionsLayer.value = createGlobalPredictionsLayer(settings.value.year)
+      // Only handle first initialization here, year changes are handled by a watcher on year above
+      globalPredictionsLayer.value = createGlobalPredictionsLayer(settings.value)
       map.value.addLayer(globalPredictionsLayer.value)
     }
     if (settings.value.aggregate) {
