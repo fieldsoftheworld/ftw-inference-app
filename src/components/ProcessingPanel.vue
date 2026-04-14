@@ -10,7 +10,6 @@ import useSettings, { type Settings } from '../composables/useSettings'
 import useNotifier from '../composables/useNotifier'
 import useAreaOfInterest from '../composables/useAreaOfInterest'
 import useProcessingMode from '../composables/useProcessingMode'
-import useGeocoding from '../composables/useGeocoding'
 import useMap from '../composables/useMap'
 import {
   mdiHelpCircleOutline,
@@ -21,6 +20,7 @@ import {
   mdiEyeOffOutline,
 } from '@mdi/js'
 import TilePreview from './TilePreview.vue'
+import GeocodingSearch from './GeocodingSearch.vue'
 import useStacLayer from '../composables/useStacLayer'
 import { debounce } from 'vuetify/lib/util/helpers.mjs'
 
@@ -30,14 +30,14 @@ const emit = defineEmits<{
 
 const { map, areaValues } = useMap()
 const { stacPreviewTileId } = useStacLayer()
-const { drawnExtent, validateBBox, getTileById, triggerTileSelection } = useAreaOfInterest()
+const { drawnExtent, validateBBox, getTileById, triggerTileSelection, handleLocationSelected } =
+  useAreaOfInterest()
 const { showError, showSuccess } = useNotifier()
 const { hasMore, isLoading, searchResults, searchStatus, handleSearchResults } = useSearch()
 const { activeTileId, currentBBox, currentBBoxValid, secondActiveTileId, currentMgrsTileId } =
   useAreaOfInterest()
 const { settings, availableModels, modelIsSingleShot, modelTitle } = useSettings()
 const { isBatchProcessing } = useProcessingMode()
-const { placeSearch, isLoadingPlaces, suggestedPlaces, handleLocationSelected } = useGeocoding()
 const { processBatch, processSmallArea, isProcessing } = useBatchProcessing()
 
 const months = [
@@ -270,7 +270,7 @@ watch(sceneSelectionStatus, (newValue) => {
 })
 
 // Display Scene A image by default when auto scene selection is enabled and a scene is selected
-watch([settings.value.autoSceneSelection, activeTileId], ([autoSelection, tileId]) => {
+watch([() => settings.value.autoSceneSelection, activeTileId], ([autoSelection, tileId]) => {
   if (autoSelection && tileId) {
     stacPreviewTileId.value = tileId
   }
@@ -427,8 +427,8 @@ defineExpose({ openModelSelection })
       </template>
     </v-alert>
 
-    <v-row>
-      <v-col class="d-flex justify-end">
+    <v-row class="d-flex justify-center w-100 mx-auto">
+      <v-col>
         <v-switch
           v-model="settings.expertMode"
           label="Expert Mode"
@@ -438,7 +438,6 @@ defineExpose({ openModelSelection })
         ></v-switch>
       </v-col>
     </v-row>
-
     <v-expansion-panels v-model="activePanel">
       <v-expansion-panel v-if="currentMgrsTileId && isBatchProcessing" value="project">
         <v-expansion-panel-title>
@@ -530,16 +529,7 @@ defineExpose({ openModelSelection })
           <!-- Geocoding -->
           <v-row>
             <v-col>
-              <v-autocomplete
-                @update:model-value="handleLocationSelected"
-                v-model:search="placeSearch"
-                :loading="isLoadingPlaces"
-                :items="suggestedPlaces"
-                label="Search for a place"
-                hide-details
-                dense
-                variant="outlined"
-              ></v-autocomplete>
+              <GeocodingSearch @location-selected="handleLocationSelected" />
             </v-col>
           </v-row>
 
@@ -717,7 +707,7 @@ defineExpose({ openModelSelection })
               <v-alert color="gray" type="info" variant="tonal" density="compact">
                 Select a year for the scene selection. Automatic scene selection will automatically
                 choose start and end dates based on crop calendars. Thus, start and end date
-                selection will only be available for manual scene selection.
+                selection will only be available for manual scene selection.<br />
                 <v-btn
                   @click="settings.autoSceneSelection = !settings.autoSceneSelection"
                   size="small"

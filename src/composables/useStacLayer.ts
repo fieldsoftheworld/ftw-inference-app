@@ -4,9 +4,12 @@ import TileLayer from 'ol/layer/Tile'
 import { map } from './useMap'
 import { getTileById, activeTileId, secondActiveTileId } from './useAreaOfInterest'
 import { transformExtent } from 'ol/proj'
+import useSettings from './useSettings'
 
 let currentStacLayer: TileLayer<ImageTile> | null = null
 const stacPreviewTileId = shallowRef<string | null>(null)
+/** Stores the preview tile id while in global mode so it can be restored */
+let savedPreviewTileId: string | null = null
 
 async function addStacLayer() {
   if (!map.value || !stacPreviewTileId.value) {
@@ -67,6 +70,22 @@ watch(
     })
   },
   { once: true },
+)
+
+const { settings } = useSettings()
+watch(
+  () => settings.value.mode,
+  (mode) => {
+    if (mode === 'global') {
+      savedPreviewTileId = stacPreviewTileId.value
+      stacPreviewTileId.value = null
+    } else {
+      if (savedPreviewTileId) {
+        stacPreviewTileId.value = savedPreviewTileId
+        savedPreviewTileId = null
+      }
+    }
+  },
 )
 
 export default function useStacLayer() {

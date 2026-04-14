@@ -10,6 +10,9 @@ export interface Settings {
   buffer: number
   model: string
   expertMode: boolean
+  mode: string
+  aggregate: string
+  threshold: number
 }
 
 export interface ModelInfo {
@@ -22,6 +25,23 @@ export interface ModelInfo {
   legacy?: boolean
   default?: boolean
 }
+
+const defaultMode = 'global'
+
+const availableModes: { id: string; label: string }[] = [
+  {
+    id: 'global',
+    label: 'Global Predictions',
+  },
+  {
+    id: 'inference',
+    label: 'My Inference',
+  },
+  // {
+  //   id: 'edit',
+  //   label: 'Editing',
+  // },
+]
 
 const availableModels = shallowRef<ModelInfo[]>([])
 
@@ -36,6 +56,9 @@ const defaultSettings: Settings = {
   buffer: 14,
   model: '',
   expertMode: false,
+  mode: defaultMode,
+  aggregate: 'area',
+  threshold: 0.4,
 }
 
 const defaultModel = computed(() => {
@@ -45,6 +68,8 @@ const defaultModel = computed(() => {
   }
   return selected?.id || ''
 })
+
+const defaultYearGlobal = 2024
 
 const modelTitle = computed(() => {
   const model = settings.value.model
@@ -116,15 +141,39 @@ watch(
   { deep: true },
 )
 
+watch(
+  () => settings.value.mode,
+  () => {
+    if (
+      settings.value.mode === 'global' &&
+      (settings.value.year < 2024 || settings.value.year > 2025)
+    ) {
+      settings.value.year = defaultYearGlobal
+    }
+  },
+)
+
 const modelIsSingleShot = computed(() => {
   const model = availableModels.value.find((m) => m.id === settings.value.model)
   return model?.requires_window === false
 })
 
+export const GLOBAL_DATA_MAP_COMPLETE_ZOOM_LEVEL = 13
+export const GLOBAL_DATA_MAP_FIELD_START_ZOOM_LEVEL = 10
+export const GLOBAL_DATA_PMTILES =
+  'https://s3.us-west-2.amazonaws.com/us-west-2.opendata.source.coop/tge-labs/ftw-global-data/predictions/vectors/alpha/global.pmtiles'
+
+export const AREA_OVERVIEW_COG =
+  'https://s3.us-west-2.amazonaws.com/us-west-2.opendata.source.coop/m-mohr/ftw-confidence-layers/prue_v1_field_area_500m_fieldsonly.tif'
+export const CONFIDENCE_OVERVIEW_COG =
+  'https://s3.us-west-2.amazonaws.com/us-west-2.opendata.source.coop/m-mohr/ftw-confidence-layers/prue_v1_confidence_global.tif'
+
 export default function useSettings() {
   return {
     settings,
     availableModels,
+    defaultMode,
+    availableModes,
     defaultSettings,
     defaultModel,
     modelTitle,

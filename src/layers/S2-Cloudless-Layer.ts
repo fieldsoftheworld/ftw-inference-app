@@ -13,7 +13,8 @@ export default function createCloudlessLayer(year: number) {
       maxZoom: 18,
       tileSize: 256,
       crossOrigin: 'anonymous',
-      attributions: 'Sentinel-2 cloudless imagery by <a href="https://eox.at">EOX</a>',
+      attributions:
+        '<a href="https://s2maps.eu" target="_blank">Sentinel-2 cloudless - https://s2maps.eu</a> by <a href="https://eox.at" target="_blank">EOX IT Services GmbH</a> (Contains modified Copernicus Sentinel data 2017 and later)',
     }),
   })
 }

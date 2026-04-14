@@ -2,6 +2,8 @@ import { ref, shallowRef, watch } from 'vue'
 import type Map from 'ol/Map'
 import VectorSource from 'ol/source/Vector'
 import VectorLayer from 'ol/layer/Vector'
+import VectorTileLayer from 'ol/layer/VectorTile'
+import GlTileLayer from 'ol/layer/WebGLTile.js'
 import TileLayer from 'ol/layer/Tile'
 import type XYZ from 'ol/source/XYZ'
 import GeoJSON from 'ol/format/GeoJSON'
@@ -11,8 +13,18 @@ import { type FeatureCollection } from 'geojson'
 import useNotifier from './useNotifier'
 import useSettings from './useSettings'
 import createCloudlessLayer from '../layers/S2-Cloudless-Layer'
+import createS2GridLayer from '../layers/S2-Grid-Layer'
+import {
+  createGlobalPredictionsLayer,
+  updateGlobalPredictionsLayer,
+} from '../layers/Global-Predictions-Layer'
 import { Fill, Stroke, Style } from 'ol/style'
 import { type FeatureLike } from 'ol/Feature'
+import {
+  createGlobalOverviewLayer,
+  updateGlobalOverviewLayer,
+} from '../layers/Global-Overview-Layers'
+import { inferenceStyle } from '../layers/color-scales'
 
 let featureId = 0
 
@@ -21,6 +33,8 @@ export interface AreaValues {
   max_area_km2: number
   default?: boolean
 }
+
+const { settings } = useSettings()
 
 export const map = shallowRef<Map | null>(null)
 const areaValues = ref<AreaValues>({
@@ -37,11 +51,10 @@ const propertiesBoxPosition = ref<{ x: number; y: number } | null>(null)
 const originalClickPosition = ref<{ x: number; y: number } | null>(null)
 const showPropertiesBox = ref(false)
 
-const geoJsonResults = shallowRef<any[]>([])
+export const geoJsonResults = shallowRef<any[]>([])
 
 // Cloudless layer management
 const cloudlessLayer = shallowRef<TileLayer<XYZ> | null>(null)
-const { settings } = useSettings()
 
 // Watch for year changes and update the cloudless layer
 watch(
@@ -71,12 +84,100 @@ const initCloudlessLayer = () => {
   map.value.getLayers().insertAt(0, cloudlessLayer.value)
 }
 
+// Global predictions and S2 grid layer management
+const s2GridLayer = shallowRef<VectorLayer<VectorSource> | null>(null)
+const globalPredictionsLayer = shallowRef<VectorTileLayer | null>(null)
+const globalOverviewLayer = shallowRef<GlTileLayer | null>(null)
+
+watch(
+  () => settings.value.threshold,
+  () => {
+    if (globalOverviewLayer.value) {
+      updateGlobalOverviewLayer(globalOverviewLayer.value, settings.value)
+    }
+  },
+)
+
+const updateAggregateLayer = () => {
+  if (!map.value) {
+    return
+  }
+  if (globalOverviewLayer.value) {
+    map.value.removeLayer(globalOverviewLayer.value)
+    globalOverviewLayer.value = null
+  }
+
+  if (settings.value.aggregate) {
+    globalOverviewLayer.value = createGlobalOverviewLayer(settings.value)
+    map.value.addLayer(globalOverviewLayer.value)
+  }
+}
+
+watch(() => settings.value.aggregate, updateAggregateLayer)
+
+watch(
+  () => settings.value.year,
+  () => {
+    if (globalPredictionsLayer.value) {
+      updateGlobalPredictionsLayer(globalPredictionsLayer.value, settings.value.year)
+    }
+  },
+)
+
+const updateLayers = () => {
+  if (!map.value) {
+    return
+  }
+
+  if (settings.value.mode === 'global') {
+    if (s2GridLayer.value) {
+      map.value.removeLayer(s2GridLayer.value)
+      s2GridLayer.value = null
+    }
+
+    // Initialize with global predictions layers
+    if (!globalPredictionsLayer.value) {
+      globalPredictionsLayer.value = createGlobalPredictionsLayer(settings.value.year)
+      map.value.addLayer(globalPredictionsLayer.value)
+    }
+    if (settings.value.aggregate) {
+      if (!globalOverviewLayer.value) {
+        globalOverviewLayer.value = createGlobalOverviewLayer(settings.value)
+        map.value.addLayer(globalOverviewLayer.value)
+      }
+    } else {
+      if (globalOverviewLayer.value) {
+        map.value.removeLayer(globalOverviewLayer.value)
+        globalOverviewLayer.value = null
+      }
+    }
+  } else {
+    // Initialize with S2 grid layer
+    if (!s2GridLayer.value) {
+      s2GridLayer.value = createS2GridLayer()
+      map.value.addLayer(s2GridLayer.value)
+    }
+
+    // Remove global predictions layers if they exist
+    if (globalPredictionsLayer.value) {
+      map.value.removeLayer(globalPredictionsLayer.value)
+      globalPredictionsLayer.value = null
+    }
+    if (globalOverviewLayer.value) {
+      map.value.removeLayer(globalOverviewLayer.value)
+      globalOverviewLayer.value = null
+    }
+  }
+}
+
+watch(() => settings.value.mode, updateLayers)
+
 const featureStyle = new Style({
   fill: new Fill({
-    color: 'rgba(255, 255, 0, 0.1)',
+    color: inferenceStyle.fill,
   }),
   stroke: new Stroke({
-    color: 'rgba(255, 255, 0, 1)',
+    color: inferenceStyle.stroke,
     width: 2,
   }),
 })
@@ -258,5 +359,6 @@ export default function useMap() {
     displayGeoJSON,
     geoJsonResults,
     initCloudlessLayer,
+    updateLayers,
   }
 }

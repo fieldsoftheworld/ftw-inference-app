@@ -2,10 +2,11 @@
 import { ref, onMounted } from 'vue'
 import { Map, View } from 'ol'
 import DataCabinet from './DataCabinet.vue'
+import GlobalFeedbackWidget from './GlobalFeedbackWidget.vue'
+import MapLegend from './MapLegend.vue'
 import ProcessingResults from './ProcessingResults.vue'
 import PropertiesDisplay from './PropertiesDisplay.vue'
 import createLabelLayer from '../layers/Label-Layer'
-import createS2GridLayer from '../layers/S2-Grid-Layer'
 import { generateJWT } from '../functions/generate-jwt'
 import useAreaOfInterest from '../composables/useAreaOfInterest'
 import usePermalink from '../composables/usePermalink'
@@ -22,10 +23,11 @@ const {
   hidePropertiesBox,
   geoJsonResults,
   initCloudlessLayer,
+  updateLayers,
 } = useMap()
 
 const { addMapClickHandler } = useAreaOfInterest()
-const { setAvailableModels } = useSettings()
+const { setAvailableModels, settings } = useSettings()
 
 const clearResults = () => {
   geoJsonResults.value = []
@@ -78,14 +80,15 @@ onMounted(async () => {
     critical.value = `Can't connect to server: ${error?.message || error}`
   }
 
-  // Add S2 Grid layer after map is initialized
+  // Add layers after map is initialized
   if (map.value) {
     // Initialize the cloudless base layer
     initCloudlessLayer()
 
-    const s2GridLayer = createS2GridLayer()
+    // Initialize layers
+    updateLayers()
+
     addMapClickHandler(map.value as Map, areaValues.value)
-    map.value.addLayer(s2GridLayer)
     // Setup permalink functionality
     setupPermalink(map)
   }
@@ -109,6 +112,10 @@ defineExpose({
       :geoJsonResults="geoJsonResults"
       @clearResults="clearResults"
     />
+
+    <GlobalFeedbackWidget v-if="map && settings.mode === 'global'" />
+
+    <MapLegend />
   </div>
 
   <!-- Properties Box -->
@@ -222,16 +229,25 @@ defineExpose({
 
 :deep(.ol-zoom) {
   top: unset;
-  left: unset;
+  right: unset;
   bottom: 1rem;
-  right: 1rem;
+  left: 1rem;
+  z-index: 10000;
 }
 
 :deep(.ol-attribution) {
   top: unset;
-  left: unset;
+  right: unset;
   bottom: 1rem;
-  right: calc(2rem + 20px);
+  left: calc(2rem + 10px);
+  z-index: 10000;
+  flex-direction: row;
+  max-width: 90vw;
+  align-items: end;
+}
+
+:deep(.ol-attribution button) {
+  order: -1;
 }
 
 :deep(.ol-zoom button),

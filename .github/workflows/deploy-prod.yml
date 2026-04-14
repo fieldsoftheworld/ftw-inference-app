@@ -1,0 +1,55 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    tags:
+      - "v*"
+
+concurrency:
+  group: deploy-gh-pages
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          cache: "npm"
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Test
+        run: npm test
+
+      - name: Build
+        run: npm run build -- --base=/ftw-inference-app/
+        env:
+          VITE_API_BASE_URL: ${{ secrets.VITE_API_BASE_URL }}
+
+      - name: Configure git
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Deploy to /
+        run: |
+          git fetch origin gh-pages
+          git worktree add /tmp/gh-pages gh-pages
+          find /tmp/gh-pages -maxdepth 1 -mindepth 1 ! -name 'dev' ! -name '.git' -exec rm -rf {} +
+          cp -r ftw-inference-app/. /tmp/gh-pages/
+          touch /tmp/gh-pages/.nojekyll
+          git -C /tmp/gh-pages add -A
+          git -C /tmp/gh-pages diff --staged --quiet || git -C /tmp/gh-pages commit -m "Deploy ${{ github.ref_name }}"
+          git -C /tmp/gh-pages push origin gh-pages
+          git worktree remove /tmp/gh-pages

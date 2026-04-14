@@ -3,17 +3,20 @@
   top: 1rem;
   z-index: 1000;
   min-height: 50px;
-  max-height: calc(100vh - 2rem);
-  resize: both;
+  max-height: calc(100vh - 5rem);
   display: flex;
   flex-direction: column;
   background-color: rgba(0, 0, 0, 0.9);
 }
 
-@media (width <=1400px) {
+.sidebar.global {
+  width: 350px;
+}
+
+@media (width <=1200px) {
   .sidebar {
     top: 4rem !important;
-    max-height: calc(100vh - 5rem);
+    max-height: calc(100vh - 8.5rem);
   }
 }
 
@@ -21,7 +24,6 @@
   height: auto !important;
   width: auto !important;
   min-height: none;
-  resize: none;
 }
 
 .sidebar .content {
@@ -39,6 +41,9 @@
   flex: 1;
   padding: 0.5rem 1rem;
   overflow-y: auto;
+}
+.sidebar.global .content .settings {
+  overflow: hidden;
 }
 
 .sidebar .v-card-title {

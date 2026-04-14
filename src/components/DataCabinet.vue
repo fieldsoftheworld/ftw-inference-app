@@ -4,6 +4,7 @@ import { ref } from 'vue'
 import useSearch from '../composables/useSearch'
 import useSettings from '../composables/useSettings'
 import ProcessingPanel from './ProcessingPanel.vue'
+import GlobalDataPanel from './GlobalDataPanel.vue'
 
 const { searchStatus } = useSearch()
 const { modelTitle, settings } = useSettings()
@@ -20,7 +21,7 @@ const toggleCollapsible = () => {
   <v-card
     :loading="isWorking || searchStatus === true"
     elevation="8"
-    :class="{ closed: !isOpen, 'data-cabinet': true, sidebar: true }"
+    :class="{ closed: !isOpen, 'data-cabinet': true, sidebar: true, [settings.mode]: true }"
   >
     <v-card-title class="d-flex align-center pa-2">
       <div class="collapse-action" @click="toggleCollapsible">
@@ -31,20 +32,28 @@ const toggleCollapsible = () => {
         >
         </v-icon>
         <span class="title text-white">
-          Processing
-          <v-badge
-            v-if="modelTitle && !settings.expertMode"
-            inline
-            :content="`Model: ${modelTitle}`"
-            @click.stop="($refs.panel as typeof ProcessingPanel).openModelSelection()"
-            class="clickable-badge"
-          ></v-badge>
+          <template v-if="settings.mode === 'inference'">
+            Processing
+            <v-badge
+              v-if="modelTitle && !settings.expertMode"
+              inline
+              :content="`Model: ${modelTitle}`"
+              @click.stop="($refs.panel as typeof ProcessingPanel).openModelSelection()"
+              class="clickable-badge"
+            ></v-badge>
+          </template>
+          <template v-else> Global Predictions </template>
         </span>
       </div>
     </v-card-title>
 
     <v-card-text v-show="isOpen" class="content">
-      <ProcessingPanel ref="panel" @work-state-changed="(v) => (isWorking = v)" />
+      <ProcessingPanel
+        v-if="settings.mode === 'inference'"
+        ref="panel"
+        @work-state-changed="(v) => (isWorking = v)"
+      />
+      <GlobalDataPanel v-else />
     </v-card-text>
   </v-card>
 </template>
@@ -58,8 +67,8 @@ const toggleCollapsible = () => {
 }
 .data-cabinet {
   left: 1rem;
-  min-width: 300px;
-  width: 30vw;
+  min-width: 350px;
+  width: 27.5vw;
   max-width: 45vw;
 }
 </style>
