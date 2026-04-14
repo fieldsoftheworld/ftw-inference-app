@@ -31,10 +31,7 @@ const elapsedSec = ref(0)
 let elapsedTimer: ReturnType<typeof setInterval> | null = null
 
 const canSubmit = computed(
-  () =>
-    selectedModels.value.length > 0 &&
-    selectedCountries.value.length > 0 &&
-    !polling.value,
+  () => selectedModels.value.length > 0 && selectedCountries.value.length > 0 && !polling.value,
 )
 
 /** Human-readable phase label shown while the task is running. */
@@ -57,6 +54,20 @@ const autoDownloads = computed<string[]>(() => {
 const byModel = computed(() => {
   return (result.value?.by_model ?? null) as Record<string, unknown> | null
 })
+
+function getCountries(
+  modelData: unknown,
+): Record<string, { title?: string; chips_evaluated?: number; scores?: Record<string, number> }> {
+  const row = modelData as Record<string, unknown>
+  const countries = row?.countries
+  if (!countries || typeof countries !== 'object') {
+    return {}
+  }
+  return countries as Record<
+    string,
+    { title?: string; chips_evaluated?: number; scores?: Record<string, number> }
+  >
+}
 
 /** API `note` on a country when chips_evaluated is 0 (STAC/inference/mask issues). */
 const mapGeojson = computed(() => {
@@ -225,7 +236,7 @@ async function pollTask(id: string) {
     }
     // Poll quickly at first so the progress UI reflects running before the job finishes.
     const delayMs = i < 60 ? 350 : 2000
-    await new Promise((r) => setTimeout(r, delayMs))
+    await new Promise((resolve) => setTimeout(resolve, delayMs))
   }
   showError('Timed out waiting for benchmark. The job may still run server-side.')
 }
@@ -243,18 +254,19 @@ async function pollTask(id: string) {
 
     <v-container class="py-6" max-width="960">
       <p class="text-body-2 mb-2">
-        Select models and countries. <strong>Real scores</strong> need the full FTW benchmark tree on
-        the API host (<code>BENCHMARK__DATA_ROOT</code>): chips GeoParquet, <code>data_config</code>
-        (STAC URLs), and <code>label_masks/instance/</code> per country.
+        Select models and countries. <strong>Real scores</strong> need the full FTW benchmark tree
+        on the API host (<code>BENCHMARK__DATA_ROOT</code>): chips GeoParquet,
+        <code>data_config</code> (STAC URLs), and <code>label_masks/instance/</code> per country.
       </p>
       <p class="text-caption text-medium-emphasis mb-6">
         With <code>BENCHMARK__AUTO_DOWNLOAD=true</code>, the API looks for
         <code>chips_{country}.parquet</code> on Source Cooperative (not the older
-        <code>boundaries_*</code>-only drops). You still need STAC URLs and label masks for a full run.
-        Use <code>BENCHMARK__ALLOW_DEMO=true</code> for placeholder scores without data.
-        Runs are <strong>sequential per chip</strong> (download + inference + scoring); tens of seconds
-        to a few minutes per chip is normal. Matching uses a default IoU of <strong>0.25</strong> because
-        auto-picked Sentinel scenes are not the benchmark’s original imagery (overlaps are often &lt;0.5).
+        <code>boundaries_*</code>-only drops). You still need STAC URLs and label masks for a full
+        run. Use <code>BENCHMARK__ALLOW_DEMO=true</code> for placeholder scores without data. Runs
+        are <strong>sequential per chip</strong> (download + inference + scoring); tens of seconds
+        to a few minutes per chip is normal. Matching uses a default IoU of
+        <strong>0.25</strong> because auto-picked Sentinel scenes are not the benchmark’s original
+        imagery (overlaps are often &lt;0.5).
       </p>
 
       <v-alert v-if="error" type="warning" class="mb-4" density="compact">{{ error }}</v-alert>
@@ -310,8 +322,8 @@ async function pollTask(id: string) {
                   />
                 </template>
                 <div class="text-caption text-medium-emphasis">
-                  Chips GeoParquet often has a <code>split</code> column. This choice keeps only rows
-                  in that partition, then <code>max chips</code> is applied.
+                  Chips GeoParquet often has a <code>split</code> column. This choice keeps only
+                  rows in that partition, then <code>max chips</code> is applied.
                   <strong class="text-high-emphasis">Test</strong> — held-out set (usual benchmark).
                   <strong class="text-high-emphasis">Validation</strong> — validation fold.
                   <strong class="text-high-emphasis">Train</strong> — training chips (not unbiased
@@ -433,15 +445,12 @@ async function pollTask(id: string) {
                   </tr>
                 </thead>
                 <tbody>
-                  <tr
-                    v-for="(cd, cid) in (modelData as Record<string,unknown>).countries as Record<string,unknown>"
-                    :key="String(cid)"
-                  >
-                    <td>{{ (cd as Record<string,unknown>).title ?? cid }}</td>
-                    <td>{{ (cd as Record<string,unknown>).chips_evaluated }}</td>
-                    <td>{{ ((cd as Record<string,unknown>).scores as Record<string,number>).finding_fields }}</td>
-                    <td>{{ ((cd as Record<string,unknown>).scores as Record<string,number>).not_finding_non_fields }}</td>
-                    <td>{{ ((cd as Record<string,unknown>).scores as Record<string,number>).correct_sizes_and_shapes }}</td>
+                  <tr v-for="(cd, cid) in getCountries(modelData)" :key="String(cid)">
+                    <td>{{ cd.title ?? cid }}</td>
+                    <td>{{ cd.chips_evaluated ?? 0 }}</td>
+                    <td>{{ cd.scores?.finding_fields ?? 0 }}</td>
+                    <td>{{ cd.scores?.not_finding_non_fields ?? 0 }}</td>
+                    <td>{{ cd.scores?.correct_sizes_and_shapes ?? 0 }}</td>
                   </tr>
                 </tbody>
               </v-table>
@@ -452,8 +461,8 @@ async function pollTask(id: string) {
           <v-divider class="my-6" />
           <div class="text-subtitle-2 mb-1">Benchmark map</div>
           <p class="text-caption text-medium-emphasis mb-4">
-            Gold outline = chip footprint; green = ground truth; blue = model predictions. Requires a
-            deployed API that returns <code>map_geojson</code> and at least one scored chip.
+            Gold outline = chip footprint; green = ground truth; blue = model predictions. Requires
+            a deployed API that returns <code>map_geojson</code> and at least one scored chip.
           </p>
 
           <v-alert
@@ -503,8 +512,8 @@ async function pollTask(id: string) {
           <p v-else class="text-body-2 text-medium-emphasis">
             No map layers in this response. If <strong>Chips</strong> is above zero, open
             <span class="text-caption text-disabled">Raw JSON</span> and confirm a top-level
-            <code>map_geojson</code> object. If it is missing, restart the API after updating to a build
-            that includes map support. Also check <strong>Include map</strong> is on,
+            <code>map_geojson</code> object. If it is missing, restart the API after updating to a
+            build that includes map support. Also check <strong>Include map</strong> is on,
             <code>max_chips</code> ≤ 40, and see the “Map (GeoJSON)” note above if any.
           </p>
 

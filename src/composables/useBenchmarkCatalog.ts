@@ -1,7 +1,7 @@
 import { ref, shallowRef } from 'vue'
 import { generateJWT } from '../functions/generate-jwt'
 
-const base = import.meta.env.VITE_API_BASE_URL || '/v1/'
+const base = import.meta.env.VITE_API_BASE_URL ?? ''
 
 export interface BenchmarkCountry {
   id: string

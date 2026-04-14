@@ -68,7 +68,7 @@ function buildSourcesFromPayload(data: { chips: BenchmarkMapChip[] }) {
 }
 
 function fitToSources(map: Map, sources: VectorSource[]) {
-  let ext: Extent = createEmpty()
+  const ext: Extent = createEmpty()
   for (const s of sources) {
     const le = s.getExtent()
     if (!isEmpty(le)) extendExtent(ext, le)
