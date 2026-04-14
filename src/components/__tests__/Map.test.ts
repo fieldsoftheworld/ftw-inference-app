@@ -12,14 +12,12 @@ vi.mock('../../layers/Global-Predictions-Layer', async () => {
   const { default: VectorTileLayer } = await import('ol/layer/VectorTile')
   return {
     createGlobalPredictionsLayer: vi.fn(() => new VectorTileLayer()),
-    updateGlobalPredictionsLayer: vi.fn(),
   }
 })
 vi.mock('../../layers/Global-Overview-Layers', async () => {
   const { default: GlTileLayer } = await import('ol/layer/WebGLTile.js')
   return {
     createGlobalOverviewLayer: vi.fn(() => new GlTileLayer()),
-    updateGlobalOverviewLayer: vi.fn(),
   }
 })
 

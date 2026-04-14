@@ -158,10 +158,12 @@ const modelIsSingleShot = computed(() => {
   return model?.requires_window === false
 })
 
-export const GLOBAL_DATA_MAP_COMPLETE_ZOOM_LEVEL = 13
+export const GLOBAL_DATA_PMTILES_THRESHOLD_METRIC = 'median' // median / mean / min
+export const GLOBAL_DATA_MAP_COMPLETE_ZOOM_LEVEL = 12
 export const GLOBAL_DATA_MAP_FIELD_START_ZOOM_LEVEL = 10
-export const GLOBAL_DATA_PMTILES =
-  'https://s3.us-west-2.amazonaws.com/us-west-2.opendata.source.coop/tge-labs/ftw-global-data/predictions/vectors/alpha/global.pmtiles'
+export const get_global_pmtiles_url = (year: number) => {
+  return `https://s3.us-west-2.amazonaws.com/us-west-2.opendata.source.coop/ftw/global-field-boundaries/pmtiles/ftw-global-fields-${year}.pmtiles`
+}
 
 export const AREA_OVERVIEW_COG =
   'https://s3.us-west-2.amazonaws.com/us-west-2.opendata.source.coop/m-mohr/ftw-confidence-layers/prue_v1_field_area_500m_fieldsonly.tif'
