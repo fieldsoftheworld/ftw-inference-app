@@ -92,7 +92,7 @@ export default function useGlobalFeedback(mapRef: ShallowRef<Map | null>) {
 
   const FEEDBACK_FORM_DATA_KEY = 'ftw-feedback-form-data'
 
-  const sliderValue = ref<number>(0)
+  const sliderValue = ref<number>(1)
   const detailsDialogOpen = ref(false)
   const isSubmittingQuick = ref(false)
   const isSubmittingDetails = ref(false)
