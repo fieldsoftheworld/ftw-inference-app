@@ -44,6 +44,7 @@ export const createGlobalOverviewLayer = (settings: Settings) => {
           max: settings.aggregate === 'confidence' ? 1 : 2500,
         },
       ],
+      interpolate: false,
     }),
     minZoom: 0,
     maxZoom: GLOBAL_DATA_MAP_FIELD_START_ZOOM_LEVEL,
