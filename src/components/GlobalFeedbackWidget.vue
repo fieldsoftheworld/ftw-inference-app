@@ -3,7 +3,10 @@ import { computed } from 'vue'
 import useMap from '../composables/useMap'
 import { geoJsonResults } from '../composables/useMap'
 import useSettings from '../composables/useSettings'
+import GlobalContributeModal from './GlobalContributeModal.vue'
+import GlobalFeedbackDetailsModal from './GlobalFeedbackDetailsModal.vue'
 import useGlobalFeedback from '../composables/useGlobalFeedback'
+import useGlobalContribute from '../composables/useGlobalContribute'
 
 const { settings } = useSettings()
 const { map } = useMap()
@@ -21,10 +24,20 @@ const {
   isSubmittingQuick,
   isSubmittingDetails,
   openDetailsDialog,
-  closeDetailsDialog,
   submitQuickFeedback,
   submitDetailedFeedback,
 } = useGlobalFeedback(map)
+
+const {
+  CONTRIBUTION_OPTIONS,
+  contributeDialogOpen,
+  contributeForm,
+  canSubmit: canSubmitContribute,
+  isSubmitting: isSubmittingContribute,
+  openContributeDialog,
+  submitContribute,
+  updateFormField,
+} = useGlobalContribute()
 
 const sliderLabels = computed(() => {
   return Object.fromEntries(options.map((opt, i) => [i, opt.title]))
@@ -61,6 +74,9 @@ const sliderLabels = computed(() => {
           </div>
 
           <div class="feedback-actions mt-3">
+            <v-btn variant="outlined" color="teal" size="small" @click="openContributeDialog">
+              Contribute
+            </v-btn>
             <v-btn
               variant="outlined"
               color="teal"
@@ -89,71 +105,24 @@ const sliderLabels = computed(() => {
       </v-card-text>
     </v-card>
 
-    <v-dialog v-model="detailsDialogOpen" max-width="530">
-      <v-card>
-        <v-card-title class="text-h5">Tell Us More</v-card-title>
-        <v-card-subtitle class="text-body2 px-6 pb-2 text-wrap">
-          We are just getting started! We know there is room to improve and we need your feedback!
-        </v-card-subtitle>
+    <GlobalFeedbackDetailsModal
+      v-model="detailsDialogOpen"
+      :details-form="detailsForm"
+      :can-submit="canSubmitDetailed"
+      :is-submitting="isSubmittingDetails"
+      @update:form="(field, value) => (detailsForm[field] = value)"
+      @submit="submitDetailedFeedback"
+    />
 
-        <v-card-text>
-          <v-textarea
-            v-model="detailsForm.qualityFeedback"
-            label="What was good/bad? How must the field boundaries improve to be useful to you?"
-            variant="outlined"
-            rows="4"
-            auto-grow
-            required
-            class="mb-3"
-          ></v-textarea>
-
-          <v-textarea
-            v-model="detailsForm.useCase"
-            label="How would you like to use field boundaries? Tell us about your use case."
-            variant="outlined"
-            rows="3"
-            auto-grow
-            required
-            class="mb-3"
-          ></v-textarea>
-
-          <v-text-field
-            v-model="detailsForm.name"
-            label="Name"
-            variant="outlined"
-            class="mb-3"
-          ></v-text-field>
-
-          <v-text-field
-            v-model="detailsForm.email"
-            type="email"
-            label="Email"
-            variant="outlined"
-            class="mb-3"
-          ></v-text-field>
-
-          <v-text-field
-            v-model="detailsForm.organization"
-            label="Organization"
-            variant="outlined"
-          ></v-text-field>
-        </v-card-text>
-
-        <v-card-actions>
-          <v-spacer></v-spacer>
-          <v-btn variant="text" @click="closeDetailsDialog">Cancel</v-btn>
-          <v-btn
-            color="teal"
-            variant="flat"
-            :disabled="!canSubmitDetailed"
-            :loading="isSubmittingDetails"
-            @click="submitDetailedFeedback"
-          >
-            Submit
-          </v-btn>
-        </v-card-actions>
-      </v-card>
-    </v-dialog>
+    <GlobalContributeModal
+      v-model="contributeDialogOpen"
+      :contribute-form="contributeForm"
+      :contribution-options="CONTRIBUTION_OPTIONS"
+      :can-submit="canSubmitContribute"
+      :is-submitting="isSubmittingContribute"
+      @update:form="updateFormField"
+      @submit="submitContribute"
+    />
   </div>
 </template>
 
