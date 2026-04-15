@@ -69,6 +69,15 @@ watch(selectedFeature, () => vectorLayer.value?.changed())
 const propertiesBoxPosition = ref<{ x: number; y: number } | null>(null)
 const originalClickPosition = ref<{ x: number; y: number } | null>(null)
 const showPropertiesBox = ref(false)
+const selectedFeatureLayer = shallowRef<'vector' | 'global-predictions' | null>(null)
+
+const hidePropertiesBox = () => {
+  showPropertiesBox.value = false
+  selectedFeature.value = null
+  selectedFeatureLayer.value = null
+  propertiesBoxPosition.value = null
+  originalClickPosition.value = null
+}
 
 export const geoJsonResults = shallowRef<any[]>([])
 
@@ -207,6 +216,9 @@ const updateLayers = () => {
     if (globalPredictionsLayer.value) {
       map.value.removeLayer(globalPredictionsLayer.value)
       globalPredictionsLayer.value = null
+      if (selectedFeatureLayer.value === 'global-predictions') {
+        hidePropertiesBox()
+      }
     }
     if (globalOverviewLayer.value) {
       map.value.removeLayer(globalOverviewLayer.value)
@@ -216,6 +228,21 @@ const updateLayers = () => {
 }
 
 watch(() => settings.value.mode, updateLayers)
+
+// Hide properties box when zooming out below PMTiles minZoom
+const GLOBAL_PREDICTIONS_MIN_ZOOM = 10
+function handleMoveEnd() {
+  if (selectedFeatureLayer.value === 'global-predictions') {
+    const zoom = map.value?.getView().getZoom()
+    if (zoom !== undefined && zoom < GLOBAL_PREDICTIONS_MIN_ZOOM) {
+      hidePropertiesBox()
+    }
+  }
+}
+watch(map, (newMap, oldMap) => {
+  if (oldMap) oldMap.un('moveend', handleMoveEnd)
+  if (newMap) newMap.on('moveend', handleMoveEnd)
+})
 
 const featureStyle = new Style({
   fill: new Fill({
@@ -244,33 +271,38 @@ export default function useMap() {
     // Check if click is on a feature from our vector layer
     const pixel = event.pixel
 
-    // Check if we clicked on a feature from our results layer
-    const [clickedFeature] = map.value!.getFeaturesAtPixel(pixel, {
-      layerFilter: (layer) => layer === vectorLayer.value,
-    })
-
-    if (clickedFeature) {
-      // Clicked on a feature from our results layer
-      selectedFeature.value = clickedFeature
-
-      // Store original click position for arrow indicator
-      originalClickPosition.value = { x: pixel[0], y: pixel[1] }
-
-      // Calculate optimal position for the properties box to avoid screen edges
-      const optimalPosition = calculateOptimalPosition(pixel[0], pixel[1])
-      propertiesBoxPosition.value = optimalPosition
-      showPropertiesBox.value = true
-    } else {
-      // Clicked outside our results layer features, hide properties box
-      hidePropertiesBox()
+    // Check vectorLayer first (processing results take priority)
+    if (vectorLayer.value) {
+      const [clickedFeature] = map.value!.getFeaturesAtPixel(pixel, {
+        layerFilter: (layer) => layer === vectorLayer.value,
+      })
+      if (clickedFeature) {
+        selectedFeature.value = clickedFeature
+        selectedFeatureLayer.value = 'vector'
+        originalClickPosition.value = { x: pixel[0], y: pixel[1] }
+        propertiesBoxPosition.value = calculateOptimalPosition(pixel[0], pixel[1])
+        showPropertiesBox.value = true
+        return
+      }
     }
-  }
 
-  const hidePropertiesBox = () => {
-    showPropertiesBox.value = false
-    selectedFeature.value = null
-    propertiesBoxPosition.value = null
-    originalClickPosition.value = null
+    // Check globalPredictionsLayer (PMTiles field boundaries)
+    if (globalPredictionsLayer.value) {
+      const [clickedFeature] = map.value!.getFeaturesAtPixel(pixel, {
+        layerFilter: (layer) => layer === globalPredictionsLayer.value,
+      })
+      if (clickedFeature) {
+        selectedFeature.value = clickedFeature
+        selectedFeatureLayer.value = 'global-predictions'
+        originalClickPosition.value = { x: pixel[0], y: pixel[1] }
+        propertiesBoxPosition.value = calculateOptimalPosition(pixel[0], pixel[1])
+        showPropertiesBox.value = true
+        return
+      }
+    }
+
+    // Clicked outside all relevant features
+    hidePropertiesBox()
   }
 
   const calculateOptimalPosition = (clickX: number, clickY: number) => {
