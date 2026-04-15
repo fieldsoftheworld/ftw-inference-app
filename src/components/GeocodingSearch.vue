@@ -19,9 +19,18 @@ watch(
 
     isLoadingPlaces.value = true
     try {
+      const referer = 'https://github.com/fieldsoftheworld/ftw-inference-app'
       const response = await fetch(
         `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(newSearch)}`,
-        { headers: { 'User-Agent': 'https://github.com/fieldsoftheworld/ftw-inference-app' } },
+        // User-Agent or Referer are required by Nominatim's usage policy.
+        // User-Agent is not working in Chrome, thus sending both.
+        // Referer is usually set by the browser, but let's ensure it's set.
+        {
+          headers: {
+            'User-Agent': referer,
+            Referer: referer,
+          },
+        },
       )
       const data = await response.json()
       suggestedPlaces.value = data?.map((place: any) => ({
