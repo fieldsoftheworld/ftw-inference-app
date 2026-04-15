@@ -1,6 +1,11 @@
 import { computed, ref } from 'vue'
 import useNotifier from './useNotifier'
-import { generateJWT } from '../functions/generate-jwt'
+import {
+  isValidEmail,
+  loadPersonalDetails,
+  postToEndpoint,
+  savePersonalDetails,
+} from '../functions/feedback-utils'
 
 export type ContributionType = 'annotator' | 'share_data' | 'provide_models' | 'contribute_code'
 
@@ -36,14 +41,6 @@ const CONTRIBUTION_OPTIONS: Array<{ value: ContributionType; label: string; desc
       description: 'Contribute to FTW software repositories',
     },
   ]
-
-function isValidEmail(email: string) {
-  if (!email) {
-    return true
-  }
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-  return emailRegex.test(email) && email.length <= 254
-}
 
 function validateMaxLength(value: string, max: number): boolean {
   return value.length <= max
@@ -91,8 +88,6 @@ export default function useGlobalContribute() {
   const { showError, showSuccess } = useNotifier()
   const contributeEndpoint = getContributeEndpoint()
 
-  const FEEDBACK_FORM_DATA_KEY = 'ftw-feedback-form-data'
-
   const contributeDialogOpen = ref(false)
   const isSubmitting = ref(false)
 
@@ -105,23 +100,11 @@ export default function useGlobalContribute() {
     organization: '',
   })
 
-  const storedData = localStorage.getItem(FEEDBACK_FORM_DATA_KEY)
-  if (storedData) {
-    try {
-      const parsed = JSON.parse(storedData)
-      contributeForm.value.name = parsed.name || ''
-      contributeForm.value.email = parsed.email || ''
-      contributeForm.value.organization = parsed.organization || ''
-    } catch (error) {
-      console.error('Failed to parse stored form data:', error)
-    }
-  }
-
   const canSubmit = computed(() => {
     if (
       contributeForm.value.contributionTypes.length === 0 ||
-      contributeForm.value.name.trim() === '' ||
-      !isValidEmail(contributeForm.value.email.trim())
+      contributeForm.value.name === '' ||
+      !isValidEmail(contributeForm.value.email)
     ) {
       return false
     }
@@ -131,6 +114,10 @@ export default function useGlobalContribute() {
   })
 
   const openContributeDialog = () => {
+    const stored = loadPersonalDetails()
+    contributeForm.value.name = stored.name
+    contributeForm.value.email = stored.email
+    contributeForm.value.organization = stored.organization
     contributeDialogOpen.value = true
   }
 
@@ -149,31 +136,6 @@ export default function useGlobalContribute() {
     }
   }
 
-  const postToEndpoint = async (url: string, payload: Record<string, unknown>) => {
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${generateJWT()}`,
-      },
-      body: JSON.stringify(payload),
-    })
-
-    let data: any = null
-    try {
-      data = await response.json()
-    } catch {
-      data = null
-    }
-
-    if (!response.ok) {
-      const errorMessage = data?.detail || data?.message || response.statusText || 'Submit failed'
-      throw new Error(errorMessage)
-    }
-
-    return data
-  }
-
   const submitContribute = async () => {
     if (!canSubmit.value) {
       showError('Please fill in all required fields.')
@@ -190,8 +152,8 @@ export default function useGlobalContribute() {
     try {
       const payload: Record<string, unknown> = {
         contribution_types: contributeForm.value.contributionTypes,
-        name: contributeForm.value.name.trim(),
-        email: contributeForm.value.email.trim(),
+        name: contributeForm.value.name,
+        email: contributeForm.value.email,
       }
 
       if (contributeForm.value.resourceLink.trim()) {
@@ -204,21 +166,15 @@ export default function useGlobalContribute() {
         payload.organization = contributeForm.value.organization.trim()
       }
 
+      savePersonalDetails({
+        name: contributeForm.value.name,
+        email: contributeForm.value.email,
+        organization: contributeForm.value.organization,
+      })
+
       await postToEndpoint(contributeEndpoint, payload)
       showSuccess('Thank you for contributing! We will be in touch.')
 
-      try {
-        localStorage.setItem(
-          FEEDBACK_FORM_DATA_KEY,
-          JSON.stringify({
-            name: contributeForm.value.name.trim(),
-            email: contributeForm.value.email.trim(),
-            organization: contributeForm.value.organization.trim(),
-          }),
-        )
-      } catch (error) {
-        console.error('Failed to save form data to localStorage:', error)
-      }
       closeContributeDialog()
       resetContributeForm()
     } catch (error) {

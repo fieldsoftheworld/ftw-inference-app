@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { ContributeForm, ContributionType } from '../composables/useGlobalContribute'
+import PersonalDetailsFields from './PersonalDetailsFields.vue'
 
 interface Props {
   modelValue: boolean
@@ -83,34 +84,17 @@ const toggleContributionType = (type: ContributionType, form: ContributeForm) =>
           density="compact"
         ></v-textarea>
 
-        <v-text-field
-          :model-value="contributeForm.name"
-          @update:model-value="emit('update:form', 'name', $event)"
-          label="Name *"
-          variant="outlined"
-          class="mb-2"
-          density="compact"
+        <PersonalDetailsFields
+          :name="contributeForm.name"
+          :email="contributeForm.email"
+          :organization="contributeForm.organization"
           required
-        ></v-text-field>
-
-        <v-text-field
-          :model-value="contributeForm.email"
-          @update:model-value="emit('update:form', 'email', $event)"
-          label="Email *"
-          type="email"
-          variant="outlined"
-          class="mb-2"
           density="compact"
-          required
-        ></v-text-field>
-
-        <v-text-field
-          :model-value="contributeForm.organization"
-          @update:model-value="emit('update:form', 'organization', $event)"
-          label="Organization"
-          variant="outlined"
-          density="compact"
-        ></v-text-field>
+          field-spacing="mb-2"
+          @update:name="emit('update:form', 'name', $event)"
+          @update:email="emit('update:form', 'email', $event)"
+          @update:organization="emit('update:form', 'organization', $event)"
+        />
       </v-card-text>
 
       <v-card-actions>

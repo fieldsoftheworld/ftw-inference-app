@@ -9,7 +9,12 @@ import {
   GLOBAL_DATA_MAP_COMPLETE_ZOOM_LEVEL,
   GLOBAL_DATA_MAP_FIELD_START_ZOOM_LEVEL,
 } from './useSettings'
-import { generateJWT } from '../functions/generate-jwt'
+import {
+  isValidEmail,
+  loadPersonalDetails,
+  postToEndpoint,
+  savePersonalDetails,
+} from '../functions/feedback-utils'
 
 export type FeedbackRating = 1 | 2 | 3
 
@@ -44,13 +49,6 @@ const FEEDBACK_OPTIONS: FeedbackOption[] = [
     description: 'These fields work for my use case',
   },
 ]
-
-function isValidEmail(email: string) {
-  if (!email) {
-    return true
-  }
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
-}
 
 function calculateViewportBbox(view: View): [number, number, number, number] | null {
   const extent = view.calculateExtent()
@@ -90,8 +88,6 @@ export default function useGlobalFeedback(mapRef: ShallowRef<Map | null>) {
   const { showError, showSuccess } = useNotifier()
   const { tileRating: tileRatingEndpoint, tellUsMore: tellUsMoreEndpoint } = getEndpoints()
 
-  const FEEDBACK_FORM_DATA_KEY = 'ftw-feedback-form-data'
-
   const sliderValue = ref<number>(1)
   const detailsDialogOpen = ref(false)
   const isSubmittingQuick = ref(false)
@@ -107,18 +103,6 @@ export default function useGlobalFeedback(mapRef: ShallowRef<Map | null>) {
     email: '',
     organization: '',
   })
-
-  const storedData = localStorage.getItem(FEEDBACK_FORM_DATA_KEY)
-  if (storedData) {
-    try {
-      const parsed = JSON.parse(storedData)
-      detailsForm.value.name = parsed.name || ''
-      detailsForm.value.email = parsed.email || ''
-      detailsForm.value.organization = parsed.organization || ''
-    } catch (error) {
-      console.error('Failed to parse stored form data:', error)
-    }
-  }
 
   const levelToSliderValue = (rating: FeedbackRating | null): number => {
     if (!rating) return 0
@@ -157,7 +141,7 @@ export default function useGlobalFeedback(mapRef: ShallowRef<Map | null>) {
       Boolean(selectedLevel.value) &&
       detailsForm.value.qualityFeedback.trim().length > 0 &&
       detailsForm.value.useCase.trim().length > 0 &&
-      isValidEmail(detailsForm.value.email.trim())
+      isValidEmail(detailsForm.value.email)
     )
   })
 
@@ -205,31 +189,6 @@ export default function useGlobalFeedback(mapRef: ShallowRef<Map | null>) {
     unregisterViewEvents()
   })
 
-  const postToEndpoint = async (url: string, payload: Record<string, unknown>) => {
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${generateJWT()}`,
-      },
-      body: JSON.stringify(payload),
-    })
-
-    let data: any = null
-    try {
-      data = await response.json()
-    } catch {
-      data = null
-    }
-
-    if (!response.ok) {
-      const errorMessage = data?.detail || data?.message || response.statusText || 'Submit failed'
-      throw new Error(errorMessage)
-    }
-
-    return data
-  }
-
   const submitQuickFeedback = async () => {
     if (!canProvideFeedback.value) {
       showError(zoomGateMessage.value)
@@ -246,7 +205,7 @@ export default function useGlobalFeedback(mapRef: ShallowRef<Map | null>) {
       const payload = {
         rating: selectedLevel.value,
         bbox: mapExtent.value,
-        zoom: Math.round(mapZoom.value),
+        resolution: mapResolution.value,
       }
       await postToEndpoint(tileRatingEndpoint, payload)
       showSuccess('Thanks for the feedback!')
@@ -262,6 +221,10 @@ export default function useGlobalFeedback(mapRef: ShallowRef<Map | null>) {
       showError(zoomGateMessage.value)
       return
     }
+    const stored = loadPersonalDetails()
+    detailsForm.value.name = stored.name
+    detailsForm.value.email = stored.email
+    detailsForm.value.organization = stored.organization
     detailsDialogOpen.value = true
   }
 
@@ -279,6 +242,14 @@ export default function useGlobalFeedback(mapRef: ShallowRef<Map | null>) {
     }
   }
 
+  const saveToLocalStorage = () => {
+    savePersonalDetails({
+      name: detailsForm.value.name,
+      email: detailsForm.value.email,
+      organization: detailsForm.value.organization,
+    })
+  }
+
   const submitDetailedFeedback = async () => {
     if (!canProvideFeedback.value) {
       showError(zoomGateMessage.value)
@@ -292,7 +263,7 @@ export default function useGlobalFeedback(mapRef: ShallowRef<Map | null>) {
       showError('Please fill in the required fields before submitting.')
       return
     }
-    if (!isValidEmail(detailsForm.value.email.trim())) {
+    if (!isValidEmail(detailsForm.value.email)) {
       showError('Please provide a valid email address.')
       return
     }
@@ -304,38 +275,27 @@ export default function useGlobalFeedback(mapRef: ShallowRef<Map | null>) {
     isSubmittingDetails.value = true
     try {
       const payload: Record<string, unknown> = {
-        quality_feedback: detailsForm.value.qualityFeedback.trim(),
-        use_case: detailsForm.value.useCase.trim(),
+        quality_feedback: detailsForm.value.qualityFeedback,
+        use_case: detailsForm.value.useCase,
         rating: selectedLevel.value,
         bbox: mapExtent.value,
-        zoom: Math.round(mapZoom.value),
+        resolution: mapResolution.value,
       }
 
-      if (detailsForm.value.name.trim()) {
-        payload.name = detailsForm.value.name.trim()
+      if (detailsForm.value.name) {
+        payload.name = detailsForm.value.name
       }
-      if (detailsForm.value.email.trim()) {
-        payload.email = detailsForm.value.email.trim()
+      if (detailsForm.value.email) {
+        payload.email = detailsForm.value.email
       }
-      if (detailsForm.value.organization.trim()) {
-        payload.organization = detailsForm.value.organization.trim()
+      if (detailsForm.value.organization) {
+        payload.organization = detailsForm.value.organization
       }
+
+      saveToLocalStorage()
 
       await postToEndpoint(tellUsMoreEndpoint, payload)
       showSuccess('Detailed feedback submitted. Thank you!')
-
-      try {
-        localStorage.setItem(
-          FEEDBACK_FORM_DATA_KEY,
-          JSON.stringify({
-            name: detailsForm.value.name.trim(),
-            email: detailsForm.value.email.trim(),
-            organization: detailsForm.value.organization.trim(),
-          }),
-        )
-      } catch (error) {
-        console.error('Failed to save form data to localStorage:', error)
-      }
 
       closeDetailsDialog()
       resetDetailsForm()
