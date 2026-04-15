@@ -38,13 +38,16 @@ export const createGlobalOverviewLayer = (settings: Settings) => {
     source: new GeoTIFF({
       sources: [
         {
-          // todo: try https://tiles.rdnt.io/tiles/{z}/{x}/{y}@2x?url=
           url: settings.aggregate === 'confidence' ? CONFIDENCE_OVERVIEW_COG : AREA_OVERVIEW_COG,
+          nodata: 255,
           min: 0,
-          max: settings.aggregate === 'confidence' ? 1 : 2500,
+          max: 200,
         },
       ],
       interpolate: false,
+      sourceOptions: {
+        blockSize: 512 * 1024, // 512KB: capture all IFDs in 1-2 requests instead of 100+
+      },
     }),
     minZoom: 0,
     maxZoom: GLOBAL_DATA_MAP_FIELD_START_ZOOM_LEVEL,
