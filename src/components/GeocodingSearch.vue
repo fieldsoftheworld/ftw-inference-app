@@ -2,6 +2,7 @@
 import { ref, shallowRef, watch } from 'vue'
 import { debounce } from 'vuetify/lib/util/helpers.mjs'
 import type { PlaceResult } from '../composables/useAreaOfInterest'
+import { mdiHelpCircleOutline } from '@mdi/js'
 
 const emit = defineEmits<{
   (e: 'location-selected', place: PlaceResult): void
@@ -18,8 +19,18 @@ watch(
 
     isLoadingPlaces.value = true
     try {
+      const referer = 'https://github.com/fieldsoftheworld/ftw-inference-app'
       const response = await fetch(
         `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(newSearch)}`,
+        // User-Agent or Referer are required by Nominatim's usage policy.
+        // User-Agent is not working in Chrome, thus sending both.
+        // Referer is usually set by the browser, but let's ensure it's set.
+        {
+          headers: {
+            'User-Agent': referer,
+            Referer: referer,
+          },
+        },
       )
       const data = await response.json()
       suggestedPlaces.value = data?.map((place: any) => ({
@@ -31,7 +42,7 @@ watch(
     } finally {
       isLoadingPlaces.value = false
     }
-  }, 500),
+  }, 1000),
 )
 
 const onLocationSelected = (item: { value: PlaceResult; title: string } | null) => {
@@ -42,16 +53,26 @@ const onLocationSelected = (item: { value: PlaceResult; title: string } | null) 
 </script>
 
 <template>
-  <v-autocomplete
-    @update:model-value="onLocationSelected"
-    v-model:search="placeSearch"
-    :loading="isLoadingPlaces"
-    :items="suggestedPlaces"
-    label="Search for a place"
-    item-title="title"
-    return-object
-    hide-details
-    dense
-    variant="outlined"
-  ></v-autocomplete>
+  <div class="d-flex align-center mb-2 ga-2">
+    <v-autocomplete
+      @update:model-value="onLocationSelected"
+      v-model:search="placeSearch"
+      :loading="isLoadingPlaces"
+      :items="suggestedPlaces"
+      label="Search for a place"
+      item-title="title"
+      return-object
+      hide-details
+      dense
+      variant="outlined"
+    ></v-autocomplete>
+    <v-tooltip max-width="400" open-on-click>
+      <template #activator="{ props }">
+        <v-icon class="ml-1" :icon="mdiHelpCircleOutline" size="x-small" v-bind="props"></v-icon>
+      </template>
+      Geocoding provided by Nominatim.<br />
+      &copy; OpenStreetMap, https://openstreetmap.org<br />
+      License: ODbL
+    </v-tooltip>
+  </div>
 </template>
