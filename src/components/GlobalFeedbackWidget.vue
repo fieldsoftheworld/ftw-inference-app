@@ -105,7 +105,7 @@ const sliderLabels = computed(() => {
       </v-card-text>
     </v-card>
 
-    <v-dialog v-model="detailsDialogOpen" max-width="530">
+    <v-dialog v-model="detailsDialogOpen" max-width="550">
       <v-card>
         <v-card-title class="text-h5">Tell Us More</v-card-title>
         <v-card-subtitle class="text-body2 px-6 pb-2 text-wrap">
@@ -115,7 +115,8 @@ const sliderLabels = computed(() => {
         <v-card-text>
           <v-textarea
             v-model="detailsForm.qualityFeedback"
-            label="What was good/bad? How must the field boundaries improve to be useful to you?"
+            label="How can we improve field boundaries?"
+            hint="Share what's good/bad and what would make them more useful to you"
             variant="outlined"
             rows="4"
             auto-grow
@@ -125,7 +126,8 @@ const sliderLabels = computed(() => {
 
           <v-textarea
             v-model="detailsForm.useCase"
-            label="How would you like to use field boundaries? Tell us about your use case."
+            label="How would you like to use field boundaries?"
+            hint="Describe your specific use case and how field boundaries could be more useful to you"
             variant="outlined"
             rows="3"
             auto-grow

@@ -34,7 +34,7 @@ const toggleContributionType = (type: ContributionType, form: ContributeForm) =>
   <v-dialog
     :model-value="modelValue"
     @update:model-value="emit('update:modelValue', $event)"
-    max-width="530"
+    max-width="550"
   >
     <v-card>
       <v-card-title class="text-h5">Become a Contributor</v-card-title>
@@ -60,22 +60,24 @@ const toggleContributionType = (type: ContributionType, form: ContributeForm) =>
           </div>
         </div>
 
-        <v-text-field
+        <v-textarea
           :model-value="contributeForm.resourceLink"
           @update:model-value="emit('update:form', 'resourceLink', $event)"
-          label="Do you have Field Boundaries data or a model that we should know about? Share a link"
-          hint="Expected: URL"
+          label="Do you have Field Boundaries data or a model to share?"
+          hint="Share a Link or describe your resource"
           variant="outlined"
+          rows="2"
+          auto-grow
           class="mb-2"
           density="compact"
-        ></v-text-field>
+        ></v-textarea>
 
         <v-textarea
           :model-value="contributeForm.additionalInfo"
           @update:model-value="emit('update:form', 'additionalInfo', $event)"
           label="Anything else you would like us to know?"
           variant="outlined"
-          rows="2"
+          rows="3"
           auto-grow
           class="mb-2"
           density="compact"
