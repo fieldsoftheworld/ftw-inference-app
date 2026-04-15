@@ -1,12 +1,13 @@
 import { shallowRef, watch } from 'vue'
 import { ImageTile } from 'ol/source'
 import TileLayer from 'ol/layer/Tile'
-import { map } from './useMap'
+import { map, trackTileSource } from './useMap'
 import { getTileById, activeTileId, secondActiveTileId } from './useAreaOfInterest'
 import { transformExtent } from 'ol/proj'
 import useSettings from './useSettings'
 
 let currentStacLayer: TileLayer<ImageTile> | null = null
+let untrackStac: (() => void) | null = null
 const stacPreviewTileId = shallowRef<string | null>(null)
 /** Stores the preview tile id while in global mode so it can be restored */
 let savedPreviewTileId: string | null = null
@@ -38,12 +39,15 @@ async function addStacLayer() {
   })
   // Add the new layer to the map
   map.value.addLayer(currentStacLayer)
+  untrackStac = trackTileSource(currentStacLayer.getSource()!)
 }
 
 function removeStacLayer() {
   if (!currentStacLayer) {
     return
   }
+  untrackStac?.()
+  untrackStac = null
   map.value?.removeLayer(currentStacLayer)
   currentStacLayer = null
 }
