@@ -12,12 +12,22 @@ const isLoadingPlaces = ref(false)
 const placeSearch = ref('')
 const suggestedPlaces = shallowRef<{ value: PlaceResult; title: string }[]>([])
 
+// Set loading immediately so the indicator appears before the debounce delay
+watch(placeSearch, (newSearch) => {
+  if (suggestedPlaces.value.some((p) => p.title === newSearch)) return
+  if (newSearch.length >= 3) {
+    isLoadingPlaces.value = true
+  } else {
+    isLoadingPlaces.value = false
+    suggestedPlaces.value = []
+  }
+})
+
 watch(
   placeSearch,
   debounce(async (newSearch: string) => {
-    if (newSearch.length < 3) return
+    if (suggestedPlaces.value.some((p) => p.title === newSearch) || newSearch.length < 3) return
 
-    isLoadingPlaces.value = true
     try {
       const referer = 'https://github.com/fieldsoftheworld/ftw-inference-app'
       const response = await fetch(
