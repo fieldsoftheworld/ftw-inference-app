@@ -62,8 +62,8 @@ const toggleContributionType = (type: ContributionType, form: ContributeForm) =>
         </div>
 
         <v-textarea
-          :model-value="contributeForm.resourceLink"
-          @update:model-value="emit('update:form', 'resourceLink', $event)"
+          :model-value="contributeForm.resources"
+          @update:model-value="emit('update:form', 'resources', $event)"
           label="Do you have Field Boundaries data or a model to share?"
           hint="Share a Link or describe your resource"
           variant="outlined"
