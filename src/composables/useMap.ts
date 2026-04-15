@@ -78,7 +78,8 @@ const cloudlessLayer = shallowRef<TileLayer<XYZ> | null>(null)
 let untrackCloudless: (() => void) | null = null
 watch(cloudlessLayer, (newLayer) => {
   untrackCloudless?.()
-  untrackCloudless = newLayer ? trackTileSource(newLayer.getSource()! as TileSource) : null
+  const src = newLayer?.getSource() as TileSource | null
+  untrackCloudless = src ? trackTileSource(src) : null
 })
 
 // Watch for year changes and update the cloudless layer
@@ -127,13 +128,15 @@ const globalOverviewLayer = shallowRef<GlTileLayer | null>(null)
 let untrackGlobalPredictions: (() => void) | null = null
 watch(globalPredictionsLayer, (newLayer) => {
   untrackGlobalPredictions?.()
-  untrackGlobalPredictions = newLayer ? trackTileSource(newLayer.getSource()! as TileSource) : null
+  const src = newLayer?.getSource() as TileSource | null
+  untrackGlobalPredictions = src ? trackTileSource(src) : null
 })
 
 let untrackGlobalOverview: (() => void) | null = null
 watch(globalOverviewLayer, (newLayer) => {
   untrackGlobalOverview?.()
-  untrackGlobalOverview = newLayer ? trackTileSource(newLayer.getSource()! as TileSource) : null
+  const src = newLayer?.getSource() as TileSource | null
+  untrackGlobalOverview = src ? trackTileSource(src) : null
 })
 
 watch(

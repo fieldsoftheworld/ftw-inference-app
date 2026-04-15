@@ -39,7 +39,10 @@ async function addStacLayer() {
   })
   // Add the new layer to the map
   map.value.addLayer(currentStacLayer)
-  untrackStac = trackTileSource(currentStacLayer.getSource()!)
+  const src = currentStacLayer.getSource()
+  if (src) {
+    untrackStac = trackTileSource(src)
+  }
 }
 
 function removeStacLayer() {
