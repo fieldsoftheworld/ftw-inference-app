@@ -9,6 +9,10 @@ import useSettings from './useSettings'
 import useStacLayer from './useStacLayer'
 import { type SearchResult } from './useSearch'
 
+const isProjectLoading = ref(false)
+const isProcessing = ref(false)
+const projects = ref<Array<string>>([])
+
 export default function useProcessing() {
   const { currentBBox, isBBox } = useAreaOfInterest()
   const { fitMapToBbox, displayGeoJSON } = useMap()
@@ -17,10 +21,6 @@ export default function useProcessing() {
   const { stacPreviewTileId } = useStacLayer()
 
   const apiBaseUrl = import.meta.env.VITE_API_BASE_URL
-
-  const isProcessing = ref(false)
-
-  const projects = ref<Array<string>>([])
 
   const loadProjectsFromStorage = () => {
     const stored = localStorage.getItem('ftw-projects')
@@ -278,9 +278,34 @@ export default function useProcessing() {
     }
   }
 
+  const loadProject = async (id: string) => {
+    try {
+      isProjectLoading.value = true
+      const response = await fetch(`${apiBaseUrl}projects/${id}`, {
+        headers: createHeaders(),
+      })
+      const project = await response.json()
+      if (project.status == 'completed') {
+        const blob = await fetch(project.results.polygons)
+        const polygons = await blob.json()
+        polygons.bbox = project.parameters.inference.bbox
+        return polygons
+      } else {
+        throw new Error("Processing hasn't finished yet. Please try again later.")
+      }
+    } catch (e) {
+      showError((e as Error)?.message || String(e))
+    } finally {
+      isProjectLoading.value = false
+    }
+  }
+
   return {
     isProcessing,
+    isProjectLoading,
     processBatch,
     processSmallArea,
+    loadProject,
+    projects,
   }
 }

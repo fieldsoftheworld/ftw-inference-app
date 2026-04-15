@@ -1,7 +1,11 @@
 <template>
-  <v-card elevation="8" :class="{ closed: !isOpen, 'processing-results': true, sidebar: true }">
+  <v-card
+    elevation="8"
+    :class="{ closed: !isOpen, 'processing-results': true, sidebar: true }"
+    :loading="isProjectLoading"
+  >
     <v-card-title class="d-flex align-center justify-space-between pa-2">
-      <div class="collapse-action" @click="toggleCollapsible">
+      <div v-if="geoJsonResults.length > 0" class="collapse-action" @click="toggleCollapsible">
         <v-icon
           :class="{ 'rotate-180': isOpen }"
           class="mr-1 text-white transition-transform"
@@ -10,6 +14,11 @@
         </v-icon>
         <span class="text-white title">Results ({{ geoJsonResults.length }})</span>
       </div>
+      <span v-else class="text-white title">Results</span>
+      <v-spacer />
+
+      <!-- Project List Dialog -->
+      <ProjectSelectionDialog />
     </v-card-title>
 
     <v-card-text v-show="isOpen" class="content">
@@ -93,13 +102,15 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, onBeforeUnmount, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import useMap from '../composables/useMap'
 import useNotifier from '../composables/useNotifier'
 import useAreaOfInterest from '../composables/useAreaOfInterest'
 import PropertiesDisplay from './PropertiesDisplay.vue'
 import { mdiChevronDown, mdiTarget } from '@mdi/js'
 import { type Feature } from 'geojson'
+import useProcessing from '../composables/useProcessing'
+import ProjectSelectionDialog from './ProjectSelectionDialog.vue'
 
 const props = defineProps<{
   geoJsonResults: any[]
@@ -112,8 +123,9 @@ const emit = defineEmits<{
 const { map, handleMapClick, vectorLayer, selectedFeature, hidePropertiesBox } = useMap()
 const { clearResults, returnToResults, fitToExtent } = useAreaOfInterest()
 const { showInfo, showError } = useNotifier()
+const { isProjectLoading } = useProcessing()
 
-const isOpen = ref(true)
+const isOpen = ref(false)
 const limit = ref(50)
 
 const sortKey = ref<'Id' | 'Area' | 'Perimeter'>('Id')
@@ -122,6 +134,24 @@ const sortOrder = ref<'ascending' | 'descending'>('ascending')
 const hasMoreResults = computed(() => {
   return props.geoJsonResults.length > limit.value
 })
+
+watch(
+  () => props.geoJsonResults,
+  (results) => {
+    const hasResults = results.length > 0
+    isOpen.value = hasResults
+    //
+    if (!hasResults) {
+      selectedFeature.value = null
+    }
+    // Map click handler to detect feature clicks and show properties
+    if (map.value) {
+      const action = hasResults ? 'on' : 'un'
+      map.value[action]('singleclick', handleMapClick)
+    }
+  },
+  { immediate: true },
+)
 
 const sortedResults = computed(() => {
   return props.geoJsonResults
@@ -260,24 +290,6 @@ const fitMapToResult = (result: Feature) => {
 
   fitToExtent(map.value!, extent, null)
 }
-
-onMounted(() => {
-  // Add map click handler to detect feature clicks and show properties
-  if (map.value) {
-    map.value.on('singleclick', handleMapClick)
-  }
-})
-
-onBeforeUnmount(() => {
-  selectedFeature.value = null
-})
-
-// Clean up map click handler when component is unmounted
-onUnmounted(() => {
-  if (map.value) {
-    map.value.un('singleclick', handleMapClick)
-  }
-})
 
 const clearResultsHandler = () => {
   // Clear results and zoom back to S2 grid

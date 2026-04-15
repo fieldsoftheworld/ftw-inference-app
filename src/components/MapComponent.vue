@@ -11,6 +11,7 @@ import { generateJWT } from '../functions/generate-jwt'
 import useAreaOfInterest from '../composables/useAreaOfInterest'
 import usePermalink from '../composables/usePermalink'
 import useMap from '../composables/useMap'
+import useProcessing from '../composables/useProcessing'
 import useSettings from '../composables/useSettings'
 
 const {
@@ -35,6 +36,7 @@ const clearResults = () => {
 }
 
 const { setupPermalink } = usePermalink()
+const { projects } = useProcessing()
 
 const critical = ref<string | null>(null)
 
@@ -104,11 +106,10 @@ defineExpose({
   <div class="map-wrapper">
     <div id="map" class="map-container"></div>
 
-    <DataCabinet v-if="map" :map="map as Map" :areaValues="areaValues" />
+    <DataCabinet v-if="map" :areaValues="areaValues" />
 
     <ProcessingResults
-      v-if="geoJsonResults.length > 0"
-      :map="map as Map"
+      v-if="geoJsonResults.length > 0 || projects.length > 0"
       :geoJsonResults="geoJsonResults"
       @clearResults="clearResults"
     />
