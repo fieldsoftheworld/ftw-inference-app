@@ -67,7 +67,7 @@ const defaultModel = computed(() => {
   return selected?.id || ''
 })
 
-const defaultYearGlobal = 2024
+const defaultYearGlobal = 2025
 
 const modelTitle = computed(() => {
   const model = settings.value.model
