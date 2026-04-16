@@ -30,20 +30,10 @@ onUnmounted(() => {
 const showFields = computed(() => zoom.value >= GLOBAL_DATA_MAP_FIELD_START_ZOOM_LEVEL)
 const hasInferenceResults = computed(() => geoJsonResults.value.length > 0)
 
-// When zoomed in, always use the confidence scale; zoomed out, use whichever aggregate is selected
-const legendStops = computed(() =>
-  showFields.value || settings.value.aggregate === 'confidence'
-    ? confidenceColorScale
-    : areaColorScale,
-)
-const legendTitle = computed(() =>
-  showFields.value || settings.value.aggregate === 'confidence'
-    ? 'Confidence (%)'
-    : 'Field Area (%)',
-)
-const legendShowThreshold = computed(
-  () => showFields.value || settings.value.aggregate === 'confidence',
-)
+// When zoomed in, always use the confidence scale; zoomed out, use the area scale
+const legendStops = computed(() => (showFields.value ? confidenceColorScale : areaColorScale))
+const legendTitle = computed(() => (showFields.value ? 'Confidence (%)' : 'Field Density (%)'))
+const legendShowThreshold = computed(() => showFields.value)
 
 const legendRampGradient = computed(() => {
   const s = legendStops.value
@@ -107,7 +97,7 @@ const legendThresholdPct = computed(() => {
         <span>Global Predictions</span>
       </div>
       <!-- Color ramp legend -->
-      <template v-if="showFields || settings.aggregate">
+      <template v-if="true">
         <div class="ol-legend-title" :class="{ showFields }">
           <template v-if="showFields">with colors based on confidence:</template>
           <template v-else>{{ legendTitle }}</template>

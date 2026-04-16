@@ -29,7 +29,6 @@ export interface PermalinkStateInference extends PermalinkState {
 }
 
 export interface PermalinkStateGlobal extends PermalinkState {
-  aggregate: string
   threshold: number
 }
 
@@ -58,7 +57,6 @@ export default function usePermalink() {
     zoom: 2,
     center: [0, 0],
     year: 2025,
-    aggregate: 'confidence',
     threshold: 0.4,
   }
 
@@ -98,7 +96,6 @@ export default function usePermalink() {
           'buffer:',
           'bbox:',
           'year:',
-          'aggregate:',
           'field_boundaries:',
           'threshold:',
         ]
@@ -175,7 +172,6 @@ export default function usePermalink() {
             mode,
             zoom,
             center,
-            aggregate: defaultGlobalState.aggregate,
             threshold: defaultGlobalState.threshold,
           }
 
@@ -183,8 +179,6 @@ export default function usePermalink() {
             if (part.startsWith('threshold:')) {
               const val = parseFloat(part.substring(10))
               if (!isNaN(val)) result.threshold = val
-            } else if (part.startsWith('aggregate:')) {
-              result.aggregate = part.substring(10)
             } else if (part.startsWith('year:')) {
               const year = parseInt(part.substring(5), 10)
               if (!isNaN(year)) result.year = year
@@ -286,7 +280,6 @@ export default function usePermalink() {
       }
     } else {
       // Global mode
-      hashParts.push(`aggregate:${settings.value.aggregate}`)
       hashParts.push(`threshold:${settings.value.threshold}`)
       if (settings.value.year) {
         hashParts.push(`year:${settings.value.year}`)
@@ -296,7 +289,6 @@ export default function usePermalink() {
         mode,
         zoom,
         center,
-        aggregate: settings.value.aggregate,
         threshold: settings.value.threshold,
         year: settings.value.year,
       }
@@ -334,7 +326,6 @@ export default function usePermalink() {
   }
 
   function restoreGlobalState(state: PermalinkStateGlobal) {
-    settings.value.aggregate = state.aggregate
     settings.value.threshold = state.threshold
     if (state.year) {
       settings.value.year = state.year
@@ -366,7 +357,6 @@ export default function usePermalink() {
         settings.value.cloudCover,
         settings.value.areaCoverage,
         settings.value.buffer,
-        settings.value.aggregate,
         settings.value.threshold,
       ],
       () => {

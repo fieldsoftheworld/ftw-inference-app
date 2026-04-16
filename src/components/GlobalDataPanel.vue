@@ -40,12 +40,6 @@ const handleLocationSelected = (place: PlaceResult) => {
           <v-radio label="2024" :value="2024"></v-radio>
           <v-radio label="2025" :value="2025"></v-radio>
         </v-radio-group>
-        <h3 class="group">Overviews</h3>
-        <v-radio-group v-model="settings.aggregate" density="compact" hide-details inline>
-          <v-radio label="Field Area" value="area"></v-radio>
-          <v-radio label="Confidence" value="confidence"></v-radio>
-        </v-radio-group>
-
         <h3 class="group">Confidence Threshold: {{ (settings.threshold * 100).toFixed(0) }}%</h3>
         <v-slider
           v-model.number="settings.threshold"
