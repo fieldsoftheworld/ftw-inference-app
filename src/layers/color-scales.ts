@@ -17,11 +17,8 @@ export const inferenceStyle: FeatureStyle = {
 }
 
 export const areaColorScale: ColorStop[] = [
-  { value: 0, color: '#d7191c', label: '0' },
-  { value: 0.25, color: '#fec379', label: '25' },
-  { value: 0.5, color: '#f3fabb', label: '50' },
-  { value: 0.75, color: '#cfecb0', label: '75' },
-  { value: 1, color: '#33a02c', label: '100' },
+  { value: 0, color: '#ff00ee', label: '0' },
+  { value: 1, color: '#00ff00', label: '100' },
 ]
 
 export const confidenceColorScale: ColorStop[] = [

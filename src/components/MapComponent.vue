@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { Map, View } from 'ol'
+import { ScaleLine } from 'ol/control'
 import DataCabinet from './DataCabinet.vue'
 import GlobalFeedbackWidget from './GlobalFeedbackWidget.vue'
-import MapLegend from './MapLegend.vue'
 import ProcessingResults from './ProcessingResults.vue'
 import PropertiesDisplay from './PropertiesDisplay.vue'
 import createLabelLayer from '../layers/Label-Layer'
@@ -89,6 +89,8 @@ onMounted(async () => {
     updateLayers()
 
     addMapClickHandler(map.value as Map, areaValues.value)
+    // Add scale bar
+    map.value.addControl(new ScaleLine())
     // Setup permalink functionality
     setupPermalink(map)
   }
@@ -114,8 +116,6 @@ defineExpose({
     />
 
     <GlobalFeedbackWidget v-if="map && settings.mode === 'global'" />
-
-    <MapLegend />
   </div>
 
   <!-- Properties Box -->
@@ -227,6 +227,17 @@ defineExpose({
   overflow-y: auto;
 }
 
+:deep(.ol-zoom),
+:deep(.ol-attribution),
+:deep(.ol-scale-line) {
+  --ol-background-color: black;
+  --ol-accent-background-color: #333333;
+  --ol-subtle-background-color: rgba(128, 128, 128, 0.25);
+  --ol-partial-background-color: rgba(0, 0, 0, 0.75);
+  --ol-foreground-color: #eeeeee;
+  --ol-subtle-foreground-color: #aaaaaa;
+}
+
 :deep(.ol-zoom) {
   top: unset;
   right: unset;
@@ -235,41 +246,31 @@ defineExpose({
   z-index: 10000;
 }
 
-:deep(.ol-attribution) {
+:deep(.ol-scale-line) {
   top: unset;
   right: unset;
   bottom: 1rem;
-  left: calc(2rem + 10px);
+  left: 3rem;
+  z-index: 2000;
+}
+
+:deep(.ol-attribution) {
+  top: unset;
+  right: unset;
+  bottom: calc(4rem);
+  left: 1rem;
   z-index: 10000;
   flex-direction: row;
-  max-width: 90vw;
+  max-width: 30vw;
   align-items: end;
+  text-align: left;
 }
 
 :deep(.ol-attribution button) {
   order: -1;
 }
 
-:deep(.ol-zoom button),
-:deep(.ol-attribution button) {
-  background-color: rgba(0, 0, 0, 0.8);
-  color: #fff;
-}
-
-:deep(.ol-zoom button:hover),
-:deep(.ol-attribution button:hover) {
-  background-color: rgba(0, 0, 0, 1);
-  color: #fff;
-}
-
 :deep(.ol-attribution ul) {
-  color: #000;
   font-size: 0.875rem;
-  text-shadow: none;
-}
-
-:deep(.ol-attribution ul li a) {
-  color: #000;
-  text-decoration: underline;
 }
 </style>

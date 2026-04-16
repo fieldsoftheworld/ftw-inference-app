@@ -6,11 +6,11 @@ import {
   GLOBAL_DATA_MAP_FIELD_START_ZOOM_LEVEL,
   type Settings,
 } from '../composables/useSettings'
-import { areaColorScale, confidenceColorScale, type ColorStop } from './color-scales'
+import { areaColorScale, type ColorStop } from './color-scales'
 
 const ALPHA = 'aa'
 
-function buildInterpolation(stops: ColorStop[]): unknown[] {
+function buildAreaInterpolation(stops: ColorStop[]): unknown[] {
   const entries: unknown[] = []
   for (const stop of stops) {
     entries.push(stop.value, stop.color + ALPHA)
@@ -18,17 +18,15 @@ function buildInterpolation(stops: ColorStop[]): unknown[] {
   return ['interpolate', ['linear'], ['band', 1], ...entries]
 }
 
-export const areaStyle = {
-  color: ['case', ['<=', ['band', 1], 0], '#00000000', buildInterpolation(areaColorScale)],
-}
-
-export const confidenceStyle = (settings: Settings) => {
+const overviewStyle = (settings: Settings) => {
   return {
     color: [
       'case',
-      ['<=', ['band', 1], settings.threshold],
-      '#00000000',
-      buildInterpolation(confidenceColorScale),
+      ['<=', ['band', 1], 0],
+      '#00000000', // no area data
+      ['<=', ['band', 2], settings.threshold],
+      '#00000000', // confidence below threshold
+      buildAreaInterpolation(areaColorScale), // show area colors
     ],
   }
 }
@@ -38,7 +36,13 @@ export const createGlobalOverviewLayer = (settings: Settings) => {
     source: new GeoTIFF({
       sources: [
         {
-          url: settings.aggregate === 'confidence' ? CONFIDENCE_OVERVIEW_COG : AREA_OVERVIEW_COG,
+          url: AREA_OVERVIEW_COG,
+          nodata: 255,
+          min: 0,
+          max: 200,
+        },
+        {
+          url: CONFIDENCE_OVERVIEW_COG,
           nodata: 255,
           min: 0,
           max: 200,
@@ -57,5 +61,5 @@ export const createGlobalOverviewLayer = (settings: Settings) => {
 }
 
 export const updateGlobalOverviewLayer = (layer: GlTileLayer, settings: Settings) => {
-  layer.setStyle(settings.aggregate === 'confidence' ? confidenceStyle(settings) : areaStyle)
+  layer.setStyle(overviewStyle(settings))
 }

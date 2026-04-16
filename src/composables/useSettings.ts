@@ -11,7 +11,6 @@ export interface Settings {
   model: string
   expertMode: boolean
   mode: string
-  aggregate: string
   threshold: number
 }
 
@@ -57,7 +56,6 @@ const defaultSettings: Settings = {
   model: '',
   expertMode: false,
   mode: defaultMode,
-  aggregate: 'area',
   threshold: 0.4,
 }
 
@@ -158,7 +156,7 @@ const modelIsSingleShot = computed(() => {
   return model?.requires_window === false
 })
 
-export const GLOBAL_DATA_PMTILES_THRESHOLD_METRIC = 'median' // median / mean / min
+export const GLOBAL_DATA_PMTILES_THRESHOLD_METRIC = 'mean' // median / mean / min
 export const GLOBAL_DATA_MAP_COMPLETE_ZOOM_LEVEL = 12
 export const GLOBAL_DATA_MAP_FIELD_START_ZOOM_LEVEL = 10
 export const get_global_pmtiles_url = (year: number) => {

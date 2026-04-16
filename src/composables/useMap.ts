@@ -151,23 +151,6 @@ watch(
   },
 )
 
-const updateAggregateLayer = () => {
-  if (!map.value) {
-    return
-  }
-  if (globalOverviewLayer.value) {
-    map.value.removeLayer(globalOverviewLayer.value)
-    globalOverviewLayer.value = null
-  }
-
-  if (settings.value.aggregate) {
-    globalOverviewLayer.value = createGlobalOverviewLayer(settings.value)
-    map.value.addLayer(globalOverviewLayer.value)
-  }
-}
-
-watch(() => settings.value.aggregate, updateAggregateLayer)
-
 const updateLayers = () => {
   if (!map.value) {
     return
@@ -185,16 +168,9 @@ const updateLayers = () => {
       globalPredictionsLayer.value = createGlobalPredictionsLayer(settings.value)
       map.value.addLayer(globalPredictionsLayer.value)
     }
-    if (settings.value.aggregate) {
-      if (!globalOverviewLayer.value) {
-        globalOverviewLayer.value = createGlobalOverviewLayer(settings.value)
-        map.value.addLayer(globalOverviewLayer.value)
-      }
-    } else {
-      if (globalOverviewLayer.value) {
-        map.value.removeLayer(globalOverviewLayer.value)
-        globalOverviewLayer.value = null
-      }
+    if (!globalOverviewLayer.value) {
+      globalOverviewLayer.value = createGlobalOverviewLayer(settings.value)
+      map.value.addLayer(globalOverviewLayer.value)
     }
   } else {
     // Initialize with S2 grid layer

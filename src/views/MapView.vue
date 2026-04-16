@@ -36,7 +36,7 @@ function setModeValue(newValue: number) {
     <header id="title">
       <img
         src="https://fieldsofthe.world/static/images/brand/logos/ftw-logo-light.svg"
-        alt="Fields of The World (FTW) App"
+        alt="Fields of The World (FTW) Explorer"
         class="logo"
         @click="aboutDialog = true"
       />
@@ -59,12 +59,12 @@ function setModeValue(newValue: number) {
 
     <!-- About Dialog -->
     <v-dialog v-model="aboutDialog" width="auto">
-      <v-card max-width="600" border :prepend-icon="mdiInformation" title="About the App">
+      <v-card max-width="600" border :prepend-icon="mdiInformation" title="About the FTW Explorer">
         <v-card-text>
-          Welcome to the Fields of the World (FTW) Web App. Use it to either explore the global
-          field boundary data or run the FTW model on Sentinel-2 Level 2A Collection 1 imagery. Both
-          allow you to visualize predicted field boundaries for your chosen area of interest. To get
-          started, choose your area of interest on the map.
+          Welcome to the Fields of the World (FTW) Explorer Web App. Use it to either explore the
+          global field boundary data or run the FTW model on Sentinel-2 Level 2A Collection 1
+          imagery. Both allow you to visualize predicted field boundaries for your chosen area of
+          interest. To get started, choose your area of interest on the map.
         </v-card-text>
         <v-card-actions>
           <v-checkbox-btn v-model="dontShowAgain" label="Don't show again"></v-checkbox-btn>
