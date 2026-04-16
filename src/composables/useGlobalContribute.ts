@@ -11,7 +11,7 @@ export type ContributionType = 'annotator' | 'share_data' | 'provide_models' | '
 
 export interface ContributeForm {
   contributionTypes: ContributionType[]
-  resourceLink: string
+  resources: string
   additionalInfo: string
   name: string
   email: string
@@ -53,7 +53,7 @@ function validateMinLength(value: string, min: number): boolean {
 function validateFormData(form: ContributeForm): string | null {
   const name = form.name.trim()
   const email = form.email.trim()
-  const resourceLink = form.resourceLink.trim()
+  const resources = form.resources.trim()
   const additionalInfo = form.additionalInfo.trim()
   const organization = form.organization.trim()
 
@@ -66,8 +66,8 @@ function validateFormData(form: ContributeForm): string | null {
   if (!validateMaxLength(email, 254)) {
     return 'Email must not exceed 254 characters.'
   }
-  if (resourceLink && !validateMaxLength(resourceLink, 1000)) {
-    return 'Resource link must not exceed 1000 characters.'
+  if (resources && !validateMaxLength(resources, 5000)) {
+    return 'Resource link must not exceed 5000 characters.'
   }
   if (additionalInfo && !validateMaxLength(additionalInfo, 5000)) {
     return 'Additional info must not exceed 5000 characters.'
@@ -93,7 +93,7 @@ export default function useGlobalContribute() {
 
   const contributeForm = ref<ContributeForm>({
     contributionTypes: [],
-    resourceLink: '',
+    resources: '',
     additionalInfo: '',
     name: '',
     email: '',
@@ -128,7 +128,7 @@ export default function useGlobalContribute() {
   const resetContributeForm = () => {
     contributeForm.value = {
       contributionTypes: [],
-      resourceLink: '',
+      resources: '',
       additionalInfo: '',
       name: '',
       email: '',
@@ -156,8 +156,8 @@ export default function useGlobalContribute() {
         email: contributeForm.value.email,
       }
 
-      if (contributeForm.value.resourceLink.trim()) {
-        payload.resource_link = contributeForm.value.resourceLink.trim()
+      if (contributeForm.value.resources.trim()) {
+        payload.resources = contributeForm.value.resources.trim()
       }
       if (contributeForm.value.additionalInfo.trim()) {
         payload.additional_info = contributeForm.value.additionalInfo.trim()
