@@ -35,17 +35,17 @@ export interface DetailedFeedbackForm {
 const FEEDBACK_OPTIONS: FeedbackOption[] = [
   {
     rating: 1,
-    title: 'Not Great',
+    title: 'Poor',
     description: "These fields won't work for me",
   },
   {
     rating: 2,
-    title: 'Somewhat OK',
+    title: 'Acceptable',
     description: 'I can use these fields, but they need some work',
   },
   {
     rating: 3,
-    title: 'Great!',
+    title: 'Good',
     description: 'These fields work for my use case',
   },
 ]
