@@ -6,6 +6,7 @@ import type { PlaceResult } from '../composables/useAreaOfInterest'
 import useNotifier from '../composables/useNotifier'
 import { transformExtent } from 'ol/proj'
 import GeocodingSearch from './GeocodingSearch.vue'
+import MapLegend from './MapLegend.vue'
 
 const { settings } = useSettings()
 const { map } = useMap()
@@ -31,7 +32,7 @@ const handleLocationSelected = (place: PlaceResult) => {
       for 2024-2025. They were computed using the model <strong>FTW v3: CC-BY, B7</strong>.
     </v-alert>
 
-    <v-row class="d-flex justify-center w-100 mx-auto">
+    <v-row class="d-flex justify-center w-100 mx-auto mb-0">
       <v-col>
         <h3 class="group">Location</h3>
         <GeocodingSearch @location-selected="handleLocationSelected" />
@@ -51,6 +52,8 @@ const handleLocationSelected = (place: PlaceResult) => {
           thumb-color="teal"
           hide-details
         />
+        <h3 class="group legend">Legend</h3>
+        <MapLegend />
       </v-col>
     </v-row>
   </div>
@@ -58,9 +61,14 @@ const handleLocationSelected = (place: PlaceResult) => {
 
 <style scoped>
 .group {
-  margin: 0.5rem -0.5rem;
+  margin: 1rem -0.5rem 0.5rem;
   font-weight: 500;
   font-size: 1.1rem;
+}
+.group.legend {
+  margin-top: 1rem;
+  border-top: 1px solid rgba(136, 136, 136, 0.65);
+  padding-top: 1rem;
 }
 :deep(.v-selection-control-group--inline) {
   gap: 1rem;

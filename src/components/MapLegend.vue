@@ -1,6 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { mdiMapLegend } from '@mdi/js'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import useMap from '../composables/useMap'
 import useSettings from '../composables/useSettings'
 import { GLOBAL_DATA_MAP_FIELD_START_ZOOM_LEVEL } from '../composables/useSettings'
@@ -9,7 +8,6 @@ import { areaColorScale, confidenceColorScale, inferenceStyle } from '../layers/
 const { settings } = useSettings()
 const { map, geoJsonResults } = useMap()
 
-const collapsed = ref(true)
 const zoom = ref(0)
 
 const onZoomChange = () => {
@@ -59,119 +57,66 @@ const legendThresholdPct = computed(() => {
 </script>
 
 <template>
-  <div
-    v-if="settings.mode === 'global'"
-    class="ol-legend ol-unselectable ol-control"
-    :class="{ 'ol-collapsed': collapsed }"
-  >
-    <button
-      type="button"
-      :title="collapsed ? 'Show legend' : 'Hide legend'"
-      @click="collapsed = !collapsed"
-    >
-      <svg viewBox="0 0 24 24" width="1em" height="1em">
-        <path :d="mdiMapLegend" fill="currentColor" />
-      </svg>
-    </button>
-    <div v-show="!collapsed" class="ol-legend-content">
-      <!-- Inference results swatch -->
-      <div v-if="hasInferenceResults" class="ol-legend-item">
-        <span
-          class="ol-legend-swatch"
-          :style="{
-            backgroundColor: inferenceStyle.fill,
-            borderColor: inferenceStyle.stroke,
-          }"
-        ></span>
-        <span>{{ inferenceStyle.label }}</span>
-      </div>
-      <!-- Global fields swatch -->
-      <div v-if="showFields" class="ol-legend-item">
-        <span
-          class="ol-legend-swatch"
-          :style="{
-            background: 'transparent',
-            borderImage: `${legendRampGradient} 2`,
-          }"
-        ></span>
-        <span>Global Predictions</span>
-      </div>
-      <!-- Color ramp legend -->
-      <template v-if="true">
-        <div class="ol-legend-title" :class="{ showFields }">
-          <template v-if="showFields">with colors based on confidence:</template>
-          <template v-else>{{ legendTitle }}</template>
-        </div>
-        <div class="ol-legend-bar">
-          <div class="ol-legend-bar-ramp" :style="{ background: legendRampGradient }"></div>
-          <div
-            v-if="legendThresholdPct > 0"
-            class="ol-legend-bar-transparent"
-            :style="{ width: legendThresholdPct + '%' }"
-          ></div>
-        </div>
-        <div class="ol-legend-labels">
-          <span v-for="(stop, i) in legendStops" :key="i">{{ stop.label }}</span>
-        </div>
-      </template>
+  <div class="legend">
+    <!-- Inference results swatch -->
+    <div v-if="hasInferenceResults" class="legend-item">
+      <span
+        class="legend-swatch"
+        :style="{
+          backgroundColor: inferenceStyle.fill,
+          borderColor: inferenceStyle.stroke,
+        }"
+      ></span>
+      <span>{{ inferenceStyle.label }}</span>
+    </div>
+    <!-- Global fields swatch -->
+    <div v-if="showFields" class="legend-item">
+      <span
+        class="legend-swatch"
+        :style="{
+          background: 'transparent',
+          borderImage: `${legendRampGradient} 2`,
+        }"
+      ></span>
+      <span>Global Predictions</span>
+    </div>
+    <!-- Color ramp legend -->
+    <div class="legend-title" :class="{ showFields }">
+      <template v-if="showFields">with colors based on confidence:</template>
+      <template v-else>{{ legendTitle }}</template>
+    </div>
+    <div class="legend-bar">
+      <div class="legend-bar-ramp" :style="{ background: legendRampGradient }"></div>
+      <div
+        v-if="legendThresholdPct > 0"
+        class="legend-bar-transparent"
+        :style="{ width: legendThresholdPct + '%' }"
+      ></div>
+    </div>
+    <div class="legend-labels">
+      <span v-for="(stop, i) in legendStops" :key="i">{{ stop.label }}</span>
     </div>
   </div>
 </template>
 
 <style scoped>
-.ol-legend {
-  position: absolute;
-  bottom: calc(2rem + 6px);
-  left: calc(2rem + 10px);
-  display: flex;
-  flex-direction: row;
-  align-items: flex-end;
-  z-index: 10000;
+.legend {
+  margin-top: 0.5rem;
+  padding: 0.5em 0;
+  font-size: 0.85rem;
 }
 
-.ol-legend button {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 1.375em;
-  height: 1.375em;
-  margin: 1px;
-  padding: 0;
-  border: none;
-  border-radius: 2px;
-  background-color: rgba(0, 0, 0, 0.8);
-  color: #fff;
-  font-size: 1em;
-  font-weight: bold;
-  cursor: pointer;
-  line-height: 1;
-}
-
-.ol-legend button:hover {
-  background-color: rgba(0, 0, 0, 1);
-}
-
-.ol-legend-content {
-  margin-left: 0.5em;
-  padding: 0.5em 0.75em;
-  background-color: rgba(0, 0, 0, 0.8);
-  border-radius: 4px;
-  color: #fff;
-  font-size: 0.8rem;
-  min-width: 180px;
-}
-
-.ol-legend-title {
+.legend-title {
   font-weight: 600;
   margin-bottom: 0.35em;
   text-align: center;
 }
-.ol-legend-title.showFields {
+.legend-title.showFields {
   font-weight: 500;
   text-align: left;
 }
 
-.ol-legend-bar {
+.legend-bar {
   position: relative;
   display: flex;
   height: 12px;
@@ -180,7 +125,7 @@ const legendThresholdPct = computed(() => {
   overflow: hidden;
 }
 
-.ol-legend-bar-transparent {
+.legend-bar-transparent {
   position: absolute;
   top: 0;
   left: 0;
@@ -195,12 +140,12 @@ const legendThresholdPct = computed(() => {
   z-index: 1;
 }
 
-.ol-legend-bar-ramp {
+.legend-bar-ramp {
   width: 100%;
   height: 100%;
 }
 
-.ol-legend-labels {
+.legend-labels {
   display: flex;
   justify-content: space-between;
   margin-top: 0.2em;
@@ -208,14 +153,15 @@ const legendThresholdPct = computed(() => {
   opacity: 0.85;
 }
 
-.ol-legend-item {
+.legend-item {
   display: flex;
   align-items: center;
   gap: 0.5em;
   white-space: nowrap;
+  margin-bottom: 0.35em;
 }
 
-.ol-legend-swatch {
+.legend-swatch {
   display: inline-block;
   width: 16px;
   height: 12px;

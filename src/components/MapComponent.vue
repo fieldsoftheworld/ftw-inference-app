@@ -3,7 +3,6 @@ import { ref, onMounted } from 'vue'
 import { Map, View } from 'ol'
 import DataCabinet from './DataCabinet.vue'
 import GlobalFeedbackWidget from './GlobalFeedbackWidget.vue'
-import MapLegend from './MapLegend.vue'
 import ProcessingResults from './ProcessingResults.vue'
 import PropertiesDisplay from './PropertiesDisplay.vue'
 import createLabelLayer from '../layers/Label-Layer'
@@ -114,8 +113,6 @@ defineExpose({
     />
 
     <GlobalFeedbackWidget v-if="map && settings.mode === 'global'" />
-
-    <MapLegend />
   </div>
 
   <!-- Properties Box -->
