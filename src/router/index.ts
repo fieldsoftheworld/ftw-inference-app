@@ -8,6 +8,11 @@ const router = createRouter({
       name: 'map',
       component: () => import('../views/MapView.vue'),
     },
+    {
+      path: '/maplibre',
+      name: 'maplibre',
+      component: () => import('../views/MapLibreGlobalView.vue'),
+    },
   ],
 })
 
