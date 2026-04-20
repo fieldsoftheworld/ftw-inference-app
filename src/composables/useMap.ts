@@ -139,15 +139,19 @@ watch(globalOverviewLayer, (newLayer) => {
   untrackGlobalOverview = src ? trackTileSource(src) : null
 })
 
+let thresholdDebounce: ReturnType<typeof setTimeout> | null = null
 watch(
   () => settings.value.threshold,
   () => {
-    if (globalOverviewLayer.value) {
-      updateGlobalOverviewLayer(globalOverviewLayer.value, settings.value)
-    }
-    if (globalPredictionsLayer.value) {
-      updateGlobalPredictionsLayer(globalPredictionsLayer.value, settings.value)
-    }
+    if (thresholdDebounce) clearTimeout(thresholdDebounce)
+    thresholdDebounce = setTimeout(() => {
+      if (globalOverviewLayer.value) {
+        updateGlobalOverviewLayer(globalOverviewLayer.value, settings.value)
+      }
+      if (globalPredictionsLayer.value) {
+        updateGlobalPredictionsLayer(globalPredictionsLayer.value, settings.value)
+      }
+    }, 80)
   },
 )
 

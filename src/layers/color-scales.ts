@@ -29,37 +29,80 @@ export const confidenceColorScale: ColorStop[] = [
   { value: 0.58, color: '#33a02c', label: '58' },
 ]
 
-function hexToRgb(hex: string): [number, number, number] {
-  return [
-    parseInt(hex.slice(1, 3), 16),
-    parseInt(hex.slice(3, 5), 16),
-    parseInt(hex.slice(5, 7), 16),
-  ]
+const LUT_SIZE = 256
+
+interface PrecomputedScale {
+  lut: Uint8Array
+  firstValue: number
+  rangeInv: number
+}
+
+const scaleCache = new Map<ColorStop[], PrecomputedScale>()
+
+function precomputeScale(colorScale: ColorStop[]): PrecomputedScale {
+  const n = colorScale.length
+  const stopValues = new Float64Array(n)
+  const stopR = new Uint8Array(n)
+  const stopG = new Uint8Array(n)
+  const stopB = new Uint8Array(n)
+  for (let i = 0; i < n; i++) {
+    const hex = colorScale[i].color
+    stopValues[i] = colorScale[i].value
+    stopR[i] = parseInt(hex.slice(1, 3), 16)
+    stopG[i] = parseInt(hex.slice(3, 5), 16)
+    stopB[i] = parseInt(hex.slice(5, 7), 16)
+  }
+
+  const firstValue = stopValues[0]
+  const range = stopValues[n - 1] - firstValue
+  const lut = new Uint8Array(LUT_SIZE * 3)
+
+  for (let i = 0; i < LUT_SIZE; i++) {
+    const value = firstValue + (i / (LUT_SIZE - 1)) * range
+    const offset = i * 3
+
+    let lo = 0
+    let hi = n - 1
+    if (value <= stopValues[0]) {
+      lo = hi = 0
+    } else if (value >= stopValues[n - 1]) {
+      lo = hi = n - 1
+    } else {
+      for (let j = 0; j < n - 1; j++) {
+        if (value <= stopValues[j + 1]) {
+          lo = j
+          hi = j + 1
+          break
+        }
+      }
+    }
+
+    if (lo === hi) {
+      lut[offset] = stopR[lo]
+      lut[offset + 1] = stopG[lo]
+      lut[offset + 2] = stopB[lo]
+    } else {
+      const t = (value - stopValues[lo]) / (stopValues[hi] - stopValues[lo])
+      lut[offset] = Math.round(stopR[lo] + (stopR[hi] - stopR[lo]) * t)
+      lut[offset + 1] = Math.round(stopG[lo] + (stopG[hi] - stopG[lo]) * t)
+      lut[offset + 2] = Math.round(stopB[lo] + (stopB[hi] - stopB[lo]) * t)
+    }
+  }
+
+  return { lut, firstValue, rangeInv: (LUT_SIZE - 1) / range }
+}
+
+function getPrecomputed(colorScale: ColorStop[]): PrecomputedScale {
+  let cached = scaleCache.get(colorScale)
+  if (!cached) {
+    cached = precomputeScale(colorScale)
+    scaleCache.set(colorScale, cached)
+  }
+  return cached
 }
 
 export function getColorForValue(colorScale: ColorStop[], value: number, alpha = 1): string {
-  const first = colorScale[0]
-  const last = colorScale[colorScale.length - 1]
-  let hex: string
-  if (value <= first.value) {
-    hex = first.color
-  } else if (value >= last.value) {
-    hex = last.color
-  } else {
-    hex = last.color
-    for (let i = 0; i < colorScale.length - 1; i++) {
-      if (value <= colorScale[i + 1].value) {
-        const t = (value - colorScale[i].value) / (colorScale[i + 1].value - colorScale[i].value)
-        const [r1, g1, b1] = hexToRgb(colorScale[i].color)
-        const [r2, g2, b2] = hexToRgb(colorScale[i + 1].color)
-        const r = Math.round(r1 + (r2 - r1) * t)
-        const g = Math.round(g1 + (g2 - g1) * t)
-        const b = Math.round(b1 + (b2 - b1) * t)
-        hex = `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`
-        break
-      }
-    }
-  }
-  const [r, g, b] = hexToRgb(hex)
-  return `rgba(${r}, ${g}, ${b}, ${alpha})`
+  const { lut, firstValue, rangeInv } = getPrecomputed(colorScale)
+  const idx = Math.min(Math.max(Math.round((value - firstValue) * rangeInv), 0), LUT_SIZE - 1) * 3
+  return `rgba(${lut[idx]}, ${lut[idx + 1]}, ${lut[idx + 2]}, ${alpha})`
 }

@@ -19,7 +19,7 @@
     "geojson": "^0.5.0",
     "jwt-decode": "^4.0.0",
     "jwt-encode": "^1.0.1",
-    "ol": "^10.8.0",
+    "ol": "^10.9.0",
     "ol-mapbox-style": "^13.4.0",
     "ol-pmtiles": "^2.0.2",
     "pmtiles": "^4.4.0",
