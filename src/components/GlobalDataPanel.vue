@@ -27,9 +27,7 @@ onMounted(() => {
 onUnmounted(() => {
   map.value?.getView()?.un('change:resolution', onZoomChange)
 })
-const fieldBoundariesDisabled = computed(
-  () => zoom.value < GLOBAL_DATA_MAP_FIELD_START_ZOOM_LEVEL,
-)
+const fieldBoundariesDisabled = computed(() => zoom.value < GLOBAL_DATA_MAP_FIELD_START_ZOOM_LEVEL)
 
 const handleLocationSelected = (place: PlaceResult) => {
   if (!map.value) return
