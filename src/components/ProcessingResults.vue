@@ -165,17 +165,17 @@ interface ResaultStats {
   sum: number
 }
 
-const statFields: ('area' | 'perimeter')[] = ['area', 'perimeter']
-const statUnits: Record<'area' | 'perimeter', (key: string | number) => string> = {
-  area: (key) => (key === 'count' ? '' : 'ha'),
-  perimeter: (key) => (key === 'count' ? '' : 'm'),
+const statFields: ('metrics:area' | 'metrics:perimeter')[] = ['metrics:area', 'metrics:perimeter']
+const statUnits: Record<'metrics:area' | 'metrics:perimeter', (key: string | number) => string> = {
+  'metrics:area': (key) => (key === 'count' ? '' : 'm²'),
+  'metrics:perimeter': (key) => (key === 'count' ? '' : 'm'),
 }
 
 const statistics = computed(() => {
   const template: ResaultStats = { count: 0, min: Infinity, mean: 0, max: -Infinity, sum: 0 }
-  const stats: Record<'area' | 'perimeter', ResaultStats> = {
-    area: Object.assign({}, template),
-    perimeter: Object.assign({}, template),
+  const stats: Record<'metrics:area' | 'metrics:perimeter', ResaultStats> = {
+    'metrics:area': Object.assign({}, template),
+    'metrics:perimeter': Object.assign({}, template),
   }
   props.geoJsonResults.forEach((feature) => {
     for (const type of statFields) {

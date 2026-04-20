@@ -45,9 +45,9 @@ function formattedValue(key: string | number, value: any): string {
   const formatted = formatter.format(value)
   if (typeof props.units === 'function') {
     return `${formatted} ${props.units(key)}`
-  } else if (key === 'area') {
-    return `${formatted} ha`
-  } else if (key === 'perimeter') {
+  } else if (key === 'metrics:area') {
+    return `${formatted} m²`
+  } else if (key === 'metrics:perimeter') {
     return `${formatted} m`
   }
   return `${formatted}`
