@@ -9,9 +9,13 @@ import VuetifyNotifier from 'vuetify-notifier'
 import MatchMediaMock from 'vitest-matchmedia-mock'
 
 vi.mock('../../layers/Global-Predictions-Layer', async () => {
-  const { default: VectorTileLayer } = await import('ol/layer/VectorTile')
+  const { default: TileLayer } = await import('ol/layer/Tile')
   return {
-    createGlobalPredictionsLayer: vi.fn(() => new VectorTileLayer()),
+    createGlobalPredictionsLayer: vi.fn(() => ({
+      layer: new TileLayer(),
+      update: vi.fn(),
+      dispose: vi.fn(),
+    })),
   }
 })
 vi.mock('../../layers/Global-Overview-Layers', async () => {

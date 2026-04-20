@@ -1,9 +1,7 @@
-import { ref, shallowRef, watch, computed } from 'vue'
-import type TileSource from 'ol/source/Tile'
+import { ref, shallowRef, watch } from 'vue'
 import type Map from 'ol/Map'
 import VectorSource from 'ol/source/Vector'
 import VectorLayer from 'ol/layer/Vector'
-import VectorTileLayer from 'ol/layer/VectorTile'
 import GlTileLayer from 'ol/layer/WebGLTile.js'
 import TileLayer from 'ol/layer/Tile'
 import type XYZ from 'ol/source/XYZ'
@@ -17,7 +15,7 @@ import createCloudlessLayer from '../layers/S2-Cloudless-Layer'
 import createS2GridLayer from '../layers/S2-Grid-Layer'
 import {
   createGlobalPredictionsLayer,
-  updateGlobalPredictionsLayer,
+  type GlobalPredictionsController,
 } from '../layers/Global-Predictions-Layer'
 import { Fill, Stroke, Style } from 'ol/style'
 import { type FeatureLike } from 'ol/Feature'
@@ -29,23 +27,8 @@ import { inferenceStyle } from '../layers/color-scales'
 
 let featureId = 0
 
-const loadingCount = ref(0)
-export const isLayerLoading = computed(() => loadingCount.value > 0)
-
-export function trackTileSource(source: TileSource): () => void {
-  const onStart = () => {
-    loadingCount.value++
-  }
-  const onEnd = () => {
-    loadingCount.value = Math.max(0, loadingCount.value - 1)
-  }
-  source.on('tileloadstart', onStart)
-  source.on(['tileloadend', 'tileloaderror'], onEnd)
-  return () => {
-    source.un('tileloadstart', onStart)
-    source.un(['tileloadend', 'tileloaderror'], onEnd)
-  }
-}
+const isLayerLoading = ref(false)
+export { isLayerLoading }
 
 export interface AreaValues {
   min_area_km2: number
@@ -56,6 +39,15 @@ export interface AreaValues {
 const { settings } = useSettings()
 
 export const map = shallowRef<Map | null>(null)
+watch(map, (newMap) => {
+  if (!newMap) return
+  newMap.on('loadstart', () => {
+    isLayerLoading.value = true
+  })
+  newMap.on('loadend', () => {
+    isLayerLoading.value = false
+  })
+})
 const areaValues = ref<AreaValues>({
   min_area_km2: 100,
   max_area_km2: 500,
@@ -75,13 +67,6 @@ export const geoJsonResults = shallowRef<any[]>([])
 // Cloudless layer management
 const cloudlessLayer = shallowRef<TileLayer<XYZ> | null>(null)
 
-let untrackCloudless: (() => void) | null = null
-watch(cloudlessLayer, (newLayer) => {
-  untrackCloudless?.()
-  const src = newLayer?.getSource() as TileSource | null
-  untrackCloudless = src ? trackTileSource(src) : null
-})
-
 // Watch for year changes and update the cloudless layer
 watch(
   () => settings.value.year,
@@ -100,14 +85,9 @@ watch(
     // Insert at index 0 to keep it as the base layer
     map.value.getLayers().insertAt(0, cloudlessLayer.value)
 
-    if (settings.value.mode === 'global') {
-      if (globalPredictionsLayer.value) {
-        map.value.removeLayer(globalPredictionsLayer.value)
-        globalPredictionsLayer.value = null
-      }
-
-      globalPredictionsLayer.value = createGlobalPredictionsLayer(settings.value)
-      map.value.addLayer(globalPredictionsLayer.value)
+    if (settings.value.mode === 'global' && globalPredictionsController.value) {
+      removeGlobalPredictionsLayer()
+      updateLayers()
     }
   },
 )
@@ -122,22 +102,8 @@ const initCloudlessLayer = () => {
 
 // Global predictions and S2 grid layer management
 const s2GridLayer = shallowRef<VectorLayer<VectorSource> | null>(null)
-const globalPredictionsLayer = shallowRef<VectorTileLayer | null>(null)
+const globalPredictionsController = shallowRef<GlobalPredictionsController | null>(null)
 const globalOverviewLayer = shallowRef<GlTileLayer | null>(null)
-
-let untrackGlobalPredictions: (() => void) | null = null
-watch(globalPredictionsLayer, (newLayer) => {
-  untrackGlobalPredictions?.()
-  const src = newLayer?.getSource() as TileSource | null
-  untrackGlobalPredictions = src ? trackTileSource(src) : null
-})
-
-let untrackGlobalOverview: (() => void) | null = null
-watch(globalOverviewLayer, (newLayer) => {
-  untrackGlobalOverview?.()
-  const src = newLayer?.getSource() as TileSource | null
-  untrackGlobalOverview = src ? trackTileSource(src) : null
-})
 
 let thresholdDebounce: ReturnType<typeof setTimeout> | null = null
 watch(
@@ -148,12 +114,19 @@ watch(
       if (globalOverviewLayer.value) {
         updateGlobalOverviewLayer(globalOverviewLayer.value, settings.value)
       }
-      if (globalPredictionsLayer.value) {
-        updateGlobalPredictionsLayer(globalPredictionsLayer.value, settings.value)
+      if (globalPredictionsController.value) {
+        globalPredictionsController.value.update(settings.value)
       }
     }, 80)
   },
 )
+
+const removeGlobalPredictionsLayer = () => {
+  if (!map.value || !globalPredictionsController.value) return
+  map.value.removeLayer(globalPredictionsController.value.layer)
+  globalPredictionsController.value.dispose()
+  globalPredictionsController.value = null
+}
 
 const updateLayers = () => {
   if (!map.value) {
@@ -167,10 +140,10 @@ const updateLayers = () => {
     }
 
     // Initialize with global predictions layers
-    if (!globalPredictionsLayer.value) {
+    if (!globalPredictionsController.value) {
       // Only handle first initialization here, year changes are handled by a watcher on year above
-      globalPredictionsLayer.value = createGlobalPredictionsLayer(settings.value)
-      map.value.addLayer(globalPredictionsLayer.value)
+      globalPredictionsController.value = createGlobalPredictionsLayer(settings.value)
+      map.value.addLayer(globalPredictionsController.value.layer)
     }
     if (!globalOverviewLayer.value) {
       globalOverviewLayer.value = createGlobalOverviewLayer(settings.value)
@@ -184,10 +157,7 @@ const updateLayers = () => {
     }
 
     // Remove global predictions layers if they exist
-    if (globalPredictionsLayer.value) {
-      map.value.removeLayer(globalPredictionsLayer.value)
-      globalPredictionsLayer.value = null
-    }
+    removeGlobalPredictionsLayer()
     if (globalOverviewLayer.value) {
       map.value.removeLayer(globalOverviewLayer.value)
       globalOverviewLayer.value = null
