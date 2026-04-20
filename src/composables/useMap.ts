@@ -107,8 +107,16 @@ watch(
       }
 
       globalPredictionsLayer.value = createGlobalPredictionsLayer(settings.value)
+      globalPredictionsLayer.value.setVisible(settings.value.showFieldBoundaries)
       map.value.addLayer(globalPredictionsLayer.value)
     }
+  },
+)
+
+watch(
+  () => settings.value.showFieldBoundaries,
+  (visible) => {
+    globalPredictionsLayer.value?.setVisible(visible)
   },
 )
 
@@ -170,6 +178,7 @@ const updateLayers = () => {
     if (!globalPredictionsLayer.value) {
       // Only handle first initialization here, year changes are handled by a watcher on year above
       globalPredictionsLayer.value = createGlobalPredictionsLayer(settings.value)
+      globalPredictionsLayer.value.setVisible(settings.value.showFieldBoundaries)
       map.value.addLayer(globalPredictionsLayer.value)
     }
     if (!globalOverviewLayer.value) {

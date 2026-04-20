@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import useSettings from '../composables/useSettings'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
+import useSettings, { GLOBAL_DATA_MAP_FIELD_START_ZOOM_LEVEL } from '../composables/useSettings'
 import useMap from '../composables/useMap'
 import useAreaOfInterest from '../composables/useAreaOfInterest'
 import type { PlaceResult } from '../composables/useAreaOfInterest'
@@ -12,6 +13,23 @@ const { settings } = useSettings()
 const { map } = useMap()
 const { fitToExtent } = useAreaOfInterest()
 const { showError } = useNotifier()
+
+const zoom = ref(0)
+const onZoomChange = () => {
+  zoom.value = map.value?.getView()?.getZoom() ?? 0
+}
+onMounted(() => {
+  if (map.value) {
+    onZoomChange()
+    map.value.getView().on('change:resolution', onZoomChange)
+  }
+})
+onUnmounted(() => {
+  map.value?.getView()?.un('change:resolution', onZoomChange)
+})
+const fieldBoundariesDisabled = computed(
+  () => zoom.value < GLOBAL_DATA_MAP_FIELD_START_ZOOM_LEVEL,
+)
 
 const handleLocationSelected = (place: PlaceResult) => {
   if (!map.value) return
@@ -51,6 +69,15 @@ const handleLocationSelected = (place: PlaceResult) => {
           track-color="grey-darken-2"
           thumb-color="teal"
           hide-details
+        />
+        <v-checkbox
+          v-model="settings.showFieldBoundaries"
+          label="Show field boundaries"
+          density="compact"
+          hide-details
+          color="teal"
+          class="mt-2"
+          :disabled="fieldBoundariesDisabled"
         />
         <h3 class="group legend">Legend</h3>
         <MapLegend />

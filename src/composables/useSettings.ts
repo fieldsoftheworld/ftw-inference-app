@@ -12,6 +12,7 @@ export interface Settings {
   expertMode: boolean
   mode: string
   threshold: number
+  showFieldBoundaries: boolean
 }
 
 export interface ModelInfo {
@@ -57,6 +58,7 @@ const defaultSettings: Settings = {
   expertMode: false,
   mode: defaultMode,
   threshold: 0.4,
+  showFieldBoundaries: true,
 }
 
 const defaultModel = computed(() => {
