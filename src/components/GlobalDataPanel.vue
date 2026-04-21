@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { computed, onUnmounted, ref, watch } from 'vue'
 import useSettings, { GLOBAL_DATA_MAP_FIELD_START_ZOOM_LEVEL } from '../composables/useSettings'
 import useMap from '../composables/useMap'
 import useAreaOfInterest from '../composables/useAreaOfInterest'
@@ -18,12 +18,25 @@ const zoom = ref(0)
 const onZoomChange = () => {
   zoom.value = map.value?.getView()?.getZoom() ?? 0
 }
-onMounted(() => {
-  if (map.value) {
-    onZoomChange()
-    map.value.getView().on('change:resolution', onZoomChange)
-  }
-})
+
+// Watch map and attach zoom listener when map becomes available
+watch(
+  map,
+  (newMap, oldMap) => {
+    // Clean up previous listener
+    if (oldMap) {
+      oldMap.getView()?.un('change:resolution', onZoomChange)
+    }
+
+    // Attach new listener if map is available
+    if (newMap) {
+      onZoomChange()
+      newMap.getView().on('change:resolution', onZoomChange)
+    }
+  },
+  { immediate: true },
+)
+
 onUnmounted(() => {
   map.value?.getView()?.un('change:resolution', onZoomChange)
 })
