@@ -26,6 +26,7 @@ import {
   updateGlobalOverviewLayer,
 } from '../layers/Global-Overview-Layers'
 import { inferenceStyle } from '../layers/color-scales'
+import useDownloadGrid from './useDownloadGrid'
 
 let featureId = 0
 
@@ -172,6 +173,10 @@ const updateLayers = () => {
       globalOverviewLayer.value = createGlobalOverviewLayer(settings.value)
       map.value.addLayer(globalOverviewLayer.value)
     }
+
+    // Initialize the download grid layer (hidden by default until user toggles it on).
+    // The layer persists across mode switches; visibility is driven by `showDownloadGrid`.
+    initDownloadGridLayer(map.value)
   } else {
     // Initialize with S2 grid layer
     if (!s2GridLayer.value) {
@@ -213,11 +218,12 @@ const highlightStyle = [
   }),
 ]
 
+const { initDownloadGridLayer, handleGridClick } = useDownloadGrid()
+
 export default function useMap() {
   const { showWarning } = useNotifier()
 
   const handleMapClick = (event: any) => {
-    // Check if click is on a feature from our vector layer
     const pixel = event.pixel
 
     // Check if we clicked on a feature from our results layer
@@ -226,18 +232,14 @@ export default function useMap() {
     })
 
     if (clickedFeature) {
-      // Clicked on a feature from our results layer
       selectedFeature.value = clickedFeature
-
-      // Store original click position for arrow indicator
       originalClickPosition.value = { x: pixel[0], y: pixel[1] }
-
-      // Calculate optimal position for the properties box to avoid screen edges
       const optimalPosition = calculateOptimalPosition(pixel[0], pixel[1])
       propertiesBoxPosition.value = optimalPosition
       showPropertiesBox.value = true
+    } else if (map.value && handleGridClick(map.value, pixel)) {
+      // Grid cell click handled — download modal will open
     } else {
-      // Clicked outside our results layer features, hide properties box
       hidePropertiesBox()
     }
   }

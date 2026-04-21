@@ -4,6 +4,7 @@ import useMap from '../composables/useMap'
 import useAreaOfInterest from '../composables/useAreaOfInterest'
 import type { PlaceResult } from '../composables/useAreaOfInterest'
 import useNotifier from '../composables/useNotifier'
+import useDownloadGrid from '../composables/useDownloadGrid'
 import { transformExtent } from 'ol/proj'
 import GeocodingSearch from './GeocodingSearch.vue'
 import MapLegend from './MapLegend.vue'
@@ -12,6 +13,7 @@ const { settings } = useSettings()
 const { map } = useMap()
 const { fitToExtent } = useAreaOfInterest()
 const { showError } = useNotifier()
+const { showDownloadGrid } = useDownloadGrid()
 
 const handleLocationSelected = (place: PlaceResult) => {
   if (!map.value) return
@@ -52,6 +54,18 @@ const handleLocationSelected = (place: PlaceResult) => {
           thumb-color="teal"
           hide-details
         />
+        <h3 class="group">Download Data</h3>
+        <v-switch
+          v-model="showDownloadGrid"
+          color="teal"
+          density="compact"
+          hide-details
+          label="Show 1° download grid"
+          class="mb-1"
+        />
+        <p class="text-caption text-medium-emphasis mb-0">
+          Click a grid cell to download its field boundaries as GeoParquet.
+        </p>
         <h3 class="group legend">Legend</h3>
         <MapLegend />
       </v-col>
