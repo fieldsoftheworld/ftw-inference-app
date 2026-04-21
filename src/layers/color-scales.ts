@@ -21,14 +21,19 @@ export const areaColorScale: ColorStop[] = [
   { value: 1, color: '#00ff00', label: '100' },
 ]
 
-export const CONFIDENCE_MAX = 0.58
+const CONFIDENCE_MAX = 0.578178 // before scaling, ratio [0-1]
+
+/** Convert a UI percentage threshold (0–100) to the raw internal confidence value. */
+export function thresholdToRaw(pct: number): number {
+  return (pct / 100) * CONFIDENCE_MAX
+}
 
 export const confidenceColorScale: ColorStop[] = [
   { value: 0, color: '#d7191c', label: '0' },
-  { value: 0.4, color: '#fec379', label: '69' },
-  { value: 0.45, color: '#f3fabb', label: '78' },
-  { value: 0.5, color: '#cfecb0', label: '86' },
-  { value: 0.58, color: '#33a02c', label: '100' },
+  { value: thresholdToRaw(70), color: '#fec379', label: '70' },
+  { value: thresholdToRaw(80), color: '#f3fabb', label: '80' },
+  { value: thresholdToRaw(90), color: '#cfecb0', label: '90' },
+  { value: CONFIDENCE_MAX, color: '#33a02c', label: '100' },
 ]
 
 const LUT_SIZE = 256

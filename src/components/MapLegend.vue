@@ -45,10 +45,11 @@ const legendThresholdPct = computed(() => {
   const s = legendStops.value
   const threshold = settings.value.threshold
   const n = s.length - 1
+  const labelValues = s.map((stop) => Number(stop.label))
   for (let i = 0; i < n; i++) {
-    if (threshold <= s[i].value) return (i / n) * 100
-    if (threshold <= s[i + 1].value) {
-      const frac = (threshold - s[i].value) / (s[i + 1].value - s[i].value)
+    if (threshold <= labelValues[i]) return (i / n) * 100
+    if (threshold <= labelValues[i + 1]) {
+      const frac = (threshold - labelValues[i]) / (labelValues[i + 1] - labelValues[i])
       return ((i + frac) / n) * 100
     }
   }
@@ -94,7 +95,20 @@ const legendThresholdPct = computed(() => {
       ></div>
     </div>
     <div class="legend-labels">
-      <span v-for="(stop, i) in legendStops" :key="i">{{ stop.label }}</span>
+      <span
+        v-for="(stop, i) in legendStops"
+        :key="i"
+        :style="{
+          left: (i / (legendStops.length - 1)) * 100 + '%',
+          transform:
+            i === 0
+              ? 'none'
+              : i === legendStops.length - 1
+                ? 'translateX(-100%)'
+                : 'translateX(-50%)',
+        }"
+        >{{ stop.label }}</span
+      >
     </div>
   </div>
 </template>
@@ -146,11 +160,15 @@ const legendThresholdPct = computed(() => {
 }
 
 .legend-labels {
-  display: flex;
-  justify-content: space-between;
+  position: relative;
+  height: 1.2em;
   margin-top: 0.2em;
   font-size: 0.7rem;
   opacity: 0.85;
+}
+
+.legend-labels span {
+  position: absolute;
 }
 
 .legend-item {

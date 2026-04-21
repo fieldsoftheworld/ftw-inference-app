@@ -45,6 +45,8 @@ const availableModes: { id: string; label: string }[] = [
 
 const availableModels = shallowRef<ModelInfo[]>([])
 
+export const defaultThreshold = 70
+
 // Default settings
 const defaultSettings: Settings = {
   autoSceneSelection: true,
@@ -57,7 +59,7 @@ const defaultSettings: Settings = {
   model: '',
   expertMode: false,
   mode: defaultMode,
-  threshold: 0.4,
+  threshold: defaultThreshold,
   fieldBoundariesOpacity: 90,
 }
 
