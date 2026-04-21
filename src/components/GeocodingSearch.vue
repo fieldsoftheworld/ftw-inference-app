@@ -76,13 +76,17 @@ const onLocationSelected = (item: { value: PlaceResult; title: string } | null) 
       dense
       variant="outlined"
     ></v-autocomplete>
-    <v-tooltip max-width="400" open-on-click>
+    <v-menu open-on-hover :close-on-content-click="false" max-width="400">
       <template #activator="{ props }">
         <v-icon class="ml-1" :icon="mdiHelpCircleOutline" size="x-small" v-bind="props"></v-icon>
       </template>
-      Geocoding provided by Nominatim.<br />
-      &copy; OpenStreetMap, https://openstreetmap.org<br />
-      License: ODbL
-    </v-tooltip>
+      <v-sheet class="pa-3 text-body-2">
+        Geocoding provided by Nominatim.<br />
+        &copy; OpenStreetMap,
+        <a href="https://openstreetmap.org" target="_blank" rel="noopener">openstreetmap.org</a
+        ><br />
+        License: ODbL
+      </v-sheet>
+    </v-menu>
   </div>
 </template>

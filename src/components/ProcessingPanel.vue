@@ -411,7 +411,7 @@ defineExpose({ openModelSelection })
       density="compact"
       :type="isBatchProcessing ? 'warning' : 'info'"
       :color="isBatchProcessing ? 'warning' : 'gray'"
-      class="mb-2"
+      class="mb-2 introduction"
     >
       <template v-if="!currentMgrsTileId">
         <strong>Please select an area of interest.</strong> Click on the map to select an area or
