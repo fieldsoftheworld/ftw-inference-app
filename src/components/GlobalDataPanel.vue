@@ -27,9 +27,25 @@ const handleLocationSelected = (place: PlaceResult) => {
 
 <template>
   <div class="settings">
-    <v-alert density="compact" type="info" color="gray" class="mb-2">
+    <v-alert density="compact" type="info" color="gray" class="mb-2 introduction">
       The <strong>global predictions</strong> provide global-scale estimates of agricultural fields
-      for 2024 and 2025. They were computed using the model <strong>FTW v3: CC-BY, B7</strong>.
+      for 2024 and 2025. They were computed using the model
+      <v-menu open-on-hover :close-on-content-click="false" max-width="400">
+        <template #activator="{ props }">
+          <strong v-bind="props" style="cursor: pointer; text-decoration: underline dotted"
+            >FTW v3: CC-BY, B7</strong
+          >
+        </template>
+        <v-sheet class="pa-3 text-body-2"
+          >Please refer to our paper "<a
+            href="https://arxiv.org/abs/2603.27101"
+            target="_blank"
+            rel="noopener"
+            >PRUE: A Practical Recipe for Field Boundary Segmentation at Scale</a
+          >" for more information. The model version "FTW v3" is also named "PRUE" in the
+          paper.</v-sheet
+        > </v-menu
+      >.
     </v-alert>
 
     <v-row class="d-flex justify-center w-100 mx-auto mb-0">
