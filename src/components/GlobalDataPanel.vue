@@ -1,6 +1,5 @@
 <script setup lang="ts">
-import { computed, onUnmounted, ref, watch } from 'vue'
-import useSettings, { GLOBAL_DATA_MAP_FIELD_START_ZOOM_LEVEL } from '../composables/useSettings'
+import useSettings from '../composables/useSettings'
 import useMap from '../composables/useMap'
 import useAreaOfInterest from '../composables/useAreaOfInterest'
 import type { PlaceResult } from '../composables/useAreaOfInterest'
@@ -13,34 +12,6 @@ const { settings } = useSettings()
 const { map } = useMap()
 const { fitToExtent } = useAreaOfInterest()
 const { showError } = useNotifier()
-
-const zoom = ref(0)
-const onZoomChange = () => {
-  zoom.value = map.value?.getView()?.getZoom() ?? 0
-}
-
-// Watch map and attach zoom listener when map becomes available
-watch(
-  map,
-  (newMap, oldMap) => {
-    // Clean up previous listener
-    if (oldMap) {
-      oldMap.getView()?.un('change:resolution', onZoomChange)
-    }
-
-    // Attach new listener if map is available
-    if (newMap) {
-      onZoomChange()
-      newMap.getView().on('change:resolution', onZoomChange)
-    }
-  },
-  { immediate: true },
-)
-
-onUnmounted(() => {
-  map.value?.getView()?.un('change:resolution', onZoomChange)
-})
-const fieldBoundariesDisabled = computed(() => zoom.value < GLOBAL_DATA_MAP_FIELD_START_ZOOM_LEVEL)
 
 const handleLocationSelected = (place: PlaceResult) => {
   if (!map.value) return
@@ -81,14 +52,16 @@ const handleLocationSelected = (place: PlaceResult) => {
           thumb-color="teal"
           hide-details
         />
-        <v-checkbox
-          v-model="settings.showFieldBoundaries"
-          label="Show field boundaries"
-          density="compact"
-          hide-details
+        <h3 class="group">Opacity: {{ settings.fieldBoundariesOpacity }}%</h3>
+        <v-slider
+          v-model.number="settings.fieldBoundariesOpacity"
+          :min="0"
+          :max="100"
+          :step="1"
           color="teal"
-          class="mt-2"
-          :disabled="fieldBoundariesDisabled"
+          track-color="grey-darken-2"
+          thumb-color="teal"
+          hide-details
         />
         <h3 class="group legend">Legend</h3>
         <MapLegend />

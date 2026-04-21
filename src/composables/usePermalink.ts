@@ -30,7 +30,7 @@ export interface PermalinkStateInference extends PermalinkState {
 
 export interface PermalinkStateGlobal extends PermalinkState {
   threshold: number
-  showFieldBoundaries: boolean
+  fieldBoundariesOpacity: number
 }
 
 export default function usePermalink() {
@@ -59,7 +59,7 @@ export default function usePermalink() {
     center: [0, 0],
     year: 2025,
     threshold: 0.4,
-    showFieldBoundaries: true,
+    fieldBoundariesOpacity: 90,
   }
 
   const getDefaultState = (mode: string): PermalinkStateInference | PermalinkStateGlobal => {
@@ -175,7 +175,7 @@ export default function usePermalink() {
             zoom,
             center,
             threshold: defaultGlobalState.threshold,
-            showFieldBoundaries: defaultGlobalState.showFieldBoundaries,
+            fieldBoundariesOpacity: defaultGlobalState.fieldBoundariesOpacity,
           }
 
           for (const part of keyValueParts) {
@@ -185,8 +185,9 @@ export default function usePermalink() {
             } else if (part.startsWith('year:')) {
               const year = parseInt(part.substring(5), 10)
               if (!isNaN(year)) result.year = year
-            } else if (part.startsWith('field_boundaries:')) {
-              result.showFieldBoundaries = part.substring(17) === '1'
+            } else if (part.startsWith('opacity:')) {
+              const opacity = parseInt(part.substring(8), 10)
+              result.fieldBoundariesOpacity = isNaN(opacity) ? 90 : opacity
             }
           }
 
@@ -289,7 +290,7 @@ export default function usePermalink() {
       if (settings.value.year) {
         hashParts.push(`year:${settings.value.year}`)
       }
-      hashParts.push(`field_boundaries:${settings.value.showFieldBoundaries ? 1 : 0}`)
+      hashParts.push(`opacity:${settings.value.fieldBoundariesOpacity}`)
 
       state = {
         mode,
@@ -297,7 +298,7 @@ export default function usePermalink() {
         center,
         threshold: settings.value.threshold,
         year: settings.value.year,
-        showFieldBoundaries: settings.value.showFieldBoundaries,
+        fieldBoundariesOpacity: settings.value.fieldBoundariesOpacity,
       }
     }
 
@@ -334,7 +335,7 @@ export default function usePermalink() {
 
   function restoreGlobalState(state: PermalinkStateGlobal) {
     settings.value.threshold = state.threshold
-    settings.value.showFieldBoundaries = state.showFieldBoundaries
+    settings.value.fieldBoundariesOpacity = state.fieldBoundariesOpacity
     if (state.year) {
       settings.value.year = state.year
     }
@@ -366,7 +367,7 @@ export default function usePermalink() {
         settings.value.areaCoverage,
         settings.value.buffer,
         settings.value.threshold,
-        settings.value.showFieldBoundaries,
+        settings.value.fieldBoundariesOpacity,
       ],
       () => {
         if (!map.value) {

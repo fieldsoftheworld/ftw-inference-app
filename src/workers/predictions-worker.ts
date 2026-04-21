@@ -37,7 +37,7 @@ layer.setStyle((feature, resolution) => {
   const widthPx = (extent[2] - extent[0]) / resolution
   const heightPx = (extent[3] - extent[1]) / resolution
   if (widthPx < 3 && heightPx < 3) return smallStyle
-  fill.setColor(getColorForValue(confidenceColorScale, confidence, 0.3))
+  fill.setColor(getColorForValue(confidenceColorScale, confidence, 0.35))
   return polyStyle
 })
 
