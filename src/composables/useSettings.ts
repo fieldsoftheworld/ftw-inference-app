@@ -160,7 +160,7 @@ const modelIsSingleShot = computed(() => {
 
 export const GLOBAL_DATA_PMTILES_THRESHOLD_METRIC = 'mean' // median / mean / min
 export const GLOBAL_DATA_MAP_COMPLETE_ZOOM_LEVEL = 12
-export const GLOBAL_DATA_MAP_FIELD_START_ZOOM_LEVEL = 10
+export const GLOBAL_DATA_MAP_FIELD_START_ZOOM_LEVEL = 11
 export const get_global_pmtiles_url = (year: number) => {
   return `https://s3.us-west-2.amazonaws.com/us-west-2.opendata.source.coop/ftw/global-field-boundaries/pmtiles/ftw-global-fields-${year}.pmtiles`
 }
