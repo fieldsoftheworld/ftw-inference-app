@@ -6,7 +6,7 @@ import {
   get_global_pmtiles_url,
   type Settings,
 } from '../composables/useSettings'
-import { thresholdToRaw } from '../layers/color-scales'
+import { thresholdToRaw } from './color-scales'
 
 export interface GlobalPredictionsController {
   layer: TileLayer<ImageTileSource>

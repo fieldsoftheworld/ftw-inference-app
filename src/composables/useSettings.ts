@@ -88,6 +88,9 @@ const loadSettingsFromStorage = (): Settings => {
   const stored = localStorage.getItem('ftw-search-settings')
   if (stored) {
     const parsed = JSON.parse(stored)
+    if (parsed.threshold !== undefined) {
+      parsed.threshold = Math.round(parsed.threshold)
+    }
     return Object.assign(structuredClone(defaultSettings), parsed) as Settings
   }
 

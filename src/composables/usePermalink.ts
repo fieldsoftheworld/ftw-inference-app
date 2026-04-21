@@ -180,11 +180,8 @@ export default function usePermalink() {
 
           for (const part of keyValueParts) {
             if (part.startsWith('threshold:')) {
-              const val = parseFloat(part.substring(10))
+              const val = parseInt(part.substring(10), 10)
               if (!isNaN(val)) {
-                if (val > 0 && val < 1) {
-                  // legacy support for 0-1 range in permalink
-                }
                 result.threshold = val
               }
             } else if (part.startsWith('year:')) {
