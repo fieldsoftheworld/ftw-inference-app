@@ -27,7 +27,7 @@ const handleLocationSelected = (place: PlaceResult) => {
 
 <template>
   <div class="settings">
-    <v-alert density="compact" type="info" color="gray" class="mb-2 introduction">
+    <v-alert density="compact" color="gray" class="mb-2 introduction">
       The <strong>global predictions</strong> provide global-scale estimates of agricultural fields
       for 2024 and 2025. They were computed using the model
       <v-menu open-on-hover :close-on-content-click="false" max-width="400">
@@ -63,6 +63,17 @@ const handleLocationSelected = (place: PlaceResult) => {
           :min="0"
           :max="1"
           :step="0.01"
+          color="teal"
+          track-color="grey-darken-2"
+          thumb-color="teal"
+          hide-details
+        />
+        <h3 class="group">Opacity: {{ settings.fieldBoundariesOpacity }}%</h3>
+        <v-slider
+          v-model.number="settings.fieldBoundariesOpacity"
+          :min="0"
+          :max="100"
+          :step="1"
           color="teal"
           track-color="grey-darken-2"
           thumb-color="teal"
