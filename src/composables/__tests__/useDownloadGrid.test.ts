@@ -154,7 +154,11 @@ describe('useDownloadGrid', () => {
       lon_min: -100,
       years: [2025],
     })
-    const openSpy = vi.spyOn(window, 'open').mockReturnValue(null)
+    const clickSpy = vi.fn()
+    const anchor = { href: '', download: '', rel: '', click: clickSpy } as any
+    vi.spyOn(document, 'createElement').mockReturnValue(anchor)
+    vi.spyOn(document.body, 'appendChild').mockImplementation(() => anchor)
+    vi.spyOn(document.body, 'removeChild').mockImplementation(() => anchor)
     const fakeMap = {
       addLayer: vi.fn(),
       on: vi.fn(),
@@ -171,11 +175,11 @@ describe('useDownloadGrid', () => {
     initDownloadGridLayer(fakeMap)
 
     expect(handleGridClick(fakeMap, [0, 0])).toBe(true)
-    expect(openSpy).toHaveBeenCalledWith(
+    expect(clickSpy).toHaveBeenCalled()
+    expect(anchor.href).toBe(
       'https://data.source.coop/ftw/global-field-boundaries/download-tiles/geoparquet/2025/N40W100.parquet',
-      '_blank',
-      'noopener',
     )
+    expect(anchor.download).toBe('ftw-fields-N40W100-2025.parquet')
   })
 
   it('does not download when the selected year is unavailable for the tile', () => {
@@ -187,7 +191,11 @@ describe('useDownloadGrid', () => {
       lon_min: -100,
       years: [2024],
     })
-    const openSpy = vi.spyOn(window, 'open').mockReturnValue(null)
+    const clickSpy = vi.fn()
+    const anchor = { href: '', download: '', rel: '', click: clickSpy } as any
+    vi.spyOn(document, 'createElement').mockReturnValue(anchor)
+    vi.spyOn(document.body, 'appendChild').mockImplementation(() => anchor)
+    vi.spyOn(document.body, 'removeChild').mockImplementation(() => anchor)
     const fakeMap = {
       addLayer: vi.fn(),
       on: vi.fn(),
@@ -204,7 +212,7 @@ describe('useDownloadGrid', () => {
     initDownloadGridLayer(fakeMap)
 
     expect(handleGridClick(fakeMap, [0, 0])).toBe(true)
-    expect(openSpy).not.toHaveBeenCalled()
+    expect(clickSpy).not.toHaveBeenCalled()
   })
 
   it('persists the grid visibility in stored settings', async () => {

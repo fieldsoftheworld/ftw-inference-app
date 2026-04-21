@@ -40,8 +40,14 @@ export function featureToGridCell(feature: FeatureLike): GridCell {
   }
 }
 
-function triggerDownload(url: string) {
-  window.open(url, '_blank', 'noopener')
+function triggerDownload(url: string, filename: string) {
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  a.rel = 'noopener'
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
 }
 
 function ensureDownloadGridVisibleAtUsableZoom(map: Map | null) {
@@ -122,7 +128,8 @@ export default function useDownloadGrid() {
       return true
     }
 
-    triggerDownload(getDownloadParquetUrl(settings.value.year, selectedGridCell.tile_id))
+    const url = getDownloadParquetUrl(settings.value.year, selectedGridCell.tile_id)
+    triggerDownload(url, `ftw-fields-${selectedGridCell.tile_id}-${settings.value.year}.parquet`)
     return true
   }
 
