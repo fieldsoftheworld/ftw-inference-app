@@ -12,7 +12,7 @@ export interface Settings {
   expertMode: boolean
   mode: string
   threshold: number
-  fieldBoundariesOpacity: number
+  opacity: number
   downloads: boolean
 }
 
@@ -59,7 +59,7 @@ const defaultSettings: Settings = {
   expertMode: false,
   mode: defaultMode,
   threshold: 0.4,
-  fieldBoundariesOpacity: 90,
+  opacity: 90,
   downloads: false,
 }
 

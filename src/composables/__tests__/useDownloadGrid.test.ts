@@ -171,4 +171,27 @@ describe('useDownloadGrid', () => {
     })
     expect(settings.value.downloads).toBe(true)
   })
+
+  it('animates zoom out to level 8 when downloads are enabled at a higher zoom', async () => {
+    const { settings } = useSettings()
+    const { initDownloadGridLayer } = useDownloadGrid()
+    const animate = vi.fn()
+    const fakeMap = {
+      addLayer: vi.fn(),
+      on: vi.fn(),
+      getView: () => ({
+        getZoom: () => 12,
+        animate,
+      }),
+      getTargetElement: () => ({ style: { cursor: '' } }),
+    } as any
+
+    settings.value.downloads = false
+    initDownloadGridLayer(fakeMap)
+
+    settings.value.downloads = true
+    await nextTick()
+
+    expect(animate).toHaveBeenCalledWith({ zoom: 8, duration: 500 })
+  })
 })

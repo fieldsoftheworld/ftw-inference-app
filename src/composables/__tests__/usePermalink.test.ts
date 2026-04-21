@@ -19,7 +19,7 @@ describe('buildGlobalPermalinkParts', () => {
       mode: 'global',
       threshold: 0.65,
       year: 2024,
-      fieldBoundariesOpacity: 55,
+      opacity: 55,
       downloads: true,
     })
 
@@ -42,7 +42,7 @@ describe('parsePermalinkHash', () => {
     expect(state.mode).toBe('global')
     expect(state.threshold).toBe(0.8)
     expect(state.year).toBe(2025)
-    expect(state.fieldBoundariesOpacity).toBe(72)
+    expect(state.opacity).toBe(72)
     expect(state.downloads).toBe(true)
   })
 

@@ -54,9 +54,9 @@ const handleLocationSelected = (place: PlaceResult) => {
           thumb-color="teal"
           hide-details
         />
-        <h3 class="group">Opacity: {{ settings.fieldBoundariesOpacity }}%</h3>
+        <h3 class="group">Opacity: {{ settings.opacity }}%</h3>
         <v-slider
-          v-model.number="settings.fieldBoundariesOpacity"
+          v-model.number="settings.opacity"
           :min="0"
           :max="100"
           :step="1"

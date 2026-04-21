@@ -94,16 +94,14 @@ watch(
       }
 
       globalPredictionsController.value = createGlobalPredictionsLayer(settings.value)
-      globalPredictionsController.value.layer.setOpacity(
-        settings.value.fieldBoundariesOpacity / 100,
-      )
+      globalPredictionsController.value.layer.setOpacity(settings.value.opacity / 100)
       map.value.addLayer(globalPredictionsController.value.layer)
     }
   },
 )
 
 watch(
-  () => settings.value.fieldBoundariesOpacity,
+  () => settings.value.opacity,
   (opacity) => {
     const olOpacity = opacity / 100
     globalPredictionsController.value?.layer.setOpacity(olOpacity)
@@ -162,14 +160,12 @@ const updateLayers = () => {
     if (!globalPredictionsController.value) {
       // Only handle first initialization here, year changes are handled by a watcher on year above
       globalPredictionsController.value = createGlobalPredictionsLayer(settings.value)
-      globalPredictionsController.value.layer.setOpacity(
-        settings.value.fieldBoundariesOpacity / 100,
-      )
+      globalPredictionsController.value.layer.setOpacity(settings.value.opacity / 100)
       map.value.addLayer(globalPredictionsController.value.layer)
     }
     if (!globalOverviewLayer.value) {
       globalOverviewLayer.value = createGlobalOverviewLayer(settings.value)
-      globalOverviewLayer.value.setOpacity(settings.value.fieldBoundariesOpacity / 100)
+      globalOverviewLayer.value.setOpacity(settings.value.opacity / 100)
       map.value.addLayer(globalOverviewLayer.value)
     }
 

@@ -24,6 +24,9 @@ const selectedGridCell = ref<GridCell | null>(null)
 const hoveredGridFeature = shallowRef<FeatureLike | null>(null)
 const selectedGridFeature = shallowRef<FeatureLike | null>(null)
 const downloadGridLayer = shallowRef<VectorLayer<VectorSource> | null>(null)
+const currentMap = shallowRef<Map | null>(null)
+
+const DOWNLOAD_GRID_MAX_ZOOM = 8
 
 // Track maps we've already wired up so we don't register duplicate listeners.
 const initializedMaps = new WeakSet<Map>()
@@ -48,11 +51,24 @@ function closeDownloadModal() {
   downloadGridLayer.value?.changed()
 }
 
+function ensureDownloadGridVisibleAtUsableZoom(map: Map | null) {
+  if (!map || !settings.value.downloads) return
+
+  const view = map.getView()
+  const zoom = view.getZoom()
+  if (zoom !== undefined && zoom > DOWNLOAD_GRID_MAX_ZOOM) {
+    view.animate({
+      zoom: DOWNLOAD_GRID_MAX_ZOOM,
+    })
+  }
+}
+
 // Toggle layer visibility and close the modal when the grid is turned off.
 watch(
   () => settings.value.downloads,
   (visible) => {
     downloadGridLayer.value?.setVisible(visible)
+    if (visible) ensureDownloadGridVisibleAtUsableZoom(currentMap.value)
     if (!visible) closeDownloadModal()
   },
 )
@@ -70,11 +86,13 @@ export default function useDownloadGrid() {
   const initDownloadGridLayer = (map: Map) => {
     if (initializedMaps.has(map)) return
     initializedMaps.add(map)
+    currentMap.value = map
 
     const layer = createDownloadGridLayer(hoveredGridFeature, selectedGridFeature)
     downloadGridLayer.value = layer
     map.addLayer(layer)
     layer.setVisible(settings.value.downloads)
+    ensureDownloadGridVisibleAtUsableZoom(map)
 
     map.on('pointermove', (event) => {
       if (!settings.value.downloads) return

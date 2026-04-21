@@ -30,7 +30,7 @@ export interface PermalinkStateInference extends PermalinkState {
 
 export interface PermalinkStateGlobal extends PermalinkState {
   threshold: number
-  fieldBoundariesOpacity: number
+  opacity: number
   downloads: boolean
 }
 
@@ -39,7 +39,7 @@ export function buildGlobalPermalinkParts(settings: Settings): string[] {
   if (settings.year) {
     hashParts.push(`year:${settings.year}`)
   }
-  hashParts.push(`opacity:${settings.fieldBoundariesOpacity}`)
+  hashParts.push(`opacity:${settings.opacity}`)
   hashParts.push(`downloads:${settings.downloads ? 1 : 0}`)
   return hashParts
 }
@@ -64,7 +64,7 @@ export function parsePermalinkHash(
     center: [0, 0],
     year: 2025,
     threshold: 0.4,
-    fieldBoundariesOpacity: 90,
+    opacity: 90,
     downloads: false,
   }
 
@@ -169,7 +169,7 @@ export function parsePermalinkHash(
         zoom,
         center,
         threshold: defaultGlobalState.threshold,
-        fieldBoundariesOpacity: defaultGlobalState.fieldBoundariesOpacity,
+        opacity: defaultGlobalState.opacity,
         downloads: defaultGlobalState.downloads,
       }
 
@@ -182,7 +182,7 @@ export function parsePermalinkHash(
           if (!isNaN(year)) result.year = year
         } else if (part.startsWith('opacity:')) {
           const opacity = parseInt(part.substring(8), 10)
-          result.fieldBoundariesOpacity = isNaN(opacity) ? 90 : opacity
+          result.opacity = isNaN(opacity) ? 90 : opacity
         } else if (part.startsWith('downloads:')) {
           result.downloads = part.substring(10) === '1'
         }
@@ -313,7 +313,7 @@ export default function usePermalink() {
         center,
         threshold: settings.value.threshold,
         year: settings.value.year,
-        fieldBoundariesOpacity: settings.value.fieldBoundariesOpacity,
+        opacity: settings.value.opacity,
         downloads: settings.value.downloads,
       }
     }
@@ -351,7 +351,7 @@ export default function usePermalink() {
 
   function restoreGlobalState(state: PermalinkStateGlobal) {
     settings.value.threshold = state.threshold
-    settings.value.fieldBoundariesOpacity = state.fieldBoundariesOpacity
+    settings.value.opacity = state.opacity
     settings.value.downloads = state.downloads
     if (state.year) {
       settings.value.year = state.year
@@ -384,7 +384,7 @@ export default function usePermalink() {
         settings.value.areaCoverage,
         settings.value.buffer,
         settings.value.threshold,
-        settings.value.fieldBoundariesOpacity,
+        settings.value.opacity,
         settings.value.downloads,
       ],
       () => {
