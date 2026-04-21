@@ -27,7 +27,7 @@ const handleLocationSelected = (place: PlaceResult) => {
 
 <template>
   <div class="settings">
-    <v-alert density="compact" type="info" color="gray" class="mb-2">
+    <v-alert density="compact" color="gray" class="mb-2">
       The <strong>global predictions</strong> provide global-scale estimates of agricultural fields
       for 2024 and 2025. They were computed using the model <strong>FTW v3: CC-BY, B7</strong>.
     </v-alert>
