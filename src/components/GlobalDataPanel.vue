@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { mdiHelpCircleOutline } from '@mdi/js'
 import useSettings from '../composables/useSettings'
 import useMap from '../composables/useMap'
 import useAreaOfInterest from '../composables/useAreaOfInterest'
@@ -81,18 +82,36 @@ const handleLocationSelected = (place: PlaceResult) => {
           thumb-color="teal"
           hide-details
         />
-        <h3 class="group">Download Data</h3>
+        <div class="group group-with-help">
+          <h3>Download Data</h3>
+          <v-menu open-on-hover :close-on-content-click="false" max-width="400">
+            <template #activator="{ props }">
+              <v-icon :icon="mdiHelpCircleOutline" size="x-small" v-bind="props"></v-icon>
+            </template>
+            <v-sheet class="pa-3 text-body-2">
+              <p class="pb-2">
+                After activation, click a grid cell to download its field boundaries. It will
+                download agricultural field boundary predictions for the selected 1°×1° tile as a
+                GeoParquet file from Source Cooperative.
+              </p>
+              <p>
+                You can also download the entire dataset in different file formats and variants from
+                <a href="https://source.coop/ftw/global-data/" target="_blank" rel="noopener"
+                  >our Source Cooperative repository</a
+                >
+                directly.
+              </p>
+            </v-sheet>
+          </v-menu>
+        </div>
         <v-switch
           v-model="settings.downloads"
           color="teal"
           density="compact"
           hide-details
-          label="Show 1° download grid"
+          label="Show download grid"
           class="mb-1"
         />
-        <p class="text-caption text-medium-emphasis mb-0">
-          Click a grid cell to download its field boundaries as GeoParquet.
-        </p>
         <h3 class="group legend">Legend</h3>
         <MapLegend />
       </v-col>
@@ -105,6 +124,16 @@ const handleLocationSelected = (place: PlaceResult) => {
   margin: 1rem -0.5rem 0.5rem;
   font-weight: 500;
   font-size: 1.1rem;
+}
+.group-with-help {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+.group-with-help h3 {
+  margin: 0;
+  font-weight: inherit;
+  font-size: inherit;
 }
 .group.legend {
   margin-top: 1rem;
