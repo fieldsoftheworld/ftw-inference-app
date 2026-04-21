@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import useSettings from '../composables/useSettings'
+import { CONFIDENCE_MAX } from '../layers/color-scales'
 import useMap from '../composables/useMap'
 import useAreaOfInterest from '../composables/useAreaOfInterest'
 import type { PlaceResult } from '../composables/useAreaOfInterest'
@@ -41,12 +42,14 @@ const handleLocationSelected = (place: PlaceResult) => {
           <v-radio label="2024" :value="2024"></v-radio>
           <v-radio label="2025" :value="2025"></v-radio>
         </v-radio-group>
-        <h3 class="group">Confidence Threshold: {{ (settings.threshold * 100).toFixed(0) }}%</h3>
+        <h3 class="group">
+          Confidence Threshold: {{ Math.round((settings.threshold / CONFIDENCE_MAX) * 100) }}%
+        </h3>
         <v-slider
           v-model.number="settings.threshold"
           :min="0"
-          :max="1"
-          :step="0.01"
+          :max="CONFIDENCE_MAX"
+          :step="CONFIDENCE_MAX / 100"
           color="teal"
           track-color="grey-darken-2"
           thumb-color="teal"
