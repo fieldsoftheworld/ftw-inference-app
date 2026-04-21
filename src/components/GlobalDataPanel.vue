@@ -13,7 +13,7 @@ const { settings } = useSettings()
 const { map } = useMap()
 const { fitToExtent } = useAreaOfInterest()
 const { showError } = useNotifier()
-const { showDownloadGrid } = useDownloadGrid()
+useDownloadGrid()
 
 const handleLocationSelected = (place: PlaceResult) => {
   if (!map.value) return
@@ -67,7 +67,7 @@ const handleLocationSelected = (place: PlaceResult) => {
         />
         <h3 class="group">Download Data</h3>
         <v-switch
-          v-model="showDownloadGrid"
+          v-model="settings.downloads"
           color="teal"
           density="compact"
           hide-details

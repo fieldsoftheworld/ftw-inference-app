@@ -3,7 +3,7 @@ import type Map from 'ol/Map'
 import useAreaOfInterest from './useAreaOfInterest'
 import useMap from './useMap'
 import useSearch from './useSearch'
-import useSettings from './useSettings'
+import useSettings, { type Settings } from './useSettings'
 import { fromLonLat, toLonLat, transformExtent } from 'ol/proj'
 import { type Extent } from 'ol/extent'
 import { type Coordinate } from 'ol/coordinate'
@@ -31,19 +31,24 @@ export interface PermalinkStateInference extends PermalinkState {
 export interface PermalinkStateGlobal extends PermalinkState {
   threshold: number
   fieldBoundariesOpacity: number
+  downloads: boolean
 }
 
-export default function usePermalink() {
-  const { handleSearchResults } = useSearch()
-  const { settings, defaultMode, availableModes } = useSettings()
-  const { activeTileId, currentMgrsTileId, drawnExtent, secondActiveTileId, triggerTileSelection } =
-    useAreaOfInterest()
-  const { areaValues } = useMap()
+export function buildGlobalPermalinkParts(settings: Settings): string[] {
+  const hashParts = [`threshold:${settings.threshold}`]
+  if (settings.year) {
+    hashParts.push(`year:${settings.year}`)
+  }
+  hashParts.push(`opacity:${settings.fieldBoundariesOpacity}`)
+  hashParts.push(`downloads:${settings.downloads ? 1 : 0}`)
+  return hashParts
+}
 
-  let registered = false
-  let shouldUpdate = true
-
-  // Default values
+export function parsePermalinkHash(
+  hash: string,
+  defaultMode: string,
+  availableModes: { id: string }[],
+): PermalinkStateInference | PermalinkStateGlobal | null {
   const defaultInferenceState: PermalinkStateInference = {
     mode: 'inference',
     zoom: 2,
@@ -60,11 +65,147 @@ export default function usePermalink() {
     year: 2025,
     threshold: 0.4,
     fieldBoundariesOpacity: 90,
+    downloads: false,
   }
 
   const getDefaultState = (mode: string): PermalinkStateInference | PermalinkStateGlobal => {
     return mode === 'inference' ? { ...defaultInferenceState } : { ...defaultGlobalState }
   }
+
+  if (hash === '') {
+    return null
+  }
+
+  try {
+    const parts = hash.replace('#map=', '').split('/')
+
+    if (parts.length >= 3) {
+      const zoom = parseFloat(parts[0]) || 2
+      const center: Coordinate = [parseFloat(parts[1]), parseFloat(parts[2])]
+
+      const keyValuePrefixes = [
+        'mode:',
+        'start_month:',
+        'end_month:',
+        'cloud_cover:',
+        'area_coverage:',
+        'buffer:',
+        'bbox:',
+        'year:',
+        'field_boundaries:',
+        'threshold:',
+        'opacity:',
+        'downloads:',
+      ]
+      let mode = defaultMode
+      let hasExplicitMode = false
+      const keyValueParts: string[] = []
+      const positionalParts: string[] = []
+
+      for (let i = 3; i < parts.length; i++) {
+        const part = parts[i]
+        if (keyValuePrefixes.some((prefix) => part.startsWith(prefix))) {
+          keyValueParts.push(part)
+          if (part.startsWith('mode:')) {
+            const parsedMode = part.substring(5).trim()
+            if (availableModes.some((m) => m.id === parsedMode)) {
+              mode = parsedMode
+              hasExplicitMode = true
+            }
+          }
+        } else if (part) {
+          positionalParts.push(part)
+        }
+      }
+
+      if (!hasExplicitMode && positionalParts.length > 0) {
+        mode = 'inference'
+      }
+
+      if (mode === 'inference') {
+        const result: PermalinkStateInference = {
+          mode,
+          zoom,
+          center,
+          currentMgrsTileId: null,
+          activeTileId: null,
+          secondActiveTileId: null,
+        }
+
+        for (const part of keyValueParts) {
+          if (part.startsWith('start_month:')) {
+            const startMonth = parseInt(part.substring(12), 10)
+            if (startMonth > 0) result.startMonth = startMonth
+          } else if (part.startsWith('end_month:')) {
+            const endMonth = parseInt(part.substring(10), 10)
+            if (endMonth > 0) result.endMonth = endMonth
+          } else if (part.startsWith('cloud_cover:')) {
+            const cloudCover = parseInt(part.substring(12), 10)
+            if (!isNaN(cloudCover)) result.cloudCover = cloudCover
+          } else if (part.startsWith('area_coverage:')) {
+            const areaCoverage = parseInt(part.substring(14), 10)
+            if (!isNaN(areaCoverage)) result.areaCoverage = areaCoverage
+          } else if (part.startsWith('buffer:')) {
+            const buffer = parseInt(part.substring(7), 10)
+            if (!isNaN(buffer)) result.buffer = buffer
+          } else if (part.startsWith('bbox:')) {
+            const bbox = part.substring(5).split(',').map(Number)
+            if (bbox.length === 4 && bbox.every((num) => !isNaN(num))) result.bbox = bbox
+          } else if (part.startsWith('year:')) {
+            const year = parseInt(part.substring(5), 10)
+            if (!isNaN(year)) result.year = year
+          }
+        }
+
+        if (positionalParts.length >= 1) result.currentMgrsTileId = positionalParts[0]
+        if (positionalParts.length >= 2) result.activeTileId = positionalParts[1]
+        if (positionalParts.length >= 3) result.secondActiveTileId = positionalParts[2]
+
+        return result
+      }
+
+      const result: PermalinkStateGlobal = {
+        mode,
+        zoom,
+        center,
+        threshold: defaultGlobalState.threshold,
+        fieldBoundariesOpacity: defaultGlobalState.fieldBoundariesOpacity,
+        downloads: defaultGlobalState.downloads,
+      }
+
+      for (const part of keyValueParts) {
+        if (part.startsWith('threshold:')) {
+          const val = parseFloat(part.substring(10))
+          if (!isNaN(val)) result.threshold = val
+        } else if (part.startsWith('year:')) {
+          const year = parseInt(part.substring(5), 10)
+          if (!isNaN(year)) result.year = year
+        } else if (part.startsWith('opacity:')) {
+          const opacity = parseInt(part.substring(8), 10)
+          result.fieldBoundariesOpacity = isNaN(opacity) ? 90 : opacity
+        } else if (part.startsWith('downloads:')) {
+          result.downloads = part.substring(10) === '1'
+        }
+      }
+
+      return result
+    }
+  } catch (error) {
+    console.error('Error parsing permalink:', error)
+  }
+
+  return getDefaultState(defaultMode)
+}
+
+export default function usePermalink() {
+  const { handleSearchResults } = useSearch()
+  const { settings, defaultMode, availableModes } = useSettings()
+  const { activeTileId, currentMgrsTileId, drawnExtent, secondActiveTileId, triggerTileSelection } =
+    useAreaOfInterest()
+  const { areaValues } = useMap()
+
+  let registered = false
+  let shouldUpdate = true
 
   function isInferenceState(state: PermalinkState): state is PermalinkStateInference {
     return state.mode === 'inference'
@@ -75,130 +216,8 @@ export default function usePermalink() {
   }
 
   // Parse permalink from URL hash
-  const parsePermalink = (): PermalinkStateInference | PermalinkStateGlobal => {
-    if (window.location.hash === '') {
-      return getDefaultState(defaultMode)
-    }
-
-    try {
-      const hash = window.location.hash.replace('#map=', '')
-      const parts = hash.split('/')
-
-      if (parts.length >= 3) {
-        const zoom = parseFloat(parts[0]) || 2
-        const center: Coordinate = [parseFloat(parts[1]), parseFloat(parts[2])]
-
-        // First pass: separate key-value parts from positional parts, and extract mode
-        const keyValuePrefixes = [
-          'mode:',
-          'start_month:',
-          'end_month:',
-          'cloud_cover:',
-          'area_coverage:',
-          'buffer:',
-          'bbox:',
-          'year:',
-          'field_boundaries:',
-          'threshold:',
-        ]
-        let mode = defaultMode
-        let hasExplicitMode = false
-        const keyValueParts: string[] = []
-        const positionalParts: string[] = []
-
-        for (let i = 3; i < parts.length; i++) {
-          const part = parts[i]
-          if (keyValuePrefixes.some((prefix) => part.startsWith(prefix))) {
-            keyValueParts.push(part)
-            if (part.startsWith('mode:')) {
-              const parsedMode = part.substring(5).trim()
-              if (availableModes.some((m) => m.id === parsedMode)) {
-                mode = parsedMode
-                hasExplicitMode = true
-              }
-            }
-          } else if (part) {
-            positionalParts.push(part)
-          }
-        }
-
-        // Backward compatibility: if tile IDs are present, default to inference
-        if (!hasExplicitMode && positionalParts.length > 0) {
-          mode = 'inference'
-        }
-
-        if (mode === 'inference') {
-          const result: PermalinkStateInference = {
-            mode,
-            zoom,
-            center,
-            currentMgrsTileId: null,
-            activeTileId: null,
-            secondActiveTileId: null,
-          }
-
-          for (const part of keyValueParts) {
-            if (part.startsWith('start_month:')) {
-              const startMonth = parseInt(part.substring(12), 10)
-              if (startMonth > 0) result.startMonth = startMonth
-            } else if (part.startsWith('end_month:')) {
-              const endMonth = parseInt(part.substring(10), 10)
-              if (endMonth > 0) result.endMonth = endMonth
-            } else if (part.startsWith('cloud_cover:')) {
-              const cloudCover = parseInt(part.substring(12), 10)
-              if (!isNaN(cloudCover)) result.cloudCover = cloudCover
-            } else if (part.startsWith('area_coverage:')) {
-              const areaCoverage = parseInt(part.substring(14), 10)
-              if (!isNaN(areaCoverage)) result.areaCoverage = areaCoverage
-            } else if (part.startsWith('buffer:')) {
-              const buffer = parseInt(part.substring(7), 10)
-              if (!isNaN(buffer)) result.buffer = buffer
-            } else if (part.startsWith('bbox:')) {
-              const bbox = part.substring(5).split(',').map(Number)
-              if (bbox.length === 4 && bbox.every((num) => !isNaN(num))) result.bbox = bbox
-            } else if (part.startsWith('year:')) {
-              const year = parseInt(part.substring(5), 10)
-              if (!isNaN(year)) result.year = year
-            }
-          }
-
-          // Assign positional parts as tile IDs
-          if (positionalParts.length >= 1) result.currentMgrsTileId = positionalParts[0]
-          if (positionalParts.length >= 2) result.activeTileId = positionalParts[1]
-          if (positionalParts.length >= 3) result.secondActiveTileId = positionalParts[2]
-
-          return result
-        } else {
-          // Global mode
-          const result: PermalinkStateGlobal = {
-            mode,
-            zoom,
-            center,
-            threshold: defaultGlobalState.threshold,
-            fieldBoundariesOpacity: defaultGlobalState.fieldBoundariesOpacity,
-          }
-
-          for (const part of keyValueParts) {
-            if (part.startsWith('threshold:')) {
-              const val = parseFloat(part.substring(10))
-              if (!isNaN(val)) result.threshold = val
-            } else if (part.startsWith('year:')) {
-              const year = parseInt(part.substring(5), 10)
-              if (!isNaN(year)) result.year = year
-            } else if (part.startsWith('opacity:')) {
-              const opacity = parseInt(part.substring(8), 10)
-              result.fieldBoundariesOpacity = isNaN(opacity) ? 90 : opacity
-            }
-          }
-
-          return result
-        }
-      }
-    } catch (error) {
-      console.error('Error parsing permalink:', error)
-    }
-
-    return getDefaultState(defaultMode)
+  const parsePermalink = (): PermalinkStateInference | PermalinkStateGlobal | null => {
+    return parsePermalinkHash(window.location.hash, defaultMode, availableModes)
   }
 
   // Update permalink in URL
@@ -286,11 +305,7 @@ export default function usePermalink() {
       }
     } else {
       // Global mode
-      hashParts.push(`threshold:${settings.value.threshold}`)
-      if (settings.value.year) {
-        hashParts.push(`year:${settings.value.year}`)
-      }
-      hashParts.push(`opacity:${settings.value.fieldBoundariesOpacity}`)
+      hashParts.push(...buildGlobalPermalinkParts(settings.value))
 
       state = {
         mode,
@@ -299,6 +314,7 @@ export default function usePermalink() {
         threshold: settings.value.threshold,
         year: settings.value.year,
         fieldBoundariesOpacity: settings.value.fieldBoundariesOpacity,
+        downloads: settings.value.downloads,
       }
     }
 
@@ -336,6 +352,7 @@ export default function usePermalink() {
   function restoreGlobalState(state: PermalinkStateGlobal) {
     settings.value.threshold = state.threshold
     settings.value.fieldBoundariesOpacity = state.fieldBoundariesOpacity
+    settings.value.downloads = state.downloads
     if (state.year) {
       settings.value.year = state.year
     }
@@ -368,6 +385,7 @@ export default function usePermalink() {
         settings.value.buffer,
         settings.value.threshold,
         settings.value.fieldBoundariesOpacity,
+        settings.value.downloads,
       ],
       () => {
         if (!map.value) {
@@ -379,27 +397,29 @@ export default function usePermalink() {
 
     // Restore initial state from URL
     const initialState = parsePermalink()
-    settings.value.mode = initialState.mode
-    restoreMapState(map.value, initialState)
+    if (initialState) {
+      settings.value.mode = initialState.mode
+      restoreMapState(map.value, initialState)
 
-    if (isInferenceState(initialState)) {
-      restoreInferenceState(initialState)
+      if (isInferenceState(initialState)) {
+        restoreInferenceState(initialState)
 
-      if (initialState.currentMgrsTileId) {
-        await triggerTileSelection(
-          map.value!,
-          currentMgrsTileId.value!,
-          areaValues.value!,
-          handleSearchResults,
-          undefined,
-          false,
-        )
+        if (initialState.currentMgrsTileId) {
+          await triggerTileSelection(
+            map.value!,
+            currentMgrsTileId.value!,
+            areaValues.value!,
+            handleSearchResults,
+            undefined,
+            false,
+          )
+        }
+        if (initialState.bbox) {
+          drawnExtent.value = transformExtent(initialState.bbox, 'EPSG:4326', 'EPSG:3857')
+        }
+      } else if (isGlobalState(initialState)) {
+        restoreGlobalState(initialState)
       }
-      if (initialState.bbox) {
-        drawnExtent.value = transformExtent(initialState.bbox, 'EPSG:4326', 'EPSG:3857')
-      }
-    } else if (isGlobalState(initialState)) {
-      restoreGlobalState(initialState)
     }
 
     // Update permalink when map moves

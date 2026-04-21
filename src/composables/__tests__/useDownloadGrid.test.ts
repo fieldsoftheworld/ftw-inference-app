@@ -100,18 +100,23 @@ describe('featureToGridCell', () => {
 
 describe('useDownloadGrid', () => {
   beforeEach(() => {
-    const { showDownloadGrid, showDownloadModal, selectedGridCell } = useDownloadGrid()
-    showDownloadGrid.value = false
+    const { settings } = useSettings()
+    const { showDownloadModal, selectedGridCell } = useDownloadGrid()
+    settings.value.downloads = false
+    settings.value.mode = 'global'
     showDownloadModal.value = false
     selectedGridCell.value = null
   })
 
-  it('exposes singleton state shared across calls', () => {
-    const a = useDownloadGrid()
-    const b = useDownloadGrid()
-    a.showDownloadGrid.value = true
-    expect(b.showDownloadGrid.value).toBe(true)
-    a.showDownloadGrid.value = false
+  it('uses settings as the source of truth for downloads visibility', () => {
+    useDownloadGrid()
+    const { settings } = useSettings()
+
+    settings.value.downloads = true
+    expect(settings.value.downloads).toBe(true)
+
+    settings.value.downloads = false
+    expect(settings.value.downloads).toBe(false)
   })
 
   it('closes the modal via closeDownloadModal', () => {
@@ -130,26 +135,40 @@ describe('useDownloadGrid', () => {
 
   it('turns off the download grid when the user leaves global mode', async () => {
     const { settings } = useSettings()
-    const { showDownloadGrid } = useDownloadGrid()
+    useDownloadGrid()
 
     settings.value.mode = 'global'
-    showDownloadGrid.value = true
+    settings.value.downloads = true
     await nextTick()
 
     settings.value.mode = 'inference'
     await nextTick()
 
-    expect(showDownloadGrid.value).toBe(false)
+    expect(settings.value.downloads).toBe(false)
 
     // restore
     settings.value.mode = 'global'
   })
 
   it('handleGridClick returns false when the grid is hidden', () => {
-    const { handleGridClick, showDownloadGrid } = useDownloadGrid()
-    showDownloadGrid.value = false
+    const { handleGridClick } = useDownloadGrid()
+    const { settings } = useSettings()
+    settings.value.downloads = false
     const fakeMap = { forEachFeatureAtPixel: vi.fn() } as any
     expect(handleGridClick(fakeMap, [0, 0])).toBe(false)
     expect(fakeMap.forEachFeatureAtPixel).not.toHaveBeenCalled()
+  })
+
+  it('persists the grid visibility in stored settings', async () => {
+    const { settings } = useSettings()
+    useDownloadGrid()
+
+    settings.value.downloads = true
+    await nextTick()
+
+    expect(JSON.parse(localStorage.getItem('ftw-search-settings') || '{}')).toMatchObject({
+      downloads: true,
+    })
+    expect(settings.value.downloads).toBe(true)
   })
 })

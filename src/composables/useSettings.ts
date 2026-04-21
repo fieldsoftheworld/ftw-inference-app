@@ -13,6 +13,7 @@ export interface Settings {
   mode: string
   threshold: number
   fieldBoundariesOpacity: number
+  downloads: boolean
 }
 
 export interface ModelInfo {
@@ -59,6 +60,7 @@ const defaultSettings: Settings = {
   mode: defaultMode,
   threshold: 0.4,
   fieldBoundariesOpacity: 90,
+  downloads: false,
 }
 
 const defaultModel = computed(() => {

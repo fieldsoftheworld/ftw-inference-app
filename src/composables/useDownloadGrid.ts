@@ -18,7 +18,6 @@ export interface GridCell {
 const { settings } = useSettings()
 
 // Singleton state shared by all consumers of the composable.
-const showDownloadGrid = ref(false)
 const showDownloadModal = ref(false)
 const selectedGridCell = ref<GridCell | null>(null)
 
@@ -50,16 +49,19 @@ function closeDownloadModal() {
 }
 
 // Toggle layer visibility and close the modal when the grid is turned off.
-watch(showDownloadGrid, (visible) => {
-  downloadGridLayer.value?.setVisible(visible)
-  if (!visible) closeDownloadModal()
-})
+watch(
+  () => settings.value.downloads,
+  (visible) => {
+    downloadGridLayer.value?.setVisible(visible)
+    if (!visible) closeDownloadModal()
+  },
+)
 
 // The download grid is only meaningful in global mode; turn it off otherwise.
 watch(
   () => settings.value.mode,
   (mode) => {
-    if (mode !== 'global') showDownloadGrid.value = false
+    if (mode !== 'global') settings.value.downloads = false
   },
 )
 
@@ -72,10 +74,10 @@ export default function useDownloadGrid() {
     const layer = createDownloadGridLayer(hoveredGridFeature, selectedGridFeature)
     downloadGridLayer.value = layer
     map.addLayer(layer)
-    layer.setVisible(showDownloadGrid.value)
+    layer.setVisible(settings.value.downloads)
 
     map.on('pointermove', (event) => {
-      if (!showDownloadGrid.value) return
+      if (!settings.value.downloads) return
       const feature =
         map.forEachFeatureAtPixel(event.pixel, (f) => f, {
           layerFilter: (l) => l === layer,
@@ -91,7 +93,7 @@ export default function useDownloadGrid() {
   /** Handle a map click; returns true if it hit a grid cell (and opened the modal). */
   const handleGridClick = (map: Map, pixel: number[]): boolean => {
     const layer = downloadGridLayer.value
-    if (!showDownloadGrid.value || !layer) return false
+    if (!settings.value.downloads || !layer) return false
     const feature =
       map.forEachFeatureAtPixel(pixel, (f) => f, {
         layerFilter: (l) => l === layer,
@@ -105,7 +107,6 @@ export default function useDownloadGrid() {
   }
 
   return {
-    showDownloadGrid,
     showDownloadModal,
     selectedGridCell,
     downloadGridLayer,

@@ -174,7 +174,7 @@ const updateLayers = () => {
     }
 
     // Initialize the download grid layer (hidden by default until user toggles it on).
-    // The layer persists across mode switches; visibility is driven by `showDownloadGrid`.
+    // The layer persists across mode switches; visibility is driven by `settings.downloads`.
     initDownloadGridLayer(map.value)
   } else {
     // Initialize with S2 grid layer
