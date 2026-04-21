@@ -1,9 +1,9 @@
-import { ref, shallowRef, watch } from 'vue'
+import { shallowRef, watch } from 'vue'
 import type Map from 'ol/Map'
 import type VectorLayer from 'ol/layer/Vector'
 import type VectorSource from 'ol/source/Vector'
 import type { FeatureLike } from 'ol/Feature'
-import { createDownloadGridLayer } from '../layers/Download-Grid-Layer'
+import { createDownloadGridLayer, getDownloadParquetUrl } from '../layers/Download-Grid-Layer'
 import useSettings from './useSettings'
 
 export interface GridCell {
@@ -18,9 +18,6 @@ export interface GridCell {
 const { settings } = useSettings()
 
 // Singleton state shared by all consumers of the composable.
-const showDownloadModal = ref(false)
-const selectedGridCell = ref<GridCell | null>(null)
-
 const hoveredGridFeature = shallowRef<FeatureLike | null>(null)
 const selectedGridFeature = shallowRef<FeatureLike | null>(null)
 const downloadGridLayer = shallowRef<VectorLayer<VectorSource> | null>(null)
@@ -45,10 +42,12 @@ export function featureToGridCell(feature: FeatureLike): GridCell {
 }
 
 function closeDownloadModal() {
-  showDownloadModal.value = false
-  selectedGridCell.value = null
   selectedGridFeature.value = null
   downloadGridLayer.value?.changed()
+}
+
+function triggerDownload(url: string) {
+  window.open(url, '_blank', 'noopener')
 }
 
 function ensureDownloadGridVisibleAtUsableZoom(map: Map | null) {
@@ -119,14 +118,17 @@ export default function useDownloadGrid() {
     if (!feature) return false
     selectedGridFeature.value = feature
     layer.changed()
-    selectedGridCell.value = featureToGridCell(feature)
-    showDownloadModal.value = true
+
+    const selectedGridCell = featureToGridCell(feature)
+    if (!selectedGridCell.years.includes(settings.value.year)) {
+      return true
+    }
+
+    triggerDownload(getDownloadParquetUrl(settings.value.year, selectedGridCell.tile_id))
     return true
   }
 
   return {
-    showDownloadModal,
-    selectedGridCell,
     downloadGridLayer,
     initDownloadGridLayer,
     handleGridClick,

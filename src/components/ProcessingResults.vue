@@ -93,7 +93,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, onBeforeUnmount, computed } from 'vue'
+import { ref, onBeforeUnmount, computed } from 'vue'
 import useMap from '../composables/useMap'
 import useNotifier from '../composables/useNotifier'
 import useAreaOfInterest from '../composables/useAreaOfInterest'
@@ -109,7 +109,7 @@ const emit = defineEmits<{
   (e: 'clearResults'): void
 }>()
 
-const { map, handleMapClick, vectorLayer, selectedFeature, hidePropertiesBox } = useMap()
+const { map, vectorLayer, selectedFeature, hidePropertiesBox } = useMap()
 const { clearResults, returnToResults, fitToExtent } = useAreaOfInterest()
 const { showInfo, showError } = useNotifier()
 
@@ -261,22 +261,8 @@ const fitMapToResult = (result: Feature) => {
   fitToExtent(map.value!, extent, null)
 }
 
-onMounted(() => {
-  // Add map click handler to detect feature clicks and show properties
-  if (map.value) {
-    map.value.on('singleclick', handleMapClick)
-  }
-})
-
 onBeforeUnmount(() => {
   selectedFeature.value = null
-})
-
-// Clean up map click handler when component is unmounted
-onUnmounted(() => {
-  if (map.value) {
-    map.value.un('singleclick', handleMapClick)
-  }
 })
 
 const clearResultsHandler = () => {

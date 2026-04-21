@@ -6,7 +6,6 @@ import DataCabinet from './DataCabinet.vue'
 import GlobalFeedbackWidget from './GlobalFeedbackWidget.vue'
 import ProcessingResults from './ProcessingResults.vue'
 import PropertiesDisplay from './PropertiesDisplay.vue'
-import DownloadModal from './DownloadModal.vue'
 import createLabelLayer from '../layers/Label-Layer'
 import { generateJWT } from '../functions/generate-jwt'
 import useAreaOfInterest from '../composables/useAreaOfInterest'
@@ -30,7 +29,7 @@ const {
   updateLayers,
 } = useMap()
 
-const { showDownloadModal, selectedGridCell, closeDownloadModal } = useDownloadGrid()
+useDownloadGrid()
 
 const { addMapClickHandler } = useAreaOfInterest()
 const { setAvailableModels, settings } = useSettings()
@@ -96,7 +95,7 @@ onMounted(async () => {
     updateLayers()
 
     addMapClickHandler(map.value as Map, areaValues.value)
-    map.value.on('click', handleMapClick)
+    map.value.on('singleclick', handleMapClick)
     // Add scale bar
     map.value.addControl(new ScaleLine())
     // Setup permalink functionality
@@ -164,13 +163,6 @@ defineExpose({
       <PropertiesDisplay :properties="selectedFeature.getProperties()" />
     </div>
   </div>
-
-  <DownloadModal
-    v-model="showDownloadModal"
-    :cell="selectedGridCell"
-    @update:model-value="!$event && closeDownloadModal()"
-  />
-
   <header v-if="critical" id="critical">
     <v-alert closable type="error" :text="critical"></v-alert>
   </header>

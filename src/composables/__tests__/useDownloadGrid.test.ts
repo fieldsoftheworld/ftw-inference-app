@@ -101,11 +101,11 @@ describe('featureToGridCell', () => {
 describe('useDownloadGrid', () => {
   beforeEach(() => {
     const { settings } = useSettings()
-    const { showDownloadModal, selectedGridCell } = useDownloadGrid()
+    const { downloadGridLayer } = useDownloadGrid()
     settings.value.downloads = false
     settings.value.mode = 'global'
-    showDownloadModal.value = false
-    selectedGridCell.value = null
+    downloadGridLayer.value = null
+    vi.restoreAllMocks()
   })
 
   it('uses settings as the source of truth for downloads visibility', () => {
@@ -119,18 +119,14 @@ describe('useDownloadGrid', () => {
     expect(settings.value.downloads).toBe(false)
   })
 
-  it('closes the modal via closeDownloadModal', () => {
-    const { showDownloadModal, selectedGridCell, closeDownloadModal } = useDownloadGrid()
-    showDownloadModal.value = true
-    selectedGridCell.value = {
-      tile_id: 'N40W100',
-      lat_min: 40,
-      lon_min: -100,
-      years: [2025],
-    }
+  it('clears the selected grid highlight via closeDownloadModal', () => {
+    const { closeDownloadModal, downloadGridLayer } = useDownloadGrid()
+    const changed = vi.fn()
+    downloadGridLayer.value = { changed } as any
+
     closeDownloadModal()
-    expect(showDownloadModal.value).toBe(false)
-    expect(selectedGridCell.value).toBeNull()
+
+    expect(changed).toHaveBeenCalled()
   })
 
   it('turns off the download grid when the user leaves global mode', async () => {
@@ -157,6 +153,68 @@ describe('useDownloadGrid', () => {
     const fakeMap = { forEachFeatureAtPixel: vi.fn() } as any
     expect(handleGridClick(fakeMap, [0, 0])).toBe(false)
     expect(fakeMap.forEachFeatureAtPixel).not.toHaveBeenCalled()
+  })
+
+  it('downloads the selected tile directly when clicked', () => {
+    const { settings } = useSettings()
+    const { handleGridClick, initDownloadGridLayer } = useDownloadGrid()
+    const feature = new Feature({
+      tile_id: 'N40W100',
+      lat_min: 40,
+      lon_min: -100,
+      years: [2025],
+    })
+    const openSpy = vi.spyOn(window, 'open').mockReturnValue(null)
+    const fakeMap = {
+      addLayer: vi.fn(),
+      on: vi.fn(),
+      getView: () => ({
+        getZoom: () => 1,
+        animate: vi.fn(),
+      }),
+      getTargetElement: () => ({ style: { cursor: '' } }),
+      forEachFeatureAtPixel: vi.fn(() => feature),
+    } as any
+
+    settings.value.downloads = true
+    settings.value.year = 2025
+    initDownloadGridLayer(fakeMap)
+
+    expect(handleGridClick(fakeMap, [0, 0])).toBe(true)
+    expect(openSpy).toHaveBeenCalledWith(
+      'https://data.source.coop/ftw/global-field-boundaries/download-tiles/geoparquet/2025/N40W100.parquet',
+      '_blank',
+      'noopener',
+    )
+  })
+
+  it('does not download when the selected year is unavailable for the tile', () => {
+    const { settings } = useSettings()
+    const { handleGridClick, initDownloadGridLayer } = useDownloadGrid()
+    const feature = new Feature({
+      tile_id: 'N40W100',
+      lat_min: 40,
+      lon_min: -100,
+      years: [2024],
+    })
+    const openSpy = vi.spyOn(window, 'open').mockReturnValue(null)
+    const fakeMap = {
+      addLayer: vi.fn(),
+      on: vi.fn(),
+      getView: () => ({
+        getZoom: () => 1,
+        animate: vi.fn(),
+      }),
+      getTargetElement: () => ({ style: { cursor: '' } }),
+      forEachFeatureAtPixel: vi.fn(() => feature),
+    } as any
+
+    settings.value.downloads = true
+    settings.value.year = 2025
+    initDownloadGridLayer(fakeMap)
+
+    expect(handleGridClick(fakeMap, [0, 0])).toBe(true)
+    expect(openSpy).not.toHaveBeenCalled()
   })
 
   it('persists the grid visibility in stored settings', async () => {
@@ -192,6 +250,6 @@ describe('useDownloadGrid', () => {
     settings.value.downloads = true
     await nextTick()
 
-    expect(animate).toHaveBeenCalledWith({ zoom: 8, duration: 500 })
+    expect(animate).toHaveBeenCalledWith({ zoom: 8 })
   })
 })

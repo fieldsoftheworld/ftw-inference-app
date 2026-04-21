@@ -90,16 +90,14 @@ const handleLocationSelected = (place: PlaceResult) => {
             </template>
             <v-sheet class="pa-3 text-body-2">
               <p class="pb-2">
-                After activation, click a grid cell to download its field boundaries. It will
-                download agricultural field boundary predictions for the selected 1°×1° tile as a
-                GeoParquet file from Source Cooperative.
+                After activation, click a tile to download the agricultural field boundary
+                predictions for that 1° cell as a GeoParquet file.
               </p>
               <p>
-                You can also download the entire dataset in different file formats and variants from
+                You can also download the entire dataset in various variants from
                 <a href="https://source.coop/ftw/global-data/" target="_blank" rel="noopener"
                   >our Source Cooperative repository</a
-                >
-                directly.
+                >.
               </p>
             </v-sheet>
           </v-menu>
