@@ -54,6 +54,17 @@ const handleLocationSelected = (place: PlaceResult) => {
           thumb-color="teal"
           hide-details
         />
+        <h3 class="group">Opacity: {{ settings.fieldBoundariesOpacity }}%</h3>
+        <v-slider
+          v-model.number="settings.fieldBoundariesOpacity"
+          :min="0"
+          :max="100"
+          :step="1"
+          color="teal"
+          track-color="grey-darken-2"
+          thumb-color="teal"
+          hide-details
+        />
         <h3 class="group">Download Data</h3>
         <v-switch
           v-model="showDownloadGrid"

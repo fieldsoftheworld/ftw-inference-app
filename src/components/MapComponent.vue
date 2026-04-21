@@ -14,6 +14,7 @@ import usePermalink from '../composables/usePermalink'
 import useMap from '../composables/useMap'
 import useSettings from '../composables/useSettings'
 import useDownloadGrid from '../composables/useDownloadGrid'
+import { createXYZ } from 'ol/tilegrid'
 
 const {
   map,
@@ -48,8 +49,9 @@ onMounted(async () => {
     target: 'map',
     layers: [createLabelLayer()],
     view: new View({
+      maxResolution: createXYZ({ tileSize: 512 }).getResolution(0), // use Mapbox/MapLibre compatible resolutions
       center: [0, 0],
-      zoom: 2,
+      zoom: 1,
     }),
   })
 
