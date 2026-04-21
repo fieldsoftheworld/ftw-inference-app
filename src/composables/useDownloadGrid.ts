@@ -19,7 +19,6 @@ const { settings } = useSettings()
 
 // Singleton state shared by all consumers of the composable.
 const hoveredGridFeature = shallowRef<FeatureLike | null>(null)
-const selectedGridFeature = shallowRef<FeatureLike | null>(null)
 const downloadGridLayer = shallowRef<VectorLayer<VectorSource> | null>(null)
 const currentMap = shallowRef<Map | null>(null)
 
@@ -41,11 +40,6 @@ export function featureToGridCell(feature: FeatureLike): GridCell {
   }
 }
 
-function closeDownloadModal() {
-  selectedGridFeature.value = null
-  downloadGridLayer.value?.changed()
-}
-
 function triggerDownload(url: string) {
   window.open(url, '_blank', 'noopener')
 }
@@ -62,13 +56,19 @@ function ensureDownloadGridVisibleAtUsableZoom(map: Map | null) {
   }
 }
 
-// Toggle layer visibility and close the modal when the grid is turned off.
+// Toggle layer visibility and clear hover state when the grid is turned off.
 watch(
   () => settings.value.downloads,
   (visible) => {
     downloadGridLayer.value?.setVisible(visible)
-    if (visible) ensureDownloadGridVisibleAtUsableZoom(currentMap.value)
-    if (!visible) closeDownloadModal()
+    if (visible) {
+      ensureDownloadGridVisibleAtUsableZoom(currentMap.value)
+    } else {
+      hoveredGridFeature.value = null
+      downloadGridLayer.value?.changed()
+      const el = currentMap.value?.getTargetElement()
+      if (el) el.style.cursor = ''
+    }
   },
 )
 
@@ -87,7 +87,7 @@ export default function useDownloadGrid() {
     initializedMaps.add(map)
     currentMap.value = map
 
-    const layer = createDownloadGridLayer(hoveredGridFeature, selectedGridFeature)
+    const layer = createDownloadGridLayer(hoveredGridFeature)
     downloadGridLayer.value = layer
     map.addLayer(layer)
     layer.setVisible(settings.value.downloads)
@@ -107,7 +107,7 @@ export default function useDownloadGrid() {
     })
   }
 
-  /** Handle a map click; returns true if it hit a grid cell (and opened the modal). */
+  /** Handle a map click; returns true if it hit a grid cell. */
   const handleGridClick = (map: Map, pixel: number[]): boolean => {
     const layer = downloadGridLayer.value
     if (!settings.value.downloads || !layer) return false
@@ -116,8 +116,6 @@ export default function useDownloadGrid() {
         layerFilter: (l) => l === layer,
       }) ?? null
     if (!feature) return false
-    selectedGridFeature.value = feature
-    layer.changed()
 
     const selectedGridCell = featureToGridCell(feature)
     if (!selectedGridCell.years.includes(settings.value.year)) {
@@ -132,6 +130,5 @@ export default function useDownloadGrid() {
     downloadGridLayer,
     initDownloadGridLayer,
     handleGridClick,
-    closeDownloadModal,
   }
 }

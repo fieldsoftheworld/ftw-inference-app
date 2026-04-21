@@ -230,7 +230,7 @@ export default function useMap() {
       propertiesBoxPosition.value = optimalPosition
       showPropertiesBox.value = true
     } else if (map.value && handleGridClick(map.value, pixel)) {
-      // Grid cell click handled — download modal will open
+      // Grid cell click handled — download triggered
     } else {
       hidePropertiesBox()
     }

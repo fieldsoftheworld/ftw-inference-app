@@ -20,25 +20,17 @@ const hoverStyle = new Style({
   stroke: new Stroke({ color: 'rgba(0, 200, 200, 0.9)', width: 1.5 }),
 })
 
-const selectedStyle = new Style({
-  fill: new Fill({ color: 'rgba(0, 136, 136, 0.25)' }),
-  stroke: new Stroke({ color: 'rgba(0, 255, 255, 1)', width: 2 }),
-})
-
 export function getDownloadGridStyle(
   feature: FeatureLike,
   hoveredFeature: FeatureLike | null,
-  selectedFeature: FeatureLike | null,
 ): Style {
-  if (feature === selectedFeature) return selectedStyle
   if (feature === hoveredFeature) return hoverStyle
   return normalStyle
 }
 
-export function createDownloadGridLayer(
-  hoveredFeatureRef: { value: FeatureLike | null },
-  selectedFeatureRef: { value: FeatureLike | null },
-): VectorLayer<VectorSource> {
+export function createDownloadGridLayer(hoveredFeatureRef: {
+  value: FeatureLike | null
+}): VectorLayer<VectorSource> {
   const source = new VectorSource({
     url: DOWNLOAD_GRID_URL,
     format: new GeoJSON(),
@@ -46,8 +38,7 @@ export function createDownloadGridLayer(
 
   return new VectorLayer({
     source,
-    style: (feature) =>
-      getDownloadGridStyle(feature, hoveredFeatureRef.value, selectedFeatureRef.value),
+    style: (feature) => getDownloadGridStyle(feature, hoveredFeatureRef.value),
     zIndex: 500,
     properties: { name: 'download-grid' },
   })

@@ -44,32 +44,38 @@ export function buildGlobalPermalinkParts(settings: Settings): string[] {
   return hashParts
 }
 
+const DEFAULT_INFERENCE_STATE: PermalinkStateInference = {
+  mode: 'inference',
+  zoom: 2,
+  center: [0, 0],
+  currentMgrsTileId: null,
+  activeTileId: null,
+  secondActiveTileId: null,
+}
+
+const DEFAULT_GLOBAL_STATE: PermalinkStateGlobal = {
+  mode: 'global',
+  zoom: 2,
+  center: [0, 0],
+  year: 2025,
+  threshold: 0.4,
+  opacity: 90,
+  downloads: false,
+}
+
+export function getDefaultPermalinkState(
+  mode: string,
+): PermalinkStateInference | PermalinkStateGlobal {
+  return mode === 'inference' ? { ...DEFAULT_INFERENCE_STATE } : { ...DEFAULT_GLOBAL_STATE }
+}
+
 export function parsePermalinkHash(
   hash: string,
   defaultMode: string,
   availableModes: { id: string }[],
 ): PermalinkStateInference | PermalinkStateGlobal | null {
-  const defaultInferenceState: PermalinkStateInference = {
-    mode: 'inference',
-    zoom: 2,
-    center: [0, 0],
-    currentMgrsTileId: null,
-    activeTileId: null,
-    secondActiveTileId: null,
-  }
-
-  const defaultGlobalState: PermalinkStateGlobal = {
-    mode: 'global',
-    zoom: 2,
-    center: [0, 0],
-    year: 2025,
-    threshold: 0.4,
-    opacity: 90,
-    downloads: false,
-  }
-
   const getDefaultState = (mode: string): PermalinkStateInference | PermalinkStateGlobal => {
-    return mode === 'inference' ? { ...defaultInferenceState } : { ...defaultGlobalState }
+    return getDefaultPermalinkState(mode)
   }
 
   if (hash === '') {
@@ -168,9 +174,9 @@ export function parsePermalinkHash(
         mode,
         zoom,
         center,
-        threshold: defaultGlobalState.threshold,
-        opacity: defaultGlobalState.opacity,
-        downloads: defaultGlobalState.downloads,
+        threshold: DEFAULT_GLOBAL_STATE.threshold,
+        opacity: DEFAULT_GLOBAL_STATE.opacity,
+        downloads: DEFAULT_GLOBAL_STATE.downloads,
       }
 
       for (const part of keyValueParts) {
@@ -395,31 +401,29 @@ export default function usePermalink() {
       },
     )
 
-    // Restore initial state from URL
-    const initialState = parsePermalink()
-    if (initialState) {
-      settings.value.mode = initialState.mode
-      restoreMapState(map.value, initialState)
+    // Restore initial state from URL (fall back to defaults when there is no hash)
+    const initialState = parsePermalink() ?? getDefaultPermalinkState(defaultMode)
+    settings.value.mode = initialState.mode
+    restoreMapState(map.value, initialState)
 
-      if (isInferenceState(initialState)) {
-        restoreInferenceState(initialState)
+    if (isInferenceState(initialState)) {
+      restoreInferenceState(initialState)
 
-        if (initialState.currentMgrsTileId) {
-          await triggerTileSelection(
-            map.value!,
-            currentMgrsTileId.value!,
-            areaValues.value!,
-            handleSearchResults,
-            undefined,
-            false,
-          )
-        }
-        if (initialState.bbox) {
-          drawnExtent.value = transformExtent(initialState.bbox, 'EPSG:4326', 'EPSG:3857')
-        }
-      } else if (isGlobalState(initialState)) {
-        restoreGlobalState(initialState)
+      if (initialState.currentMgrsTileId) {
+        await triggerTileSelection(
+          map.value!,
+          currentMgrsTileId.value!,
+          areaValues.value!,
+          handleSearchResults,
+          undefined,
+          false,
+        )
       }
+      if (initialState.bbox) {
+        drawnExtent.value = transformExtent(initialState.bbox, 'EPSG:4326', 'EPSG:3857')
+      }
+    } else if (isGlobalState(initialState)) {
+      restoreGlobalState(initialState)
     }
 
     // Update permalink when map moves

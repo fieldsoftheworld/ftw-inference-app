@@ -119,16 +119,6 @@ describe('useDownloadGrid', () => {
     expect(settings.value.downloads).toBe(false)
   })
 
-  it('clears the selected grid highlight via closeDownloadModal', () => {
-    const { closeDownloadModal, downloadGridLayer } = useDownloadGrid()
-    const changed = vi.fn()
-    downloadGridLayer.value = { changed } as any
-
-    closeDownloadModal()
-
-    expect(changed).toHaveBeenCalled()
-  })
-
   it('turns off the download grid when the user leaves global mode', async () => {
     const { settings } = useSettings()
     useDownloadGrid()
