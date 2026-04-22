@@ -43,7 +43,9 @@ export function featureToGridCell(feature: FeatureLike): GridCell {
 function triggerDownload(url: string, filename: string) {
   const a = document.createElement('a')
   a.href = url
-  a.download = settings.value.year + '-' + filename
+  // This doesn't actually set the filename as we download from another host,
+  // so browsers block providing a custom name (CORS same-origin policy).
+  a.download = filename
   a.rel = 'noopener'
   document.body.appendChild(a)
   a.click()
