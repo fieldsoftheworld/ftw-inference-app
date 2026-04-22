@@ -12,6 +12,7 @@ import useAreaOfInterest from '../composables/useAreaOfInterest'
 import usePermalink from '../composables/usePermalink'
 import useMap from '../composables/useMap'
 import useSettings from '../composables/useSettings'
+import useDownloadGrid from '../composables/useDownloadGrid'
 import { createXYZ } from 'ol/tilegrid'
 
 const {
@@ -22,10 +23,13 @@ const {
   propertiesBoxPosition,
   originalClickPosition,
   hidePropertiesBox,
+  handleMapClick,
   geoJsonResults,
   initCloudlessLayer,
   updateLayers,
 } = useMap()
+
+useDownloadGrid()
 
 const { addMapClickHandler } = useAreaOfInterest()
 const { setAvailableModels, settings } = useSettings()
@@ -91,6 +95,7 @@ onMounted(async () => {
     updateLayers()
 
     addMapClickHandler(map.value as Map, areaValues.value)
+    map.value.on('singleclick', handleMapClick)
     // Add scale bar
     map.value.addControl(new ScaleLine())
     // Setup permalink functionality
@@ -158,7 +163,6 @@ defineExpose({
       <PropertiesDisplay :properties="selectedFeature.getProperties()" />
     </div>
   </div>
-
   <header v-if="critical" id="critical">
     <v-alert closable type="error" :text="critical"></v-alert>
   </header>

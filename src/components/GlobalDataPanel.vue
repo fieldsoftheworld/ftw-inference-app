@@ -1,9 +1,11 @@
 <script setup lang="ts">
+import { mdiHelpCircleOutline } from '@mdi/js'
 import useSettings from '../composables/useSettings'
 import useMap from '../composables/useMap'
 import useAreaOfInterest from '../composables/useAreaOfInterest'
 import type { PlaceResult } from '../composables/useAreaOfInterest'
 import useNotifier from '../composables/useNotifier'
+import useDownloadGrid from '../composables/useDownloadGrid'
 import { transformExtent } from 'ol/proj'
 import GeocodingSearch from './GeocodingSearch.vue'
 import MapLegend from './MapLegend.vue'
@@ -12,6 +14,7 @@ const { settings } = useSettings()
 const { map } = useMap()
 const { fitToExtent } = useAreaOfInterest()
 const { showError } = useNotifier()
+useDownloadGrid()
 
 const handleLocationSelected = (place: PlaceResult) => {
   if (!map.value) return
@@ -68,9 +71,9 @@ const handleLocationSelected = (place: PlaceResult) => {
           thumb-color="teal"
           hide-details
         />
-        <h3 class="group">Opacity: {{ settings.fieldBoundariesOpacity }}%</h3>
+        <h3 class="group">Opacity: {{ settings.opacity }}%</h3>
         <v-slider
-          v-model.number="settings.fieldBoundariesOpacity"
+          v-model.number="settings.opacity"
           :min="0"
           :max="100"
           :step="1"
@@ -78,6 +81,34 @@ const handleLocationSelected = (place: PlaceResult) => {
           track-color="grey-darken-2"
           thumb-color="teal"
           hide-details
+        />
+        <div class="group group-with-help">
+          <h3>Download Data</h3>
+          <v-menu open-on-hover :close-on-content-click="false" max-width="400">
+            <template #activator="{ props }">
+              <v-icon :icon="mdiHelpCircleOutline" size="x-small" v-bind="props"></v-icon>
+            </template>
+            <v-sheet class="pa-3 text-body-2">
+              <p class="pb-2">
+                After activation, click a tile to download the agricultural field boundary
+                predictions for that 1° cell as a GeoParquet file.
+              </p>
+              <p>
+                You can also download the entire dataset in various variants from
+                <a href="https://source.coop/ftw/global-data/" target="_blank" rel="noopener"
+                  >our Source Cooperative repository</a
+                >.
+              </p>
+            </v-sheet>
+          </v-menu>
+        </div>
+        <v-switch
+          v-model="settings.downloads"
+          color="teal"
+          density="compact"
+          hide-details
+          label="Show download grid"
+          class="mb-1"
         />
         <h3 class="group legend">Legend</h3>
         <MapLegend />
@@ -91,6 +122,16 @@ const handleLocationSelected = (place: PlaceResult) => {
   margin: 1rem -0.5rem 0.5rem;
   font-weight: 500;
   font-size: 1.1rem;
+}
+.group-with-help {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+.group-with-help h3 {
+  margin: 0;
+  font-weight: inherit;
+  font-size: inherit;
 }
 .group.legend {
   margin-top: 1rem;
