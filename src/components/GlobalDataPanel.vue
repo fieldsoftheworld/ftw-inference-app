@@ -1,7 +1,9 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import { mdiHelpCircleOutline } from '@mdi/js'
 import useSettings from '../composables/useSettings'
 import useMap from '../composables/useMap'
+import { getEffectiveCloudlessYear } from '../layers/S2-Cloudless-Layer'
 import useAreaOfInterest from '../composables/useAreaOfInterest'
 import type { PlaceResult } from '../composables/useAreaOfInterest'
 import useNotifier from '../composables/useNotifier'
@@ -12,6 +14,10 @@ import MapLegend from './MapLegend.vue'
 
 const { settings } = useSettings()
 const { map } = useMap()
+
+const basemapYearMismatch = computed(
+  () => settings.value.year !== getEffectiveCloudlessYear(settings.value.year),
+)
 const { fitToExtent } = useAreaOfInterest()
 const { showError } = useNotifier()
 useDownloadGrid()
@@ -60,6 +66,15 @@ const handleLocationSelected = (place: PlaceResult) => {
           <v-radio label="2024" :value="2024"></v-radio>
           <v-radio label="2025" :value="2025"></v-radio>
         </v-radio-group>
+        <v-alert
+          v-if="basemapYearMismatch"
+          type="warning"
+          variant="tonal"
+          density="compact"
+          class="mt-2"
+        >
+          No basemap is available for {{ settings.year }}. Showing the {{ getEffectiveCloudlessYear(settings.year) }} basemap instead.
+        </v-alert>
         <h3 class="group">Confidence Threshold: {{ settings.threshold }}%</h3>
         <v-slider
           v-model.number="settings.threshold"

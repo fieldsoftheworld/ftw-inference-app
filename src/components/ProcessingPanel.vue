@@ -23,6 +23,7 @@ import TilePreview from './TilePreview.vue'
 import GeocodingSearch from './GeocodingSearch.vue'
 import useStacLayer from '../composables/useStacLayer'
 import { debounce } from 'vuetify/lib/util/helpers.mjs'
+import { getEffectiveCloudlessYear } from '../layers/S2-Cloudless-Layer'
 
 const emit = defineEmits<{
   (e: 'workStateChanged', isWorking: boolean): void
@@ -84,6 +85,10 @@ const activePanel = ref<string | null>(currentMgrsTileId.value ? null : 'aoi')
 const hasLoadedMore = ref(false)
 const sceneSelectionStatus = ref<boolean | null>(null)
 const sceneYears = Array.from({ length: 10 }, (_, i) => new Date().getFullYear() - i)
+
+const basemapYearMismatch = computed(
+  () => settings.value.year !== getEffectiveCloudlessYear(settings.value.year),
+)
 
 const isSelectingScenes = computed(
   () => sceneSelectionStatus.value === null && settings.value.autoSceneSelection,
@@ -671,6 +676,14 @@ defineExpose({ openModelSelection })
                 hide-details
                 variant="outlined"
               />
+            </v-col>
+          </v-row>
+
+          <v-row v-if="basemapYearMismatch">
+            <v-col>
+              <v-alert type="warning" variant="tonal" density="compact">
+                No basemap is available for {{ settings.year }}. Showing the {{ getEffectiveCloudlessYear(settings.year) }} basemap instead.
+              </v-alert>
             </v-col>
           </v-row>
 
