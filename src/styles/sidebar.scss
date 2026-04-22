@@ -3,7 +3,7 @@
   top: 1rem;
   z-index: 1000;
   min-height: 50px;
-  max-height: calc(100vh - 5rem);
+  max-height: calc(100vh - 7rem);
   display: flex;
   flex-direction: column;
   background-color: rgba(0, 0, 0, 0.9);
@@ -20,7 +20,7 @@
 @media (width <=1200px) {
   .sidebar {
     top: 4rem !important;
-    max-height: calc(100vh - 8.5rem);
+    max-height: calc(100vh - 10rem);
   }
 }
 
