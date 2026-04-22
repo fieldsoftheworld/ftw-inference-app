@@ -40,19 +40,22 @@ function setModeValue(newValue: number) {
         class="logo"
         @click="aboutDialog = true"
       />
-      <v-item-group
-        selected-class="bg-primary"
-        mandatory
-        v-model="modeValue"
-        @update:model-value="setModeValue"
-        class="mode-switch"
-      >
-        <v-item v-for="tab in availableModes" :key="tab.id" v-slot="{ selectedClass, toggle }">
-          <v-card :class="['d-flex align-center', selectedClass]" @click="toggle">
-            <div class="mode-switch-btn flex-grow-1 text-center">{{ tab.label }}</div>
-          </v-card>
-        </v-item>
-      </v-item-group>
+      <v-card variant="outlined" rounded="lg" class="switch">
+        <span class="switch-label">Predictions</span>
+        <v-divider vertical></v-divider>
+        <v-btn-toggle
+          v-model="modeValue"
+          mandatory
+          divided
+          color="primary"
+          rounded="0"
+          @update:model-value="setModeValue"
+        >
+          <v-btn v-for="(tab, index) in availableModes" :key="tab.id" :value="index">
+            {{ tab.label }}
+          </v-btn>
+        </v-btn-toggle>
+      </v-card>
     </header>
 
     <MapComponent />
@@ -89,16 +92,36 @@ function setModeValue(newValue: number) {
   transform: translateX(-50%);
   z-index: 1000;
   background-color: rgba(0, 0, 0, 0.5);
-  padding: 0.25rem 0.5rem 0.5rem 0.5rem;
+  padding: 0 0.5rem;
   border-radius: 0 0 1rem 1rem;
-  font-size: 1.33rem;
-  font-weight: 600;
-  text-align: center;
+  height: 3.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
 }
 
 #title .logo {
-  height: 64px;
+  height: 3.5rem;
   cursor: pointer;
+}
+
+#title .switch {
+  margin: 0.25rem;
+  height: 2.5rem;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  background: transparent;
+}
+
+#title .switch-label {
+  padding: 0 0.75rem;
+  font-weight: 600;
+}
+
+#title .switch :deep(.v-btn) {
+  padding: 0 0.75rem;
+  min-width: unset;
 }
 
 .map-view {
@@ -111,32 +134,10 @@ function setModeValue(newValue: number) {
   height: 100%;
 }
 
-.mode-switch {
-  display: flex;
-  gap: 0.5rem;
-}
-
-.mode-switch-btn {
-  font-size: 1.1rem;
-  padding: 0.2rem 0.5rem;
-  white-space: nowrap;
-}
 .info-btn {
   position: absolute;
   top: 0.5rem;
   right: 0.5rem;
   z-index: 1001;
-}
-
-@media (width <= 1200px) {
-  #title {
-    display: flex;
-  }
-  #title .logo {
-    height: 40px;
-  }
-  .mode-switch-btn {
-    font-size: 1rem;
-  }
 }
 </style>

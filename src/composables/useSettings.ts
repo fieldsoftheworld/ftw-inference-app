@@ -31,11 +31,11 @@ const defaultMode = 'global'
 const availableModes: { id: string; label: string }[] = [
   {
     id: 'global',
-    label: 'Global Predictions',
+    label: 'Global',
   },
   {
     id: 'inference',
-    label: 'My Inference',
+    label: 'Custom',
   },
   // {
   //   id: 'edit',
