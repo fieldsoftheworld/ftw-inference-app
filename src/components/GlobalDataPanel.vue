@@ -73,7 +73,8 @@ const handleLocationSelected = (place: PlaceResult) => {
           density="compact"
           class="mt-2"
         >
-          No basemap is available for {{ settings.year }}. Showing the {{ getEffectiveCloudlessYear(settings.year) }} basemap instead.
+          No basemap is available for {{ settings.year }}. Showing the
+          {{ getEffectiveCloudlessYear(settings.year) }} basemap instead.
         </v-alert>
         <h3 class="group">Confidence Threshold: {{ settings.threshold }}%</h3>
         <v-slider
