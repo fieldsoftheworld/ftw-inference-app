@@ -143,6 +143,7 @@ export default function useGlobalContribute() {
 
     const validationError = validateFormData(contributeForm.value)
     if (validationError) {
+      showError(validationError)
       return
     }
 

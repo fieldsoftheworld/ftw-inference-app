@@ -38,7 +38,7 @@ const emailError = computed(() => {
   if (props.required && props.submitted && !props.email.trim()) {
     return 'This field is required.'
   }
-  if (props.email && !isValidEmail(props.email)) {
+  if (props.submitted && props.email && !isValidEmail(props.email)) {
     return 'Please enter a valid email address.'
   }
   return undefined

@@ -208,10 +208,6 @@ const sliderLabels = computed(() => {
   justify-content: center;
 }
 
-.feedback-actions--center {
-  justify-content: center;
-}
-
 .zoom-message {
   font-size: 0.8rem;
   text-align: center;
