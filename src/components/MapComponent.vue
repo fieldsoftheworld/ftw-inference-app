@@ -49,6 +49,7 @@ onMounted(async () => {
     layers: [createLabelLayer()],
     view: new View({
       maxResolution: createXYZ({ tileSize: 512 }).getResolution(0), // use Mapbox/MapLibre compatible resolutions
+      maxZoom: 16,
       center: [0, 0],
       zoom: 1,
     }),
