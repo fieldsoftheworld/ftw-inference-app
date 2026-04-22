@@ -7,12 +7,14 @@ interface Props {
   email: string
   organization: string
   required?: boolean
+  submitted?: boolean
   density?: 'default' | 'comfortable' | 'compact'
   fieldSpacing?: string
 }
 
 const props = withDefaults(defineProps<Props>(), {
   required: false,
+  submitted: false,
   density: 'default',
   fieldSpacing: 'mb-3',
 })
@@ -25,9 +27,22 @@ interface Emits {
 
 const emit = defineEmits<Emits>()
 
-const emailError = computed(() =>
-  props.email && !isValidEmail(props.email) ? 'Please enter a valid email address.' : undefined,
-)
+const nameError = computed(() => {
+  if (props.required && props.submitted && !props.name.trim()) {
+    return 'This field is required.'
+  }
+  return undefined
+})
+
+const emailError = computed(() => {
+  if (props.required && props.submitted && !props.email.trim()) {
+    return 'This field is required.'
+  }
+  if (props.submitted && props.email && !isValidEmail(props.email)) {
+    return 'Please enter a valid email address.'
+  }
+  return undefined
+})
 </script>
 
 <template>
@@ -38,6 +53,7 @@ const emailError = computed(() =>
     variant="outlined"
     :density="density"
     :class="fieldSpacing"
+    :error-messages="nameError"
   ></v-text-field>
 
   <v-text-field
