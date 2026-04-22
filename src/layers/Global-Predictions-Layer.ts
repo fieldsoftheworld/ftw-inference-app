@@ -6,6 +6,7 @@ import {
   get_global_pmtiles_url,
   type Settings,
 } from '../composables/useSettings'
+import { thresholdToRaw } from './color-scales'
 
 export interface GlobalPredictionsController {
   layer: TileLayer<ImageTileSource>
@@ -21,7 +22,7 @@ export function createGlobalPredictionsLayer(settings: Settings): GlobalPredicti
   worker.postMessage({
     action: 'init',
     url: get_global_pmtiles_url(settings.year),
-    threshold: settings.threshold,
+    threshold: thresholdToRaw(settings.threshold),
   })
 
   let revision = 0
@@ -101,7 +102,10 @@ export function createGlobalPredictionsLayer(settings: Settings): GlobalPredicti
   return {
     layer,
     update(newSettings: Settings) {
-      worker.postMessage({ action: 'updateThreshold', threshold: newSettings.threshold })
+      worker.postMessage({
+        action: 'updateThreshold',
+        threshold: thresholdToRaw(newSettings.threshold),
+      })
       revision++
       ;(source as any).setKey(`${GLOBAL_DATA_PMTILES_THRESHOLD_METRIC}-${revision}`)
     },

@@ -6,7 +6,7 @@ import {
   GLOBAL_DATA_MAP_FIELD_START_ZOOM_LEVEL,
   type Settings,
 } from '../composables/useSettings'
-import { areaColorScale, type ColorStop } from './color-scales'
+import { areaColorScale, thresholdToRaw, type ColorStop } from './color-scales'
 
 const ALPHA = 'aa'
 
@@ -24,7 +24,7 @@ const overviewStyle = (settings: Settings) => {
       'case',
       ['<=', ['band', 1], 0],
       '#00000000', // no area data
-      ['<=', ['band', 2], settings.threshold],
+      ['<=', ['band', 2], thresholdToRaw(settings.threshold)],
       '#00000000', // confidence below threshold
       buildAreaInterpolation(areaColorScale), // show area colors
     ],

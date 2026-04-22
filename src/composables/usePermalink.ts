@@ -3,7 +3,7 @@ import type Map from 'ol/Map'
 import useAreaOfInterest from './useAreaOfInterest'
 import useMap from './useMap'
 import useSearch from './useSearch'
-import useSettings from './useSettings'
+import useSettings, { defaultThreshold } from './useSettings'
 import { fromLonLat, toLonLat, transformExtent } from 'ol/proj'
 import { type Extent } from 'ol/extent'
 import { type Coordinate } from 'ol/coordinate'
@@ -58,7 +58,7 @@ export default function usePermalink() {
     zoom: 2,
     center: [0, 0],
     year: 2025,
-    threshold: 0.4,
+    threshold: defaultThreshold,
     fieldBoundariesOpacity: 90,
   }
 
@@ -180,8 +180,10 @@ export default function usePermalink() {
 
           for (const part of keyValueParts) {
             if (part.startsWith('threshold:')) {
-              const val = parseFloat(part.substring(10))
-              if (!isNaN(val)) result.threshold = val
+              const val = parseInt(part.substring(10), 10)
+              if (!isNaN(val)) {
+                result.threshold = val
+              }
             } else if (part.startsWith('year:')) {
               const year = parseInt(part.substring(5), 10)
               if (!isNaN(year)) result.year = year
@@ -286,7 +288,7 @@ export default function usePermalink() {
       }
     } else {
       // Global mode
-      hashParts.push(`threshold:${settings.value.threshold}`)
+      hashParts.push(`threshold:${Math.round(settings.value.threshold)}`)
       if (settings.value.year) {
         hashParts.push(`year:${settings.value.year}`)
       }

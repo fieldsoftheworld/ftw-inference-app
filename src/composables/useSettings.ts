@@ -45,6 +45,8 @@ const availableModes: { id: string; label: string }[] = [
 
 const availableModels = shallowRef<ModelInfo[]>([])
 
+export const defaultThreshold = 70
+
 // Default settings
 const defaultSettings: Settings = {
   autoSceneSelection: true,
@@ -57,7 +59,7 @@ const defaultSettings: Settings = {
   model: '',
   expertMode: false,
   mode: defaultMode,
-  threshold: 0.4,
+  threshold: defaultThreshold,
   fieldBoundariesOpacity: 90,
 }
 
@@ -86,6 +88,9 @@ const loadSettingsFromStorage = (): Settings => {
   const stored = localStorage.getItem('ftw-search-settings')
   if (stored) {
     const parsed = JSON.parse(stored)
+    if (parsed.threshold !== undefined) {
+      parsed.threshold = Math.round(parsed.threshold)
+    }
     return Object.assign(structuredClone(defaultSettings), parsed) as Settings
   }
 
