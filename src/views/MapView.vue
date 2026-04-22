@@ -41,7 +41,7 @@ function setModeValue(newValue: number) {
         @click="aboutDialog = true"
       />
       <v-card variant="outlined" rounded="lg" class="switch">
-        <span class="switch-label">Predictions</span>
+        <span class="switch-label">Mode</span>
         <v-divider vertical></v-divider>
         <v-btn-toggle
           v-model="modeValue"
@@ -117,11 +117,20 @@ function setModeValue(newValue: number) {
 #title .switch-label {
   padding: 0 0.75rem;
   font-weight: 600;
+  color: rgba(255, 255, 255, 0.7);
+  height: 100%;
+  display: flex;
+  align-items: center;
+  border-right: 1px solid rgba(255, 255, 255, 0.7);
 }
 
 #title .switch :deep(.v-btn) {
   padding: 0 0.75rem;
   min-width: unset;
+}
+
+#title .switch :deep(.bg-primary) {
+  --v-theme-overlay-multiplier: 0;
 }
 
 .map-view {
