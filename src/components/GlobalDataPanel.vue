@@ -91,7 +91,7 @@ const handleLocationSelected = (place: PlaceResult) => {
           hide-details
         />
         <p class="text-caption text-medium-emphasis">
-          Fields below the threshold are shown faded on the map.
+          Fields below the threshold are hidden from the map.
         </p>
         <h3 class="group">Opacity: {{ settings.fieldBoundariesOpacity }}%</h3>
         <v-slider
