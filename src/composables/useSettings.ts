@@ -32,11 +32,11 @@ const defaultMode = 'global'
 const availableModes: { id: string; label: string }[] = [
   {
     id: 'global',
-    label: 'Global Predictions',
+    label: 'Global',
   },
   {
     id: 'inference',
-    label: 'My Inference',
+    label: 'Custom',
   },
   // {
   //   id: 'edit',
@@ -45,6 +45,8 @@ const availableModes: { id: string; label: string }[] = [
 ]
 
 const availableModels = shallowRef<ModelInfo[]>([])
+
+export const defaultThreshold = 70
 
 // Default settings
 const defaultSettings: Settings = {
@@ -58,7 +60,7 @@ const defaultSettings: Settings = {
   model: '',
   expertMode: false,
   mode: defaultMode,
-  threshold: 0.4,
+  threshold: defaultThreshold,
   opacity: 90,
   downloads: false,
 }
@@ -88,6 +90,9 @@ const loadSettingsFromStorage = (): Settings => {
   const stored = localStorage.getItem('ftw-search-settings')
   if (stored) {
     const parsed = JSON.parse(stored)
+    if (parsed.threshold !== undefined) {
+      parsed.threshold = Math.round(parsed.threshold)
+    }
     return Object.assign(structuredClone(defaultSettings), parsed) as Settings
   }
 
@@ -164,7 +169,7 @@ export const GLOBAL_DATA_PMTILES_THRESHOLD_METRIC = 'mean' // median / mean / mi
 export const GLOBAL_DATA_MAP_COMPLETE_ZOOM_LEVEL = 12
 export const GLOBAL_DATA_MAP_FIELD_START_ZOOM_LEVEL = 11
 export const get_global_pmtiles_url = (year: number) => {
-  return `https://s3.us-west-2.amazonaws.com/us-west-2.opendata.source.coop/ftw/global-field-boundaries/pmtiles/ftw-global-fields-${year}.pmtiles`
+  return `https://geospatialvisualizer.z13.web.core.windows.net/ftw_visualizer/data/${year}_with_confidence.pmtiles`
 }
 
 export const AREA_OVERVIEW_COG =

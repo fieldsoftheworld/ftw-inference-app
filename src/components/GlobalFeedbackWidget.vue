@@ -5,6 +5,7 @@ import { geoJsonResults } from '../composables/useMap'
 import useSettings from '../composables/useSettings'
 import GlobalContributeModal from './GlobalContributeModal.vue'
 import GlobalFeedbackDetailsModal from './GlobalFeedbackDetailsModal.vue'
+import GlobalFeedbackTagsModal from './GlobalFeedbackTagsModal.vue'
 import useGlobalFeedback from '../composables/useGlobalFeedback'
 import useGlobalContribute from '../composables/useGlobalContribute'
 
@@ -18,13 +19,16 @@ const {
   selectedLevel,
   detailsDialogOpen,
   detailsForm,
+  tagsDialogOpen,
+  selectedTags,
   canProvideFeedback,
-  zoomGateMessage,
+  isMediumZoom,
   canSubmitDetailed,
   isSubmittingQuick,
   isSubmittingDetails,
-  openDetailsDialog,
+  openDetailsDialogFromTags,
   submitQuickFeedback,
+  submitRatingWithTags,
   submitDetailedFeedback,
 } = useGlobalFeedback(map)
 
@@ -78,15 +82,6 @@ const sliderLabels = computed(() => {
               Contribute
             </v-btn>
             <v-btn
-              variant="outlined"
-              color="teal"
-              size="small"
-              :disabled="!selectedLevel"
-              @click="openDetailsDialog"
-            >
-              Tell Us More
-            </v-btn>
-            <v-btn
               variant="flat"
               color="teal"
               size="small"
@@ -100,7 +95,17 @@ const sliderLabels = computed(() => {
         </template>
 
         <template v-else>
-          <div class="zoom-message">{{ zoomGateMessage }}</div>
+          <div class="zoom-message">
+            <template v-if="isMediumZoom">
+              Zoom in more to see <strong>all</strong> fields and to give feedback.
+            </template>
+            <template v-else> Zoom in to see fields and to give feedback. </template>
+          </div>
+          <div class="feedback-actions feedback-actions--center mt-3">
+            <v-btn variant="outlined" color="teal" size="small" @click="openContributeDialog">
+              Contribute
+            </v-btn>
+          </div>
         </template>
       </v-card-text>
     </v-card>
@@ -112,6 +117,16 @@ const sliderLabels = computed(() => {
       :is-submitting="isSubmittingDetails"
       @update:form="(field, value) => (detailsForm[field] = value)"
       @submit="submitDetailedFeedback"
+    />
+
+    <GlobalFeedbackTagsModal
+      v-model="tagsDialogOpen"
+      :selected-level="selectedLevel"
+      :selected-tags="selectedTags"
+      :is-submitting="isSubmittingQuick"
+      @update:selected-tags="selectedTags = $event"
+      @submit="submitRatingWithTags"
+      @tell-us-more="openDetailsDialogFromTags"
     />
 
     <GlobalContributeModal
@@ -184,9 +199,13 @@ const sliderLabels = computed(() => {
 
 .feedback-actions {
   display: flex;
-  justify-content: flex-end;
+  justify-content: space-between;
   gap: 0.35rem;
   margin-top: 1.2rem;
+}
+
+.feedback-actions--center {
+  justify-content: center;
 }
 
 .zoom-message {

@@ -401,15 +401,17 @@ export default function usePermalink() {
       },
     )
 
-    // Restore initial state from URL (fall back to defaults when there is no hash)
-    const initialState = parsePermalink() ?? getDefaultPermalinkState(defaultMode)
-    settings.value.mode = initialState.mode
+    // Restore initial state from URL; when there is no hash, keep settings already
+    // loaded from localStorage and only fall back to defaults for map view position
+    const parsedState = parsePermalink()
+    const initialState = parsedState ?? getDefaultPermalinkState(defaultMode)
+    settings.value.mode = parsedState ? parsedState.mode : settings.value.mode
     restoreMapState(map.value, initialState)
 
-    if (isInferenceState(initialState)) {
-      restoreInferenceState(initialState)
+    if (parsedState && isInferenceState(parsedState)) {
+      restoreInferenceState(parsedState)
 
-      if (initialState.currentMgrsTileId) {
+      if (parsedState.currentMgrsTileId) {
         await triggerTileSelection(
           map.value!,
           currentMgrsTileId.value!,
@@ -419,11 +421,11 @@ export default function usePermalink() {
           false,
         )
       }
-      if (initialState.bbox) {
-        drawnExtent.value = transformExtent(initialState.bbox, 'EPSG:4326', 'EPSG:3857')
+      if (parsedState.bbox) {
+        drawnExtent.value = transformExtent(parsedState.bbox, 'EPSG:4326', 'EPSG:3857')
       }
-    } else if (isGlobalState(initialState)) {
-      restoreGlobalState(initialState)
+    } else if (parsedState && isGlobalState(parsedState)) {
+      restoreGlobalState(parsedState)
     }
 
     // Update permalink when map moves

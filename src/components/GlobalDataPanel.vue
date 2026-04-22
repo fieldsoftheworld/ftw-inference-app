@@ -60,12 +60,12 @@ const handleLocationSelected = (place: PlaceResult) => {
           <v-radio label="2024" :value="2024"></v-radio>
           <v-radio label="2025" :value="2025"></v-radio>
         </v-radio-group>
-        <h3 class="group">Confidence Threshold: {{ (settings.threshold * 100).toFixed(0) }}%</h3>
+        <h3 class="group">Confidence Threshold: {{ settings.threshold }}%</h3>
         <v-slider
           v-model.number="settings.threshold"
           :min="0"
-          :max="1"
-          :step="0.01"
+          :max="100"
+          :step="1"
           color="teal"
           track-color="grey-darken-2"
           thumb-color="teal"
