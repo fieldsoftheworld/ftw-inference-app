@@ -5,7 +5,7 @@ import { toLonLat } from 'ol/proj'
 import { unByKey } from 'ol/Observable'
 import type { EventsKey } from 'ol/events'
 import useNotifier from './useNotifier'
-import {
+import useSettings, {
   GLOBAL_DATA_MAP_COMPLETE_ZOOM_LEVEL,
   GLOBAL_DATA_MAP_FIELD_START_ZOOM_LEVEL,
 } from './useSettings'
@@ -123,6 +123,7 @@ function getEndpoints() {
 
 export default function useGlobalFeedback(mapRef: ShallowRef<Map | null>) {
   const { showError, showSuccess } = useNotifier()
+  const { settings } = useSettings()
   const { tileRating: tileRatingEndpoint, tellUsMore: tellUsMoreEndpoint } = getEndpoints()
 
   const sliderValue = ref<number>(1)
@@ -275,6 +276,7 @@ export default function useGlobalFeedback(mapRef: ShallowRef<Map | null>) {
         rating: selectedLevel.value,
         bbox: mapExtent.value,
         resolution: mapResolution.value,
+        confidence_threshold: settings.value.threshold,
         tags: selectedTags.value,
       })
       return true
@@ -361,6 +363,7 @@ export default function useGlobalFeedback(mapRef: ShallowRef<Map | null>) {
         rating: selectedLevel.value,
         bbox: mapExtent.value,
         resolution: mapResolution.value,
+        confidence_threshold: settings.value.threshold,
         tags: selectedTags.value,
       }
 
