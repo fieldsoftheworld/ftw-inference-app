@@ -294,12 +294,9 @@ export default function useGlobalFeedback(mapRef: ShallowRef<Map | null>) {
     }
   }
 
-  const openDetailsDialogFromTags = async () => {
-    const ok = await postRating()
-    if (ok) {
-      closeTagsDialog()
-      openDetailsDialog()
-    }
+  const openDetailsDialogFromTags = () => {
+    closeTagsDialog()
+    openDetailsDialog()
   }
 
   const openDetailsDialog = () => {
@@ -364,6 +361,7 @@ export default function useGlobalFeedback(mapRef: ShallowRef<Map | null>) {
         rating: selectedLevel.value,
         bbox: mapExtent.value,
         resolution: mapResolution.value,
+        tags: selectedTags.value,
       }
 
       if (detailsForm.value.name) {
