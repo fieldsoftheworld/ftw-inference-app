@@ -481,7 +481,7 @@ defineExpose({ openModelSelection })
                     <v-icon
                       class="ml-1"
                       :icon="mdiInformationOutline"
-                      size="x-small"
+                      size="small"
                       v-bind="props"
                     ></v-icon>
                   </template>

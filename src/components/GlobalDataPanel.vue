@@ -37,8 +37,8 @@ const handleLocationSelected = (place: PlaceResult) => {
 <template>
   <div class="settings">
     <v-alert density="compact" color="gray" class="mb-2 introduction">
-      The <strong>global predictions</strong> provide global-scale estimates of agricultural fields
-      for 2024 and 2025. They were computed using the model
+      Pre-computed agricultural field boundaries for <strong>2024</strong> and
+      <strong>2025</strong>, generated globally with the
       <v-menu open-on-hover :close-on-content-click="false" max-width="400">
         <template #activator="{ props }">
           <strong v-bind="props" style="cursor: pointer; text-decoration: underline dotted"
@@ -53,8 +53,9 @@ const handleLocationSelected = (place: PlaceResult) => {
             >PRUE: A Practical Recipe for Field Boundary Segmentation at Scale</a
           >" for more information. The model version "FTW v3" is also named "PRUE" in the
           paper.</v-sheet
-        > </v-menu
-      >.
+        >
+      </v-menu>
+      model.
     </v-alert>
 
     <v-row class="d-flex justify-center w-100 mx-auto mb-0">
@@ -76,7 +77,24 @@ const handleLocationSelected = (place: PlaceResult) => {
           No basemap is available for {{ settings.year }}. Showing the
           {{ getEffectiveCloudlessYear(settings.year) }} basemap instead.
         </v-alert>
-        <h3 class="group">Confidence Threshold: {{ settings.threshold }}%</h3>
+        <h3 class="group">
+          Confidence Threshold: {{ settings.threshold }}%
+          <v-tooltip max-width="360" location="top">
+            <template #activator="{ props }">
+              <v-icon
+                class="ml-2"
+                :icon="mdiInformationOutline"
+                size="small"
+                v-bind="props"
+              ></v-icon>
+            </template>
+            <span
+              >Only show fields where the model's confidence meets this threshold. Higher values
+              show fewer, more certain fields; lower values show more fields, including less certain
+              ones.</span
+            >
+          </v-tooltip>
+        </h3>
         <v-slider
           v-model.number="settings.threshold"
           :min="0"
@@ -102,7 +120,7 @@ const handleLocationSelected = (place: PlaceResult) => {
           <h3>Download Data</h3>
           <v-menu open-on-hover :close-on-content-click="false" max-width="400">
             <template #activator="{ props }">
-              <v-icon :icon="mdiInformationOutline" size="x-small" v-bind="props"></v-icon>
+              <v-icon :icon="mdiInformationOutline" size="small" v-bind="props"></v-icon>
             </template>
             <v-sheet class="pa-3 text-body-2">
               <p class="pb-2">
@@ -126,7 +144,23 @@ const handleLocationSelected = (place: PlaceResult) => {
           label="Show download grid"
           class="mb-1"
         />
-        <h3 class="group legend">Legend</h3>
+        <h3 class="group legend">
+          Legend
+          <v-tooltip max-width="360" location="top">
+            <template #activator="{ props }">
+              <v-icon
+                class="ml-2"
+                :icon="mdiInformationOutline"
+                size="small"
+                v-bind="props"
+              ></v-icon>
+            </template>
+            <span
+              >Zoomed out, the map shows <strong>field density</strong> (fields per area). Zoom in
+              to see individual fields colored by the model's <strong>confidence</strong>.</span
+            >
+          </v-tooltip>
+        </h3>
         <MapLegend />
       </v-col>
     </v-row>
