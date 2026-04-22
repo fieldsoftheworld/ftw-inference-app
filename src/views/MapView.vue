@@ -59,7 +59,12 @@ function setModeValue(newValue: number) {
 
     <!-- About Dialog -->
     <v-dialog v-model="aboutDialog" width="auto">
-      <v-card max-width="600" border :prepend-icon="mdiInformation" title="About the FTW Explorer">
+      <v-card
+        max-width="600"
+        border
+        :prepend-icon="mdiInformation"
+        title="About the Fields of The World Explorer"
+      >
         <v-card-text>
           Welcome to the Fields of the World (FTW) Explorer Web App. Use it to either explore the
           global field boundary data or run the FTW model on Sentinel-2 Level 2A Collection 1

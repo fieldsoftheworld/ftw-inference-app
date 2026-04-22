@@ -1,4 +1,4 @@
-# FTW Inference App
+# FTW Explorer - The Inference App
 
 A Vue 3 application for running inference on satellite imagery using the FTW API.
 
