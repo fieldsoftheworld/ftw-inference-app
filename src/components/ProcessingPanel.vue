@@ -12,7 +12,7 @@ import useAreaOfInterest from '../composables/useAreaOfInterest'
 import useProcessingMode from '../composables/useProcessingMode'
 import useMap from '../composables/useMap'
 import {
-  mdiHelpCircleOutline,
+  mdiInformationOutline,
   mdiCheckBold,
   mdiExclamationThick,
   mdiClose,
@@ -480,7 +480,7 @@ defineExpose({ openModelSelection })
                   <template #activator="{ props }">
                     <v-icon
                       class="ml-1"
-                      :icon="mdiHelpCircleOutline"
+                      :icon="mdiInformationOutline"
                       size="x-small"
                       v-bind="props"
                     ></v-icon>

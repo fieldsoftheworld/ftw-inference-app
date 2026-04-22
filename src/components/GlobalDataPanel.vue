@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { mdiHelpCircleOutline } from '@mdi/js'
+import { mdiInformationOutline } from '@mdi/js'
 import useSettings from '../composables/useSettings'
 import useMap from '../composables/useMap'
 import { getEffectiveCloudlessYear } from '../layers/S2-Cloudless-Layer'
@@ -102,7 +102,7 @@ const handleLocationSelected = (place: PlaceResult) => {
           <h3>Download Data</h3>
           <v-menu open-on-hover :close-on-content-click="false" max-width="400">
             <template #activator="{ props }">
-              <v-icon :icon="mdiHelpCircleOutline" size="x-small" v-bind="props"></v-icon>
+              <v-icon :icon="mdiInformationOutline" size="x-small" v-bind="props"></v-icon>
             </template>
             <v-sheet class="pa-3 text-body-2">
               <p class="pb-2">
