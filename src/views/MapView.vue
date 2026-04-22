@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import MapComponent from '../components/MapComponent.vue'
-import { mdiInformation } from '@mdi/js'
 import { ref, watch } from 'vue'
 import useSettings from '../composables/useSettings'
 
@@ -41,7 +40,7 @@ function setModeValue(newValue: number) {
         @click="aboutDialog = true"
       />
       <v-card variant="outlined" rounded="lg" class="switch">
-        <span class="switch-label">Predictions</span>
+        <span class="switch-label">Mode</span>
         <v-divider vertical></v-divider>
         <v-btn-toggle
           v-model="modeValue"
@@ -62,17 +61,19 @@ function setModeValue(newValue: number) {
 
     <!-- About Dialog -->
     <v-dialog v-model="aboutDialog" width="auto">
-      <v-card
-        max-width="600"
-        border
-        :prepend-icon="mdiInformation"
-        title="About the Fields of The World Explorer"
-      >
+      <v-card max-width="600" title="Welcome to the Fields of The World (FTW) Explorer">
         <v-card-text>
-          Welcome to the Fields of the World (FTW) Explorer Web App. Use it to either explore the
-          global field boundary data or run the FTW model on Sentinel-2 Level 2A Collection 1
-          imagery. Both allow you to visualize predicted field boundaries for your chosen area of
-          interest. To get started, choose your area of interest on the map.
+          <p class="mb-2">This app has two modes, switched at the top of the screen:</p>
+          <ul class="ps-5 mb-0">
+            <li class="mb-2">
+              <strong>Global:</strong> Browse pre-computed global field boundaries for 2024 and
+              2025. Zoom in to explore individual fields, or download a 1° tile as GeoParquet.
+            </li>
+            <li>
+              <strong>Custom:</strong> Run the FTW model on-demand over an area you choose, using
+              Sentinel-2 Level 2A imagery.
+            </li>
+          </ul>
         </v-card-text>
         <v-card-actions>
           <v-checkbox-btn v-model="dontShowAgain" label="Don't show again"></v-checkbox-btn>
@@ -117,11 +118,20 @@ function setModeValue(newValue: number) {
 #title .switch-label {
   padding: 0 0.75rem;
   font-weight: 600;
+  color: rgba(255, 255, 255, 0.7);
+  height: 100%;
+  display: flex;
+  align-items: center;
+  border-right: 1px solid rgba(255, 255, 255, 0.7);
 }
 
 #title .switch :deep(.v-btn) {
   padding: 0 0.75rem;
   min-width: unset;
+}
+
+#title .switch :deep(.bg-primary) {
+  --v-theme-overlay-multiplier: 0;
 }
 
 .map-view {

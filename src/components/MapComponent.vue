@@ -49,10 +49,24 @@ onMounted(async () => {
     layers: [createLabelLayer()],
     view: new View({
       maxResolution: createXYZ({ tileSize: 512 }).getResolution(0), // use Mapbox/MapLibre compatible resolutions
+      maxZoom: 16,
       center: [0, 0],
       zoom: 1,
     }),
   })
+
+  // Initialize the cloudless base layer
+  initCloudlessLayer()
+
+  // Initialize layers
+  updateLayers()
+
+  addMapClickHandler(map.value as Map, areaValues.value)
+  map.value.on('singleclick', handleMapClick)
+  // Add scale bar
+  map.value.addControl(new ScaleLine())
+  // Setup permalink functionality
+  setupPermalink(map)
 
   // Get area values and models from API
   try {
@@ -84,22 +98,6 @@ onMounted(async () => {
     }
   } catch (error: any) {
     critical.value = `Can't connect to server: ${error?.message || error}`
-  }
-
-  // Add layers after map is initialized
-  if (map.value) {
-    // Initialize the cloudless base layer
-    initCloudlessLayer()
-
-    // Initialize layers
-    updateLayers()
-
-    addMapClickHandler(map.value as Map, areaValues.value)
-    map.value.on('singleclick', handleMapClick)
-    // Add scale bar
-    map.value.addControl(new ScaleLine())
-    // Setup permalink functionality
-    setupPermalink(map)
   }
 })
 

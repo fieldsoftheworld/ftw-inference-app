@@ -11,7 +11,7 @@ import type { Extent } from 'ol/extent'
 import { type FeatureCollection } from 'geojson'
 import useNotifier from './useNotifier'
 import useSettings from './useSettings'
-import createCloudlessLayer from '../layers/S2-Cloudless-Layer'
+import createCloudlessLayer, { getEffectiveCloudlessYear } from '../layers/S2-Cloudless-Layer'
 import createS2GridLayer from '../layers/S2-Grid-Layer'
 import {
   createGlobalPredictionsLayer,
@@ -71,8 +71,13 @@ const cloudlessLayer = shallowRef<TileLayer<XYZ> | null>(null)
 // Watch for year changes and update the cloudless layer
 watch(
   () => settings.value.year,
-  (newYear) => {
+  (newYear, oldYear) => {
     if (!map.value) {
+      return
+    }
+
+    // Skip reload when the effective (clamped) year hasn't changed (e.g. 2024 -> 2025)
+    if (getEffectiveCloudlessYear(newYear) === getEffectiveCloudlessYear(oldYear)) {
       return
     }
 
