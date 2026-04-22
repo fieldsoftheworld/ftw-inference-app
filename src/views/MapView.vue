@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import MapComponent from '../components/MapComponent.vue'
-import { mdiInformation } from '@mdi/js'
 import { ref, watch } from 'vue'
 import useSettings from '../composables/useSettings'
 

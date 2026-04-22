@@ -77,7 +77,11 @@
         >
           <v-icon :icon="mdiTarget"></v-icon>
         </v-btn>
-        <v-btn class="action-button download-results" @click="downloadResults" density="comfortable"
+        <v-btn
+          class="action-button download-results"
+          @click="downloadResults"
+          density="comfortable"
+          title="Export all detected fields as GeoJSON."
           >Download</v-btn
         >
         <v-btn
@@ -85,6 +89,7 @@
           @click="clearResultsHandler"
           color="error"
           density="compact"
+          itle="Remove these results from the map."
           >Clear</v-btn
         >
       </div>
