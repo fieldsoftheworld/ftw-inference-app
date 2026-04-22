@@ -44,7 +44,7 @@ const toggleCollapsible = () => {
               class="clickable-badge"
             ></v-badge>
           </template>
-          <template v-else> Global Predictions </template>
+          <template v-else> Global </template>
         </span>
       </div>
     </v-card-title>

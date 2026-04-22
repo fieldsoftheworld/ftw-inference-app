@@ -73,12 +73,11 @@ function setModeValue(newValue: number) {
           <p class="mb-2">This app has two modes, switched at the top of the screen:</p>
           <ul class="ps-5 mb-0">
             <li class="mb-2">
-              <strong>Global Predictions:</strong> Browse pre-computed global field boundaries for
-              2024 and 2025. Zoom in to explore individual fields, or download a 1° tile as
-              GeoParquet.
+              <strong>Global:</strong> Browse pre-computed global field boundaries for 2024 and
+              2025. Zoom in to explore individual fields, or download a 1° tile as GeoParquet.
             </li>
             <li>
-              <strong>Run Model:</strong> Run the FTW model on-demand over an area you choose, using
+              <strong>Custom:</strong> Run the FTW model on-demand over an area you choose, using
               Sentinel-2 Level 2A imagery.
             </li>
           </ul>
