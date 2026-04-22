@@ -101,11 +101,17 @@ const handleViewOnMap = async () => {
       <h3>{{ props.tileId }}</h3>
     </div>
     <div class="result-details">
-      <div>Date: {{ tile.date }}</div>
-      <div v-if="typeof tile.cloudCover === 'number'">
+      <div title="Sentinel-2 acquisition date.">Date: {{ tile.date }}</div>
+      <div
+        v-if="typeof tile.cloudCover === 'number'"
+        title="Percent of the scene obscured by clouds."
+      >
         Cloud Cover: {{ tile.cloudCover.toFixed(1) }}%
       </div>
-      <div v-if="typeof tile.areaCoverage === 'number'">
+      <div
+        v-if="typeof tile.areaCoverage === 'number'"
+        title="Percent of your AOI covered by this scene."
+      >
         Area Coverage: {{ tile.areaCoverage.toFixed(1) }}%
       </div>
     </div>

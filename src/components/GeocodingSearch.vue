@@ -2,7 +2,7 @@
 import { ref, shallowRef, watch } from 'vue'
 import { debounce } from 'vuetify/lib/util/helpers.mjs'
 import type { PlaceResult } from '../composables/useAreaOfInterest'
-import { mdiHelpCircleOutline } from '@mdi/js'
+import { mdiInformationOutline } from '@mdi/js'
 
 const emit = defineEmits<{
   (e: 'location-selected', place: PlaceResult): void
@@ -69,7 +69,7 @@ const onLocationSelected = (item: { value: PlaceResult; title: string } | null) 
       v-model:search="placeSearch"
       :loading="isLoadingPlaces"
       :items="suggestedPlaces"
-      label="Search for a place"
+      label="Search a place or address…"
       item-title="title"
       return-object
       hide-details
@@ -78,7 +78,7 @@ const onLocationSelected = (item: { value: PlaceResult; title: string } | null) 
     ></v-autocomplete>
     <v-menu open-on-hover :close-on-content-click="false" max-width="400">
       <template #activator="{ props }">
-        <v-icon class="ml-1" :icon="mdiHelpCircleOutline" size="x-small" v-bind="props"></v-icon>
+        <v-icon class="ml-2" :icon="mdiInformationOutline" size="small" v-bind="props"></v-icon>
       </template>
       <v-sheet class="pa-3 text-body-2">
         Geocoding provided by Nominatim.<br />

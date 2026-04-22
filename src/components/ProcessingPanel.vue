@@ -12,7 +12,7 @@ import useAreaOfInterest from '../composables/useAreaOfInterest'
 import useProcessingMode from '../composables/useProcessingMode'
 import useMap from '../composables/useMap'
 import {
-  mdiHelpCircleOutline,
+  mdiInformationOutline,
   mdiCheckBold,
   mdiExclamationThick,
   mdiClose,
@@ -84,6 +84,9 @@ const activePanel = ref<string | null>(currentMgrsTileId.value ? null : 'aoi')
 const hasLoadedMore = ref(false)
 const sceneSelectionStatus = ref<boolean | null>(null)
 const sceneYears = Array.from({ length: 10 }, (_, i) => new Date().getFullYear() - i)
+const currentYear = new Date().getFullYear()
+const recommendedMaxYear = computed(() => currentYear - 1)
+const plantingYearWarning = computed(() => settings.value.year >= currentYear)
 
 const isSelectingScenes = computed(
   () => sceneSelectionStatus.value === null && settings.value.autoSceneSelection,
@@ -428,14 +431,27 @@ defineExpose({ openModelSelection })
     </v-alert>
 
     <v-row class="d-flex justify-center w-100 mx-auto">
-      <v-col>
+      <v-col class="d-flex align-center">
         <v-switch
           v-model="settings.expertMode"
           label="Expert Mode"
           density="compact"
           hide-details
-          class
         ></v-switch>
+        <v-tooltip max-width="360" location="top">
+          <template #activator="{ props }">
+            <v-icon
+              class="ml-2"
+              :icon="mdiInformationOutline"
+              size="small"
+              v-bind="props"
+            ></v-icon>
+          </template>
+          <span
+            >Reveals advanced controls: model selection, MGRS tile / bounding box input, cloud &amp;
+            area coverage filters, and manual scene picking. Leave off for sensible defaults.</span
+          >
+        </v-tooltip>
       </v-col>
     </v-row>
     <v-expansion-panels v-model="activePanel">
@@ -461,7 +477,14 @@ defineExpose({ openModelSelection })
       <v-expansion-panel v-if="currentMgrsTileId && settings.expertMode" value="model">
         <v-expansion-panel-title>
           <span class="header-text">
-            <v-badge v-bind="getStatus(modelTitle)"></v-badge>
+            <v-tooltip v-if="!modelTitle" text="Please select a model." location="top">
+              <template #activator="{ props }">
+                <span v-bind="props" class="status-badge-wrap">
+                  <v-badge v-bind="getStatus(modelTitle)"></v-badge>
+                </span>
+              </template>
+            </v-tooltip>
+            <v-badge v-else v-bind="getStatus(modelTitle)"></v-badge>
             Model
             <v-badge v-if="modelTitle" inline color="teal" :content="modelTitle"></v-badge>
           </span>
@@ -475,8 +498,8 @@ defineExpose({ openModelSelection })
                   <template #activator="{ props }">
                     <v-icon
                       class="ml-1"
-                      :icon="mdiHelpCircleOutline"
-                      size="x-small"
+                      :icon="mdiInformationOutline"
+                      size="small"
                       v-bind="props"
                     ></v-icon>
                   </template>
@@ -493,22 +516,43 @@ defineExpose({ openModelSelection })
                     </template>
                   </div>
                 </v-tooltip>
-                <v-badge
-                  v-if="model.legacy"
-                  inline
-                  color="black"
-                  title="Legacy Model"
-                  content="Legacy"
-                ></v-badge>
-                <v-badge
-                  v-if="model.default"
-                  inline
-                  color="success"
-                  title="Default model, recommended choice by the FTW team"
-                  content="Recommended"
-                ></v-badge> </template
-            ></v-radio>
+                <v-tooltip v-if="model.legacy" max-width="320" location="top">
+                  <template #activator="{ props }">
+                    <v-badge
+                      v-bind="props"
+                      inline
+                      color="black"
+                      content="Legacy"
+                    ></v-badge>
+                  </template>
+                  <span
+                    >Older model kept for reproducibility. Prefer a recommended model for new
+                    runs.</span
+                  >
+                </v-tooltip>
+                <v-tooltip v-if="model.default" max-width="320" location="top">
+                  <template #activator="{ props }">
+                    <v-badge
+                      v-bind="props"
+                      inline
+                      color="success"
+                      content="Recommended"
+                    ></v-badge>
+                  </template>
+                  <span>Best general-purpose model for most regions and seasons.</span>
+                </v-tooltip>
+              </template>
+            </v-radio>
           </v-radio-group>
+          <p class="text-caption text-medium-emphasis mt-2 mb-0">
+            <template v-if="modelIsSingleShot"
+              >This model uses <strong>one</strong> Sentinel-2 scene (around planting).</template
+            >
+            <template v-else
+              >This model uses <strong>two</strong> Sentinel-2 scenes (around planting and
+              harvest).</template
+            >
+          </p>
         </v-expansion-panel-text>
       </v-expansion-panel>
       <!-- Area of Interest -->
@@ -535,7 +579,7 @@ defineExpose({ openModelSelection })
 
           <!-- Grid Selection Dropdown -->
           <v-row v-if="settings.expertMode">
-            <v-col>
+            <v-col class="d-flex align-center">
               <v-autocomplete
                 v-model="currentMgrsTileId"
                 @update:model-value="handleTileSelected"
@@ -547,13 +591,41 @@ defineExpose({ openModelSelection })
                 item-title="name"
                 item-value="name"
               ></v-autocomplete>
+              <v-tooltip max-width="360" location="top">
+                <template #activator="{ props }">
+                  <v-icon
+                    class="ml-2"
+                    :icon="mdiInformationOutline"
+                    size="small"
+                    v-bind="props"
+                  ></v-icon>
+                </template>
+                <span
+                  >MGRS is the Sentinel-2 tiling grid (e.g., 33TWM). Enter a tile ID to restrict
+                  scene search to that tile. Leave blank to use the AOI automatically.</span
+                >
+              </v-tooltip>
             </v-col>
           </v-row>
 
           <!-- Bbox Input Section -->
           <v-row>
-            <v-col>
-              <v-label> Bounding Box </v-label>
+            <v-col class="d-flex align-center">
+              <v-label>Bounding Box</v-label>
+              <v-tooltip v-if="settings.expertMode" max-width="360" location="top">
+                <template #activator="{ props }">
+                  <v-icon
+                    class="ml-2"
+                    :icon="mdiInformationOutline"
+                    size="small"
+                    v-bind="props"
+                  ></v-icon>
+                </template>
+                <span
+                  >Enter bounds as west, south, east, north in EPSG:4326. Overrides the AOI drawn on
+                  the map.</span
+                >
+              </v-tooltip>
             </v-col>
           </v-row>
           <template v-if="settings.expertMode">
@@ -663,14 +735,48 @@ defineExpose({ openModelSelection })
         <v-expansion-panel-text>
           <v-row>
             <v-col>
-              <v-select
-                type="number"
-                v-model.number="settings.year"
-                :items="sceneYears"
-                label="Year of planting"
-                hide-details
-                variant="outlined"
-              />
+              <div class="d-flex align-center">
+                <v-select
+                  type="number"
+                  v-model.number="settings.year"
+                  :items="sceneYears"
+                  label="Planting year"
+                  hide-details
+                  variant="outlined"
+                />
+                <v-tooltip max-width="360" location="top">
+                  <template #activator="{ props }">
+                    <v-icon
+                      class="ml-2"
+                      :icon="mdiInformationOutline"
+                      size="small"
+                      v-bind="props"
+                    ></v-icon>
+                  </template>
+                  <span
+                    >The model needs Sentinel-2 imagery from both the planting and harvest
+                    windows of the same growing season. The gap between them depends on the crop
+                    calendar for your area, so years whose harvest hasn't happened yet may
+                    fail.</span
+                  >
+                </v-tooltip>
+              </div>
+              <p class="text-caption text-medium-emphasis mt-1 mb-0">
+                The model pairs planting-window imagery with harvest-window imagery from later in
+                the same growing season. The gap is set by the crop calendar for your area, so
+                pick a year whose harvest season has already finished (typically
+                <strong>{{ recommendedMaxYear }}</strong> or earlier).
+              </p>
+              <v-alert
+                v-if="plantingYearWarning"
+                type="warning"
+                variant="tonal"
+                density="compact"
+                class="mt-2"
+              >
+                The harvest window for {{ settings.year }} may not have finished yet — consider
+                using {{ recommendedMaxYear }}.
+              </v-alert>
             </v-col>
           </v-row>
 
@@ -702,12 +808,19 @@ defineExpose({ openModelSelection })
               />
             </v-col>
           </v-row>
+          <v-row v-if="!settings.autoSceneSelection" no-gutters>
+            <v-col>
+              <p class="text-caption text-medium-emphasis mb-0 px-3">
+                <strong>Default</strong>: use the crop calendar for the selected area to pick
+                planting months automatically.
+              </p>
+            </v-col>
+          </v-row>
           <v-row>
             <v-col>
               <v-alert color="gray" type="info" variant="tonal" density="compact">
-                Select a year for the scene selection. Automatic scene selection will automatically
-                choose start and end dates based on crop calendars. Thus, start and end date
-                selection will only be available for manual scene selection.<br />
+                When set to <strong>Default</strong>, planting months come from the crop calendar at
+                your area of interest. Override here to force a specific window.<br />
                 <v-btn
                   @click="settings.autoSceneSelection = !settings.autoSceneSelection"
                   size="small"
@@ -783,8 +896,22 @@ defineExpose({ openModelSelection })
           <!-- Area Coverage -->
           <template v-if="!settings.autoSceneSelection">
             <v-row>
-              <v-col cols="6">
+              <v-col cols="6" class="d-flex align-center">
                 <v-label class="text-subtitle-2">Area Coverage (%)</v-label>
+                <v-tooltip max-width="360" location="top">
+                  <template #activator="{ props }">
+                    <v-icon
+                      class="ml-2"
+                      :icon="mdiInformationOutline"
+                      size="small"
+                      v-bind="props"
+                    ></v-icon>
+                  </template>
+                  <span
+                    >Minimum fraction of your AOI that a scene must cover. Raise to avoid scenes
+                    that clip your area; lower to accept partial coverage.</span
+                  >
+                </v-tooltip>
               </v-col>
               <v-col cols="6" class="d-flex justify-end">
                 <v-number-input
@@ -857,12 +984,10 @@ defineExpose({ openModelSelection })
           </v-row>
           <v-row>
             <v-col>
-              <v-alert color="gray" type="info" density="compact">
-                When checked, a suitable scene will be automatically chosen based on the selected
-                year and the crop calendar for the selected area. When not checked, two scenes have
-                to be selected manually - one for the time around planting and one for the time
-                around harvest.
-              </v-alert>
+              <p class="text-caption text-medium-emphasis mb-0">
+                <strong>On:</strong> we pick the planting and harvest scenes for you from the crop
+                calendar. <strong>Off:</strong> choose both scenes manually below.
+              </p>
             </v-col>
           </v-row>
 
@@ -920,7 +1045,18 @@ defineExpose({ openModelSelection })
       <v-expansion-panel v-if="currentMgrsTileId" value="win-a" class="scenes">
         <v-expansion-panel-title>
           <span class="header-text">
-            <v-badge v-bind="getStatus(activeTileId)"></v-badge>
+            <v-tooltip
+              v-if="!activeTileId"
+              text="Please select an image near your planting date for Scene A."
+              location="top"
+            >
+              <template #activator="{ props }">
+                <span v-bind="props" class="status-badge-wrap">
+                  <v-badge v-bind="getStatus(activeTileId)"></v-badge>
+                </span>
+              </template>
+            </v-tooltip>
+            <v-badge v-else v-bind="getStatus(activeTileId)"></v-badge>
             Scene<template v-if="!modelIsSingleShot">&nbsp;A</template>
             <v-badge
               v-if="activeTileId"
@@ -949,6 +1085,13 @@ defineExpose({ openModelSelection })
         </v-expansion-panel-title>
         <v-expansion-panel-text>
           <div class="results">
+            <p class="text-caption text-medium-emphasis px-3 pt-2 mb-0">
+              <template v-if="modelIsSingleShot"
+                >Imagery near planting. This model uses a single scene — Scene B is not
+                needed.</template
+              >
+              <template v-else>Imagery near planting.</template>
+            </p>
             <!-- Show first accordion's active tile first -->
             <template v-if="activeTileId">
               <v-row
@@ -972,8 +1115,9 @@ defineExpose({ openModelSelection })
             />
             <v-alert v-if="!hasMore" class="mb-2 mt-2" color="teal" type="info" density="compact">
               <p class="mb-2">
-                No more images found. Try adjusting your filters (date range, cloud cover, area
-                coverage) to increase the likelihood of finding more results.
+                No scenes matched. Try raising the <strong>Cloud Cover</strong> threshold, lowering
+                <strong>Area Coverage</strong>, widening the <strong>Search Buffer</strong>, or
+                picking a different <strong>year</strong>.
               </p>
               <p>
                 You can provide your own EarthSearch STAC Item ID if you didn't find what you were
@@ -1010,7 +1154,18 @@ defineExpose({ openModelSelection })
       >
         <v-expansion-panel-title>
           <span class="header-text">
-            <v-badge v-bind="getStatus(secondActiveTileId)"></v-badge>
+            <v-tooltip
+              v-if="!secondActiveTileId"
+              text="Please select an image near your harvest date for Scene B."
+              location="top"
+            >
+              <template #activator="{ props }">
+                <span v-bind="props" class="status-badge-wrap">
+                  <v-badge v-bind="getStatus(secondActiveTileId)"></v-badge>
+                </span>
+              </template>
+            </v-tooltip>
+            <v-badge v-else v-bind="getStatus(secondActiveTileId)"></v-badge>
             Scene B
             <v-badge
               v-if="secondActiveTileId"
@@ -1042,6 +1197,9 @@ defineExpose({ openModelSelection })
         </v-expansion-panel-title>
         <v-expansion-panel-text>
           <div class="results">
+            <p class="text-caption text-medium-emphasis px-3 pt-2 mb-0">
+              Imagery near harvest (later in the same growing season as Scene A).
+            </p>
             <!-- Show second accordion's active tile first -->
             <template v-if="secondActiveTileId">
               <v-row
@@ -1065,8 +1223,9 @@ defineExpose({ openModelSelection })
             />
             <v-alert v-if="!hasMore" class="mb-2 mt-2" color="teal" type="info" density="compact">
               <p class="mb-2">
-                No more images found. Try adjusting your filters (date range, cloud cover, area
-                coverage) to increase the likelihood of finding more results.
+                No scenes matched. Try raising the <strong>Cloud Cover</strong> threshold, lowering
+                <strong>Area Coverage</strong>, widening the <strong>Search Buffer</strong>, or
+                picking a different <strong>year</strong>.
               </p>
               <p>
                 You can provide your own EarthSearch STAC Item ID if you didn't find what you were
@@ -1133,5 +1292,12 @@ defineExpose({ openModelSelection })
 
 .coverage-input {
   width: 100px;
+}
+
+.status-badge-wrap {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 4px;
+  cursor: help;
 }
 </style>

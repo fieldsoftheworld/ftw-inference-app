@@ -7,6 +7,7 @@ import useNotifier from '../composables/useNotifier'
 import { transformExtent } from 'ol/proj'
 import GeocodingSearch from './GeocodingSearch.vue'
 import MapLegend from './MapLegend.vue'
+import { mdiInformationOutline } from '@mdi/js'
 
 const { settings } = useSettings()
 const { map } = useMap()
@@ -28,12 +29,12 @@ const handleLocationSelected = (place: PlaceResult) => {
 <template>
   <div class="settings">
     <v-alert density="compact" color="gray" class="mb-2 introduction">
-      The <strong>global predictions</strong> provide global-scale estimates of agricultural fields
-      for 2024 and 2025. They were computed using the model
+      Pre-computed agricultural field boundaries for <strong>2024 and 2025</strong>, generated
+      globally with the
       <v-menu open-on-hover :close-on-content-click="false" max-width="400">
         <template #activator="{ props }">
           <strong v-bind="props" style="cursor: pointer; text-decoration: underline dotted"
-            >FTW v3: CC-BY, B7</strong
+            >FTW v3 (CC-BY, B7)</strong
           >
         </template>
         <v-sheet class="pa-3 text-body-2"
@@ -45,19 +46,40 @@ const handleLocationSelected = (place: PlaceResult) => {
           >" for more information. The model version "FTW v3" is also named "PRUE" in the
           paper.</v-sheet
         > </v-menu
-      >.
+      >
+      model. Zoom in to see fields, and click a field for details.
     </v-alert>
 
     <v-row class="d-flex justify-center w-100 mx-auto mb-0">
       <v-col>
         <h3 class="group">Location</h3>
         <GeocodingSearch @location-selected="handleLocationSelected" />
+        <p class="text-caption text-medium-emphasis mt-n1">
+          Powered by OpenStreetMap Nominatim. You can also pan and zoom the map directly.
+        </p>
         <h3 class="group">Year</h3>
         <v-radio-group v-model="settings.year" density="compact" hide-details inline>
           <v-radio label="2024" :value="2024"></v-radio>
           <v-radio label="2025" :value="2025"></v-radio>
         </v-radio-group>
-        <h3 class="group">Confidence Threshold: {{ settings.threshold }}%</h3>
+        <h3 class="group">
+          Confidence Threshold: {{ settings.threshold }}%
+          <v-tooltip max-width="360" location="top">
+            <template #activator="{ props }">
+              <v-icon
+                class="ml-2"
+                :icon="mdiInformationOutline"
+                size="small"
+                v-bind="props"
+              ></v-icon>
+            </template>
+            <span
+              >Only show fields where the model's confidence meets this threshold. Higher values
+              show fewer, more certain fields; lower values show more fields, including less
+              certain ones.</span
+            >
+          </v-tooltip>
+        </h3>
         <v-slider
           v-model.number="settings.threshold"
           :min="0"
@@ -68,6 +90,9 @@ const handleLocationSelected = (place: PlaceResult) => {
           thumb-color="teal"
           hide-details
         />
+        <p class="text-caption text-medium-emphasis">
+          Fields below the threshold are shown faded on the map.
+        </p>
         <h3 class="group">Opacity: {{ settings.fieldBoundariesOpacity }}%</h3>
         <v-slider
           v-model.number="settings.fieldBoundariesOpacity"
@@ -79,7 +104,24 @@ const handleLocationSelected = (place: PlaceResult) => {
           thumb-color="teal"
           hide-details
         />
-        <h3 class="group legend">Legend</h3>
+        <h3 class="group legend">
+          Legend
+          <v-tooltip max-width="360" location="top">
+            <template #activator="{ props }">
+              <v-icon
+                class="ml-2"
+                :icon="mdiInformationOutline"
+                size="small"
+                v-bind="props"
+              ></v-icon>
+            </template>
+            <span
+              >Zoomed out, the map shows field <strong>density</strong> (fields per area). Zoom
+              in to see individual fields colored by the model's
+              <strong>confidence</strong>.</span
+            >
+          </v-tooltip>
+        </h3>
         <MapLegend />
       </v-col>
     </v-row>
