@@ -58,6 +58,8 @@ watch(
 const onLocationSelected = (item: { value: PlaceResult; title: string } | null) => {
   if (item) {
     emit('location-selected', item.value)
+    placeSearch.value = ''
+    suggestedPlaces.value = []
   }
 }
 </script>
@@ -75,6 +77,7 @@ const onLocationSelected = (item: { value: PlaceResult; title: string } | null) 
       hide-details
       dense
       variant="outlined"
+      attach
     ></v-autocomplete>
     <v-menu open-on-hover :close-on-content-click="false" max-width="400">
       <template #activator="{ props }">

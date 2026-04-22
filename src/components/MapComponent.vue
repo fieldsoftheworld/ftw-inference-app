@@ -54,6 +54,19 @@ onMounted(async () => {
     }),
   })
 
+  // Initialize the cloudless base layer
+  initCloudlessLayer()
+
+  // Initialize layers
+  updateLayers()
+
+  addMapClickHandler(map.value as Map, areaValues.value)
+  map.value.on('singleclick', handleMapClick)
+  // Add scale bar
+  map.value.addControl(new ScaleLine())
+  // Setup permalink functionality
+  setupPermalink(map)
+
   // Get area values and models from API
   try {
     const token = generateJWT()
@@ -84,22 +97,6 @@ onMounted(async () => {
     }
   } catch (error: any) {
     critical.value = `Can't connect to server: ${error?.message || error}`
-  }
-
-  // Add layers after map is initialized
-  if (map.value) {
-    // Initialize the cloudless base layer
-    initCloudlessLayer()
-
-    // Initialize layers
-    updateLayers()
-
-    addMapClickHandler(map.value as Map, areaValues.value)
-    map.value.on('singleclick', handleMapClick)
-    // Add scale bar
-    map.value.addControl(new ScaleLine())
-    // Setup permalink functionality
-    setupPermalink(map)
   }
 })
 
