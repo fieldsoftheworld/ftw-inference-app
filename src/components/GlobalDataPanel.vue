@@ -47,7 +47,7 @@ const handleLocationSelected = (place: PlaceResult) => {
           paper.</v-sheet
         > </v-menu
       >
-      model. Zoom in to see fields, and click a field for details.
+      model. Zoom in to see fields.
     </v-alert>
 
     <v-row class="d-flex justify-center w-100 mx-auto mb-0">
