@@ -138,13 +138,11 @@ export default function useGlobalContribute() {
 
   const submitContribute = async () => {
     if (!canSubmit.value) {
-      showError('Please fill in all required fields.')
       return
     }
 
     const validationError = validateFormData(contributeForm.value)
     if (validationError) {
-      showError(validationError)
       return
     }
 

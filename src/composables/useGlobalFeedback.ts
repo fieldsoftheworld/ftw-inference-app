@@ -18,6 +18,22 @@ import {
 
 export type FeedbackRating = 1 | 2 | 3
 
+export type RatingTag =
+  | 'clean_boundaries'
+  | 'good_shapes'
+  | 'better_than_expected'
+  | 'over_merged'
+  | 'fragmented'
+  | 'missing_fields'
+  | 'false_positives'
+  | 'jagged_boundaries'
+  | 'tiling_artifacts'
+
+export interface TagOption {
+  value: RatingTag
+  label: string
+}
+
 interface FeedbackOption {
   rating: FeedbackRating
   title: string
@@ -30,6 +46,27 @@ export interface DetailedFeedbackForm {
   name: string
   email: string
   organization: string
+}
+
+const GOOD_TAGS: TagOption[] = [
+  { value: 'clean_boundaries', label: 'Boundary lines are clean and precise' },
+  { value: 'good_shapes', label: 'Field shapes are accurate' },
+  { value: 'better_than_expected', label: 'Quality exceeded expectations' },
+]
+
+const POOR_ACCEPTABLE_TAGS: TagOption[] = [
+  { value: 'over_merged', label: 'Fields are incorrectly merged together' },
+  { value: 'fragmented', label: 'Fields are incorrectly split into pieces' },
+  { value: 'missing_fields', label: 'Real fields are absent from the output' },
+  { value: 'false_positives', label: 'Boundaries appear in areas with no fields' },
+  { value: 'jagged_boundaries', label: 'Boundary lines are noisy or jagged' },
+  { value: 'tiling_artifacts', label: 'Visible seams or discontinuities from tiling' },
+]
+
+export const RATING_TAGS: Record<FeedbackRating, TagOption[]> = {
+  1: POOR_ACCEPTABLE_TAGS,
+  2: POOR_ACCEPTABLE_TAGS,
+  3: GOOD_TAGS,
 }
 
 const FEEDBACK_OPTIONS: FeedbackOption[] = [
@@ -79,7 +116,7 @@ function getViewState(view: View) {
 function getEndpoints() {
   const baseUrl = import.meta.env.VITE_API_BASE_URL || ''
   return {
-    tileRating: `${baseUrl}feedback/tile-rating`,
+    tileRating: `${baseUrl}feedback/rating`,
     tellUsMore: `${baseUrl}feedback/tell-us-more`,
   }
 }
@@ -90,6 +127,8 @@ export default function useGlobalFeedback(mapRef: ShallowRef<Map | null>) {
 
   const sliderValue = ref<number>(1)
   const detailsDialogOpen = ref(false)
+  const tagsDialogOpen = ref(false)
+  const selectedTags = ref<RatingTag[]>([])
   const isSubmittingQuick = ref(false)
   const isSubmittingDetails = ref(false)
   const mapZoom = ref<number>(0)
@@ -126,12 +165,19 @@ export default function useGlobalFeedback(mapRef: ShallowRef<Map | null>) {
     return mapZoom.value >= GLOBAL_DATA_MAP_COMPLETE_ZOOM_LEVEL
   })
 
+  const isMediumZoom = computed(() => {
+    return (
+      mapZoom.value >= GLOBAL_DATA_MAP_FIELD_START_ZOOM_LEVEL &&
+      mapZoom.value < GLOBAL_DATA_MAP_COMPLETE_ZOOM_LEVEL
+    )
+  })
+
   const zoomGateMessage = computed(() => {
     if (mapZoom.value < GLOBAL_DATA_MAP_FIELD_START_ZOOM_LEVEL) {
-      return 'Zoom in to see the fields and to be able to give feedback.'
+      return 'Zoom in to see fields and to give feedback.'
     }
     if (mapZoom.value < GLOBAL_DATA_MAP_COMPLETE_ZOOM_LEVEL) {
-      return 'Zoom in more to show all fields and to be able to give feedback.'
+      return 'Zoom in more to see all fields and to give feedback.'
     }
     return ''
   })
@@ -200,19 +246,59 @@ export default function useGlobalFeedback(mapRef: ShallowRef<Map | null>) {
       return
     }
 
+    selectedTags.value = []
+    tagsDialogOpen.value = true
+  }
+
+  const closeTagsDialog = () => {
+    tagsDialogOpen.value = false
+  }
+
+  const postRating = async (): Promise<boolean> => {
+    if (!canProvideFeedback.value) {
+      showError(zoomGateMessage.value)
+      return false
+    }
+
+    if (!selectedLevel.value || !mapExtent.value) {
+      showError('Unable to submit feedback. Please try again.')
+      return false
+    }
+
+    if (selectedTags.value.length === 0) {
+      return false
+    }
+
     isSubmittingQuick.value = true
     try {
-      const payload = {
+      await postToEndpoint(tileRatingEndpoint, {
         rating: selectedLevel.value,
         bbox: mapExtent.value,
         resolution: mapResolution.value,
-      }
-      await postToEndpoint(tileRatingEndpoint, payload)
-      showSuccess('Thanks for the feedback!')
+        tags: selectedTags.value,
+      })
+      return true
     } catch (error) {
       showError(error instanceof Error ? error.message : 'Failed to submit feedback.')
+      return false
     } finally {
       isSubmittingQuick.value = false
+    }
+  }
+
+  const submitRatingWithTags = async () => {
+    const ok = await postRating()
+    if (ok) {
+      showSuccess('Thanks for the feedback!')
+      closeTagsDialog()
+    }
+  }
+
+  const openDetailsDialogFromTags = async () => {
+    const ok = await postRating()
+    if (ok) {
+      closeTagsDialog()
+      openDetailsDialog()
     }
   }
 
@@ -255,16 +341,14 @@ export default function useGlobalFeedback(mapRef: ShallowRef<Map | null>) {
       showError(zoomGateMessage.value)
       return
     }
-    if (!selectedLevel.value) {
-      showError('Please select one of the options before submitting.')
-      return
-    }
-    if (!detailsForm.value.qualityFeedback.trim() || !detailsForm.value.useCase.trim()) {
-      showError('Please fill in the required fields before submitting.')
+    if (
+      !selectedLevel.value ||
+      !detailsForm.value.qualityFeedback.trim() ||
+      !detailsForm.value.useCase.trim()
+    ) {
       return
     }
     if (!isValidEmail(detailsForm.value.email)) {
-      showError('Please provide a valid email address.')
       return
     }
     if (!mapExtent.value) {
@@ -299,6 +383,7 @@ export default function useGlobalFeedback(mapRef: ShallowRef<Map | null>) {
 
       closeDetailsDialog()
       resetDetailsForm()
+      selectedTags.value = []
     } catch (error) {
       showError(error instanceof Error ? error.message : 'Failed to submit detailed feedback.')
     } finally {
@@ -312,14 +397,19 @@ export default function useGlobalFeedback(mapRef: ShallowRef<Map | null>) {
     selectedLevel,
     detailsDialogOpen,
     detailsForm,
+    tagsDialogOpen,
+    selectedTags,
     canProvideFeedback,
+    isMediumZoom,
     zoomGateMessage,
     canSubmitDetailed,
     isSubmittingQuick,
     isSubmittingDetails,
     openDetailsDialog,
     closeDetailsDialog,
+    openDetailsDialogFromTags,
     submitQuickFeedback,
+    submitRatingWithTags,
     submitDetailedFeedback,
   }
 }

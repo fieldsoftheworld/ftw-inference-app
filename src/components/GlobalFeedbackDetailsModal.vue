@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { computed, ref, watch } from 'vue'
 import type { DetailedFeedbackForm } from '../composables/useGlobalFeedback'
 import PersonalDetailsFields from './PersonalDetailsFields.vue'
 
@@ -15,8 +16,32 @@ interface Emits {
   submit: []
 }
 
-defineProps<Props>()
+const props = defineProps<Props>()
 const emit = defineEmits<Emits>()
+
+const submitted = ref(false)
+
+watch(
+  () => props.modelValue,
+  (open) => {
+    if (open) submitted.value = false
+  },
+)
+
+const qualityFeedbackError = computed(() =>
+  submitted.value && !props.detailsForm.qualityFeedback.trim()
+    ? 'This field is required.'
+    : undefined,
+)
+
+const useCaseError = computed(() =>
+  submitted.value && !props.detailsForm.useCase.trim() ? 'This field is required.' : undefined,
+)
+
+function onSubmit() {
+  submitted.value = true
+  emit('submit')
+}
 </script>
 
 <template>
@@ -35,31 +60,32 @@ const emit = defineEmits<Emits>()
         <v-textarea
           :model-value="detailsForm.qualityFeedback"
           @update:model-value="emit('update:form', 'qualityFeedback', $event)"
-          label="How can we improve field boundaries?"
+          label="How can we improve field boundaries? *"
           hint="Share what's good/bad and what would make them more useful to you"
           variant="outlined"
           rows="4"
           auto-grow
-          required
           class="mb-3"
+          :error-messages="qualityFeedbackError"
         ></v-textarea>
 
         <v-textarea
           :model-value="detailsForm.useCase"
           @update:model-value="emit('update:form', 'useCase', $event)"
-          label="How would you like to use field boundaries?"
+          label="How would you like to use field boundaries? *"
           hint="Describe your specific use case and how field boundaries could be more useful to you"
           variant="outlined"
           rows="3"
           auto-grow
-          required
           class="mb-3"
+          :error-messages="useCaseError"
         ></v-textarea>
 
         <PersonalDetailsFields
           :name="detailsForm.name"
           :email="detailsForm.email"
           :organization="detailsForm.organization"
+          :submitted="submitted"
           @update:name="emit('update:form', 'name', $event)"
           @update:email="emit('update:form', 'email', $event)"
           @update:organization="emit('update:form', 'organization', $event)"
@@ -69,13 +95,7 @@ const emit = defineEmits<Emits>()
       <v-card-actions>
         <v-spacer></v-spacer>
         <v-btn variant="text" @click="emit('update:modelValue', false)">Cancel</v-btn>
-        <v-btn
-          color="teal"
-          variant="flat"
-          :disabled="!canSubmit"
-          :loading="isSubmitting"
-          @click="emit('submit')"
-        >
+        <v-btn color="teal" variant="flat" :loading="isSubmitting" @click="onSubmit">
           Submit
         </v-btn>
       </v-card-actions>
