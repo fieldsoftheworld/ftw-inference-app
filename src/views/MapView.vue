@@ -2,6 +2,7 @@
 import MapComponent from '../components/MapComponent.vue'
 import { mdiInformation } from '@mdi/js'
 import { ref, watch } from 'vue'
+import { RouterLink } from 'vue-router'
 import useSettings from '../composables/useSettings'
 
 const { settings, availableModes } = useSettings()
@@ -53,6 +54,7 @@ function setModeValue(newValue: number) {
           </v-card>
         </v-item>
       </v-item-group>
+      <RouterLink id="benchmark-link" to="/benchmark">Benchmark</RouterLink>
     </header>
 
     <MapComponent />
@@ -88,7 +90,20 @@ function setModeValue(newValue: number) {
   border-radius: 0 0 1rem 1rem;
   font-size: 1.33rem;
   font-weight: 600;
-  text-align: center;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+#benchmark-link {
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: #90caf9;
+  text-decoration: none;
+}
+#benchmark-link:hover {
+  text-decoration: underline;
 }
 
 #title .logo {

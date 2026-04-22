@@ -5,12 +5,19 @@ import vuetify from 'vite-plugin-vuetify'
 import vueDevTools from 'vite-plugin-vue-devtools'
 
 // https://vitejs.dev/config/
-export default defineConfig(({ mode }) => {
+export default defineConfig(({ mode, command, isPreview }) => {
   // Load env file based on `mode` in the current directory.
   // Set the third parameter to '' to load all env regardless of the `VITE_` prefix.
   const env = loadEnv(mode, process.cwd(), '')
 
+  // Dev server must use base "/" or http://localhost:5173/ returns 404. Do not rely on
+  // `mode === 'development'` (e.g. `vite --mode production` still uses serve command).
+  // Build + `vite preview` keep the GitHub Pages subpath; `isPreview` is true for preview only.
+  const base =
+    command === 'serve' && !isPreview ? '/' : '/ftw-inference-app/'
+
   return {
+    base,
     plugins: [
       vue(),
       vuetify({
@@ -25,7 +32,6 @@ export default defineConfig(({ mode }) => {
         '@': fileURLToPath(new URL('./src', import.meta.url)),
       },
     },
-    base: '/ftw-inference-app/',
     build: {
       sourcemap: true,
       outDir: 'ftw-inference-app',
@@ -36,7 +42,9 @@ export default defineConfig(({ mode }) => {
     },
     server: {
       port: 5173,
-      host: true,
+      // Bind IPv4 (0.0.0.0) so http://127.0.0.1:5173 works; `host: true` can be IPv6-only on some Windows setups and break "localhost" in the browser.
+      host: '0.0.0.0',
+      strictPort: true,
       proxy: {
         '/api': {
           target: env.VITE_API_BASE_URL,
