@@ -5,10 +5,10 @@ import { Fill, Stroke, Style } from 'ol/style'
 import type { FeatureLike } from 'ol/Feature'
 
 export const DOWNLOAD_GRID_URL =
-  'https://data.source.coop/ftw/global-field-boundaries/download-tiles/ftw-download-grid.geojson'
+  'https://data.source.coop/ftw/global-field-boundaries/download-tiles/ftw-download-grid-v2.geojson'
 
 export const getDownloadParquetUrl = (year: number, tileId: string) =>
-  `https://data.source.coop/ftw/global-field-boundaries/download-tiles/geoparquet/${year}/${tileId}.parquet`
+  `https://data.source.coop/ftw/global-field-boundaries/download-tiles/geoparquet/${year}/${year}_${tileId}.parquet`
 
 const normalStyle = new Style({
   fill: new Fill({ color: 'rgba(0, 136, 136, 0.05)' }),

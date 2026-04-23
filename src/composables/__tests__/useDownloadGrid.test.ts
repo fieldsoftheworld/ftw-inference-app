@@ -7,29 +7,29 @@ import { getDownloadParquetUrl, DOWNLOAD_GRID_URL } from '../../layers/Download-
 import useSettings from '../useSettings'
 
 describe('getDownloadParquetUrl', () => {
-  it('builds a Source Cooperative URL using year and tile id', () => {
+  it('builds a Source Cooperative URL using year and tile id, with a year-prefixed filename', () => {
     expect(getDownloadParquetUrl(2025, 'N40W100')).toBe(
-      'https://data.source.coop/ftw/global-field-boundaries/download-tiles/geoparquet/2025/N40W100.parquet',
+      'https://data.source.coop/ftw/global-field-boundaries/download-tiles/geoparquet/2025/2025_N40W100.parquet',
     )
   })
 
   it('handles southern/western hemisphere tiles', () => {
     expect(getDownloadParquetUrl(2024, 'S03E036')).toBe(
-      'https://data.source.coop/ftw/global-field-boundaries/download-tiles/geoparquet/2024/S03E036.parquet',
+      'https://data.source.coop/ftw/global-field-boundaries/download-tiles/geoparquet/2024/2024_S03E036.parquet',
     )
   })
 })
 
 describe('DOWNLOAD_GRID_URL', () => {
-  it('points to the download-tiles manifest on Source Cooperative', () => {
+  it('points to the v2 download-tiles manifest on Source Cooperative', () => {
     expect(DOWNLOAD_GRID_URL).toBe(
-      'https://data.source.coop/ftw/global-field-boundaries/download-tiles/ftw-download-grid.geojson',
+      'https://data.source.coop/ftw/global-field-boundaries/download-tiles/ftw-download-grid-v2.geojson',
     )
   })
 })
 
 describe('featureToGridCell', () => {
-  it('extracts tile metadata from feature properties', () => {
+  it('extracts tile metadata from feature properties, including per-year stats dicts', () => {
     const feature = new Feature({
       geometry: new Polygon([
         [
@@ -44,8 +44,8 @@ describe('featureToGridCell', () => {
       lat_min: 40,
       lon_min: 0,
       years: [2024, 2025],
-      feature_count: 1234,
-      size_bytes: 2_500_000,
+      feature_counts: { '2024': 1234, '2025': 1502 },
+      size_bytes: { '2024': 2_500_000, '2025': 2_780_000 },
     })
 
     const cell = featureToGridCell(feature)
@@ -54,8 +54,8 @@ describe('featureToGridCell', () => {
       lat_min: 40,
       lon_min: 0,
       years: [2024, 2025],
-      feature_count: 1234,
-      size_bytes: 2_500_000,
+      feature_counts: { '2024': 1234, '2025': 1502 },
+      size_bytes: { '2024': 2_500_000, '2025': 2_780_000 },
     })
   })
 
@@ -84,7 +84,7 @@ describe('featureToGridCell', () => {
       years: [2025],
     })
     const cell = featureToGridCell(feature)
-    expect(cell.feature_count).toBeUndefined()
+    expect(cell.feature_counts).toBeUndefined()
     expect(cell.size_bytes).toBeUndefined()
   })
 
@@ -177,7 +177,7 @@ describe('useDownloadGrid', () => {
     expect(handleGridClick(fakeMap, [0, 0])).toBe(true)
     expect(clickSpy).toHaveBeenCalled()
     expect(anchor.href).toBe(
-      'https://data.source.coop/ftw/global-field-boundaries/download-tiles/geoparquet/2025/N40W100.parquet',
+      'https://data.source.coop/ftw/global-field-boundaries/download-tiles/geoparquet/2025/2025_N40W100.parquet',
     )
     expect(anchor.download).toBe('ftw-fields-N40W100-2025.parquet')
   })
