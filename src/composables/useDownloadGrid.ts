@@ -1,4 +1,4 @@
-import { shallowRef, watch } from 'vue'
+import { computed, shallowRef, watch } from 'vue'
 import type Map from 'ol/Map'
 import type VectorLayer from 'ol/layer/Vector'
 import type VectorSource from 'ol/source/Vector'
@@ -21,6 +21,7 @@ const { settings } = useSettings()
 
 // Singleton state shared by all consumers of the composable.
 const hoveredGridFeature = shallowRef<FeatureLike | null>(null)
+const hoveredGridPosition = shallowRef<{ x: number; y: number } | null>(null)
 const downloadGridLayer = shallowRef<VectorLayer<VectorSource> | null>(null)
 const currentMap = shallowRef<Map | null>(null)
 
@@ -85,6 +86,7 @@ watch(
       ensureDownloadGridVisibleAtUsableZoom(currentMap.value)
     } else {
       hoveredGridFeature.value = null
+      hoveredGridPosition.value = null
       downloadGridLayer.value?.changed()
       const el = currentMap.value?.getTargetElement()
       if (el) el.style.cursor = ''
@@ -101,6 +103,10 @@ watch(
 )
 
 export default function useDownloadGrid() {
+  const hoveredGridCell = computed(() =>
+    hoveredGridFeature.value ? featureToGridCell(hoveredGridFeature.value) : null,
+  )
+
   /** Idempotent: creates the layer and registers listeners on first call per map. */
   const initDownloadGridLayer = (map: Map) => {
     if (initializedMaps.has(map)) return
@@ -123,6 +129,11 @@ export default function useDownloadGrid() {
         hoveredGridFeature.value = feature
         layer.changed()
         map.getTargetElement().style.cursor = feature ? 'pointer' : ''
+      }
+      if (feature) {
+        hoveredGridPosition.value = { x: event.pixel[0], y: event.pixel[1] }
+      } else {
+        hoveredGridPosition.value = null
       }
     })
   }
@@ -149,6 +160,8 @@ export default function useDownloadGrid() {
 
   return {
     downloadGridLayer,
+    hoveredGridCell,
+    hoveredGridPosition,
     initDownloadGridLayer,
     handleGridClick,
   }

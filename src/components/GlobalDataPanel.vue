@@ -89,8 +89,8 @@ const handleLocationSelected = (place: PlaceResult) => {
               ></v-icon>
             </template>
             <v-sheet class="pa-3 text-body-2">
-              Only show fields where the model's confidence meets this threshold. Higher values
-              show fewer, more certain fields; lower values show more fields, including less certain
+              Only show fields where the model's confidence meets this threshold. Higher values show
+              fewer, more certain fields; lower values show more fields, including less certain
               ones.
             </v-sheet>
           </v-menu>
@@ -156,8 +156,8 @@ const handleLocationSelected = (place: PlaceResult) => {
               ></v-icon>
             </template>
             <v-sheet class="pa-3 text-body-2">
-              Zoomed out, the map shows <strong>field density</strong> (fields per area). Zoom in
-              to see individual fields colored by the model's <strong>confidence</strong>.
+              Zoomed out, the map shows <strong>field density</strong> (fields per area). Zoom in to
+              see individual fields colored by the model's <strong>confidence</strong>.
             </v-sheet>
           </v-menu>
         </h3>

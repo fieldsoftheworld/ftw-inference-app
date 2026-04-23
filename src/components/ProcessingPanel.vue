@@ -476,7 +476,12 @@ defineExpose({ openModelSelection })
             <v-radio v-for="model in availableModels" :key="model.id" :value="model.id" color="teal"
               ><template v-slot:label>
                 {{ model.title }}
-                <v-menu v-if="model.description" open-on-hover :close-on-content-click="false" max-width="400">
+                <v-menu
+                  v-if="model.description"
+                  open-on-hover
+                  :close-on-content-click="false"
+                  max-width="400"
+                >
                   <template #activator="{ props }">
                     <v-icon
                       class="ml-1"
@@ -1052,7 +1057,11 @@ defineExpose({ openModelSelection })
               ></v-btn>
             </template>
             <v-sheet class="pa-3 text-body-2">
-              {{ stacPreviewTileId === secondActiveTileId ? 'Hide scene B image' : 'Show scene B image' }}
+              {{
+                stacPreviewTileId === secondActiveTileId
+                  ? 'Hide scene B image'
+                  : 'Show scene B image'
+              }}
             </v-sheet>
           </v-menu>
         </v-expansion-panel-title>
