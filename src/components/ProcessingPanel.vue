@@ -681,9 +681,15 @@ defineExpose({ openModelSelection })
 
           <v-row v-if="basemapYearMismatch">
             <v-col>
-              <v-alert type="warning" variant="tonal" density="compact">
-                No basemap is available for {{ settings.year }}. Showing the
-                {{ getEffectiveCloudlessYear(settings.year) }} basemap instead.
+              <v-alert
+                v-if="basemapYearMismatch"
+                type="info"
+                variant="tonal"
+                density="compact"
+                class="mt-2 note"
+              >
+                Showing the {{ getEffectiveCloudlessYear(settings.year) }} basemap. The 2025 basemap
+                will be added soon.
               </v-alert>
             </v-col>
           </v-row>

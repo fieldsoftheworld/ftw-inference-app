@@ -69,13 +69,13 @@ const handleLocationSelected = (place: PlaceResult) => {
         </v-radio-group>
         <v-alert
           v-if="basemapYearMismatch"
-          type="warning"
+          type="info"
           variant="tonal"
           density="compact"
-          class="mt-2"
+          class="mt-2 note"
         >
-          No basemap is available for {{ settings.year }}. Showing the
-          {{ getEffectiveCloudlessYear(settings.year) }} basemap instead.
+          Showing the {{ getEffectiveCloudlessYear(settings.year) }} basemap. The 2025 basemap will
+          be added soon.
         </v-alert>
         <h3 class="group">
           Confidence Threshold: {{ settings.threshold }}%
