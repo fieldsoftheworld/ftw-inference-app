@@ -76,7 +76,7 @@ watch(
       return
     }
 
-    if (getEffectiveCloudlessYear(newYear) === getEffectiveCloudlessYear(oldYear)) {
+    if (getEffectiveCloudlessYear(newYear) !== getEffectiveCloudlessYear(oldYear)) {
       // Remove the old cloudless layer if it exists
       if (cloudlessLayer.value) {
         map.value.removeLayer(cloudlessLayer.value)
