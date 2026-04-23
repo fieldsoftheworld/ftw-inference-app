@@ -255,6 +255,15 @@ export default function useGlobalFeedback(mapRef: ShallowRef<Map | null>) {
     tagsDialogOpen.value = false
   }
 
+  const buildBaseRatingPayload = () => ({
+    rating: selectedLevel.value,
+    bbox: mapExtent.value,
+    resolution: mapResolution.value,
+    confidence_threshold: settings.value.threshold,
+    year: settings.value.year,
+    tags: selectedTags.value,
+  })
+
   const postRating = async (): Promise<boolean> => {
     if (!canProvideFeedback.value) {
       showError(zoomGateMessage.value)
@@ -272,13 +281,7 @@ export default function useGlobalFeedback(mapRef: ShallowRef<Map | null>) {
 
     isSubmittingQuick.value = true
     try {
-      await postToEndpoint(tileRatingEndpoint, {
-        rating: selectedLevel.value,
-        bbox: mapExtent.value,
-        resolution: mapResolution.value,
-        confidence_threshold: settings.value.threshold,
-        tags: selectedTags.value,
-      })
+      await postToEndpoint(tileRatingEndpoint, buildBaseRatingPayload())
       return true
     } catch (error) {
       showError(error instanceof Error ? error.message : 'Failed to submit feedback.')
@@ -358,13 +361,9 @@ export default function useGlobalFeedback(mapRef: ShallowRef<Map | null>) {
     isSubmittingDetails.value = true
     try {
       const payload: Record<string, unknown> = {
+        ...buildBaseRatingPayload(),
         quality_feedback: detailsForm.value.qualityFeedback,
         use_case: detailsForm.value.useCase,
-        rating: selectedLevel.value,
-        bbox: mapExtent.value,
-        resolution: mapResolution.value,
-        confidence_threshold: settings.value.threshold,
-        tags: selectedTags.value,
       }
 
       if (detailsForm.value.name) {
