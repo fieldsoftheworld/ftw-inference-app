@@ -11,8 +11,10 @@ export interface GridCell {
   lat_min: number
   lon_min: number
   years: number[]
-  feature_count?: number
-  size_bytes?: number
+  // Per-year dicts keyed by year-as-string (e.g. "2024", "2025"), as served by
+  // the v2 manifest. Absent years are simply missing keys.
+  feature_counts?: Record<string, number>
+  size_bytes?: Record<string, number>
 }
 
 const { settings } = useSettings()
@@ -27,6 +29,16 @@ const DOWNLOAD_GRID_MAX_ZOOM = 8
 // Track maps we've already wired up so we don't register duplicate listeners.
 const initializedMaps = new WeakSet<Map>()
 
+/** Narrow an unknown value to a year-keyed dict of numbers. */
+function toNumericYearDict(value: unknown): Record<string, number> | undefined {
+  if (!value || typeof value !== 'object') return undefined
+  const out: Record<string, number> = {}
+  for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+    if (typeof v === 'number') out[k] = v
+  }
+  return Object.keys(out).length > 0 ? out : undefined
+}
+
 /** Convert an OL feature from the grid layer into our GridCell DTO. */
 export function featureToGridCell(feature: FeatureLike): GridCell {
   const props = feature.getProperties()
@@ -35,8 +47,8 @@ export function featureToGridCell(feature: FeatureLike): GridCell {
     lat_min: typeof props.lat_min === 'number' ? props.lat_min : 0,
     lon_min: typeof props.lon_min === 'number' ? props.lon_min : 0,
     years: Array.isArray(props.years) ? props.years : [],
-    feature_count: typeof props.feature_count === 'number' ? props.feature_count : undefined,
-    size_bytes: typeof props.size_bytes === 'number' ? props.size_bytes : undefined,
+    feature_counts: toNumericYearDict(props.feature_counts),
+    size_bytes: toNumericYearDict(props.size_bytes),
   }
 }
 
