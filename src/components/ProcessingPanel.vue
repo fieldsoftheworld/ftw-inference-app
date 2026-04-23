@@ -476,7 +476,7 @@ defineExpose({ openModelSelection })
             <v-radio v-for="model in availableModels" :key="model.id" :value="model.id" color="teal"
               ><template v-slot:label>
                 {{ model.title }}
-                <v-tooltip v-if="model.description" max-width="400" open-on-click>
+                <v-menu v-if="model.description" open-on-hover :close-on-content-click="false" max-width="400">
                   <template #activator="{ props }">
                     <v-icon
                       class="ml-1"
@@ -485,7 +485,7 @@ defineExpose({ openModelSelection })
                       v-bind="props"
                     ></v-icon>
                   </template>
-                  <div>
+                  <v-sheet class="pa-3 text-body-2">
                     <template v-if="model.version"
                       ><strong>Version:</strong> {{ model.version }}<br
                     /></template>
@@ -496,8 +496,8 @@ defineExpose({ openModelSelection })
                         {{ model.description }}
                       </div>
                     </template>
-                  </div>
-                </v-tooltip>
+                  </v-sheet>
+                </v-menu>
                 <v-badge
                   v-if="model.legacy"
                   inline
@@ -950,12 +950,8 @@ defineExpose({ openModelSelection })
             ></v-badge>
           </span>
           <v-spacer></v-spacer>
-          <v-tooltip
-            v-if="activeTileId"
-            :text="stacPreviewTileId === activeTileId ? 'Hide scene A image' : 'Show scene A image'"
-            open-on-click
-          >
-            <template v-slot:activator="{ props }">
+          <v-menu v-if="activeTileId" open-on-hover :close-on-content-click="false">
+            <template #activator="{ props }">
               <v-btn
                 v-bind="props"
                 :icon="stacPreviewTileId === activeTileId ? mdiEyeOutline : mdiEyeOffOutline"
@@ -965,7 +961,10 @@ defineExpose({ openModelSelection })
                 "
               ></v-btn>
             </template>
-          </v-tooltip>
+            <v-sheet class="pa-3 text-body-2">
+              {{ stacPreviewTileId === activeTileId ? 'Hide scene A image' : 'Show scene A image' }}
+            </v-sheet>
+          </v-menu>
         </v-expansion-panel-title>
         <v-expansion-panel-text>
           <div class="results">
@@ -1040,14 +1039,8 @@ defineExpose({ openModelSelection })
             ></v-badge>
           </span>
           <v-spacer></v-spacer>
-          <v-tooltip
-            v-if="secondActiveTileId"
-            :text="
-              stacPreviewTileId === secondActiveTileId ? 'Hide scene B image' : 'Show scene B image'
-            "
-            open-on-click
-          >
-            <template v-slot:activator="{ props }">
+          <v-menu v-if="secondActiveTileId" open-on-hover :close-on-content-click="false">
+            <template #activator="{ props }">
               <v-btn
                 v-bind="props"
                 :icon="stacPreviewTileId === secondActiveTileId ? mdiEyeOutline : mdiEyeOffOutline"
@@ -1058,7 +1051,10 @@ defineExpose({ openModelSelection })
                 "
               ></v-btn>
             </template>
-          </v-tooltip>
+            <v-sheet class="pa-3 text-body-2">
+              {{ stacPreviewTileId === secondActiveTileId ? 'Hide scene B image' : 'Show scene B image' }}
+            </v-sheet>
+          </v-menu>
         </v-expansion-panel-title>
         <v-expansion-panel-text>
           <div class="results">

@@ -79,7 +79,7 @@ const handleLocationSelected = (place: PlaceResult) => {
         </v-alert>
         <h3 class="group">
           Confidence Threshold: {{ settings.threshold }}%
-          <v-tooltip max-width="360" location="top">
+          <v-menu open-on-hover :close-on-content-click="false" max-width="360">
             <template #activator="{ props }">
               <v-icon
                 class="ml-2"
@@ -88,12 +88,12 @@ const handleLocationSelected = (place: PlaceResult) => {
                 v-bind="props"
               ></v-icon>
             </template>
-            <span
-              >Only show fields where the model's confidence meets this threshold. Higher values
+            <v-sheet class="pa-3 text-body-2">
+              Only show fields where the model's confidence meets this threshold. Higher values
               show fewer, more certain fields; lower values show more fields, including less certain
-              ones.</span
-            >
-          </v-tooltip>
+              ones.
+            </v-sheet>
+          </v-menu>
         </h3>
         <v-slider
           v-model.number="settings.threshold"
@@ -146,7 +146,7 @@ const handleLocationSelected = (place: PlaceResult) => {
         />
         <h3 class="group legend">
           Legend
-          <v-tooltip max-width="360" location="top">
+          <v-menu open-on-hover :close-on-content-click="false" max-width="360">
             <template #activator="{ props }">
               <v-icon
                 class="ml-2"
@@ -155,11 +155,11 @@ const handleLocationSelected = (place: PlaceResult) => {
                 v-bind="props"
               ></v-icon>
             </template>
-            <span
-              >Zoomed out, the map shows <strong>field density</strong> (fields per area). Zoom in
-              to see individual fields colored by the model's <strong>confidence</strong>.</span
-            >
-          </v-tooltip>
+            <v-sheet class="pa-3 text-body-2">
+              Zoomed out, the map shows <strong>field density</strong> (fields per area). Zoom in
+              to see individual fields colored by the model's <strong>confidence</strong>.
+            </v-sheet>
+          </v-menu>
         </h3>
         <MapLegend />
       </v-col>
