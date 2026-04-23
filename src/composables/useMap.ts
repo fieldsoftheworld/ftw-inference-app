@@ -76,20 +76,18 @@ watch(
       return
     }
 
-    // Skip reload when the effective (clamped) year hasn't changed (e.g. 2024 -> 2025)
     if (getEffectiveCloudlessYear(newYear) === getEffectiveCloudlessYear(oldYear)) {
-      return
-    }
+      // Remove the old cloudless layer if it exists
+      if (cloudlessLayer.value) {
+        map.value.removeLayer(cloudlessLayer.value)
+      }
 
-    // Remove the old cloudless layer if it exists
-    if (cloudlessLayer.value) {
-      map.value.removeLayer(cloudlessLayer.value)
-    }
+      // Create and add the new cloudless layer with the updated year
+      cloudlessLayer.value = createCloudlessLayer(newYear)
 
-    // Create and add the new cloudless layer with the updated year
-    cloudlessLayer.value = createCloudlessLayer(newYear)
-    // Insert at index 0 to keep it as the base layer
-    map.value.getLayers().insertAt(0, cloudlessLayer.value)
+      // Insert at index 0 to keep it as the base layer
+      map.value.getLayers().insertAt(0, cloudlessLayer.value)
+    }
 
     if (settings.value.mode === 'global') {
       if (globalPredictionsController.value) {

@@ -169,7 +169,11 @@ export const GLOBAL_DATA_PMTILES_THRESHOLD_METRIC = 'mean' // median / mean / mi
 export const GLOBAL_DATA_MAP_COMPLETE_ZOOM_LEVEL = 12
 export const GLOBAL_DATA_MAP_FIELD_START_ZOOM_LEVEL = 11
 export const get_global_pmtiles_url = (year: number) => {
-  return `https://geospatialvisualizer.z13.web.core.windows.net/ftw_visualizer/data/${year}_with_confidence.pmtiles`
+  if (year === 2024) {
+    return `https://geospatialvisualizer.z13.web.core.windows.net/ftw_visualizer/data/2024_with_confidence.pmtiles`
+  } else {
+    return `https://s3.us-west-2.amazonaws.com/us-west-2.opendata.source.coop/ftw/global-field-boundaries/pmtiles/ftw-global-fields-${year}.pmtiles`
+  }
 }
 
 export const AREA_OVERVIEW_COG =

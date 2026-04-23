@@ -29,10 +29,22 @@ const {
   updateLayers,
 } = useMap()
 
-useDownloadGrid()
+const { hoveredGridCell, hoveredGridPosition } = useDownloadGrid()
 
 const { addMapClickHandler } = useAreaOfInterest()
 const { setAvailableModels, settings } = useSettings()
+
+function formatDeg(value: number, isLat: boolean): string {
+  const abs = Math.abs(value)
+  const dir = isLat ? (value >= 0 ? 'N' : 'S') : value >= 0 ? 'E' : 'W'
+  return `${abs}°${dir}`
+}
+
+function formatBytes(bytes: number): string {
+  if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+  if (bytes >= 1024) return `${(bytes / 1024).toFixed(1)} KB`
+  return `${bytes} B`
+}
 
 const clearResults = () => {
   geoJsonResults.value = []
@@ -121,6 +133,50 @@ defineExpose({
     />
 
     <GlobalFeedbackWidget v-if="map && settings.mode === 'global'" />
+
+    <!-- Download grid hover tooltip -->
+    <div
+      v-if="hoveredGridCell && hoveredGridPosition && settings.downloads"
+      class="download-grid-tooltip"
+      :style="{ left: hoveredGridPosition.x + 16 + 'px', top: hoveredGridPosition.y + 16 + 'px' }"
+    >
+      <div class="download-grid-tooltip__title">
+        {{ settings.year }}_{{ hoveredGridCell.tile_id }}.parquet
+      </div>
+      <div class="download-grid-tooltip__row">
+        <span class="download-grid-tooltip__label">Year</span>
+        {{ settings.year }}
+      </div>
+      <div class="download-grid-tooltip__row">
+        <span class="download-grid-tooltip__label">Lat</span>
+        {{ formatDeg(hoveredGridCell.lat_min, true) }} –
+        {{ formatDeg(hoveredGridCell.lat_min + 1, true) }}
+      </div>
+      <div class="download-grid-tooltip__row">
+        <span class="download-grid-tooltip__label">Lon</span>
+        {{ formatDeg(hoveredGridCell.lon_min, false) }} –
+        {{ formatDeg(hoveredGridCell.lon_min + 1, false) }}
+      </div>
+      <template v-if="hoveredGridCell.years.includes(settings.year)">
+        <div
+          v-if="hoveredGridCell.feature_counts?.[String(settings.year)] != null"
+          class="download-grid-tooltip__row"
+        >
+          <span class="download-grid-tooltip__label">Fields</span>
+          {{ hoveredGridCell.feature_counts![String(settings.year)].toLocaleString() }}
+        </div>
+        <div
+          v-if="hoveredGridCell.size_bytes?.[String(settings.year)] != null"
+          class="download-grid-tooltip__row"
+        >
+          <span class="download-grid-tooltip__label">Download size</span>
+          {{ formatBytes(hoveredGridCell.size_bytes![String(settings.year)]) }}
+        </div>
+      </template>
+      <div v-else class="download-grid-tooltip__unavailable">
+        Not available for {{ settings.year }}
+      </div>
+    </div>
   </div>
 
   <!-- Properties Box -->
@@ -193,6 +249,47 @@ defineExpose({
   right: 0;
   width: 100%;
   height: 100%;
+}
+
+/* Download Grid Tooltip */
+.download-grid-tooltip {
+  position: absolute;
+  z-index: 9000;
+  pointer-events: none;
+  background-color: rgba(0, 0, 0, 0.9);
+  border: 1px solid rgba(0, 136, 136, 0.7);
+  border-radius: 6px;
+  padding: 0.5rem 0.75rem;
+  min-width: 180px;
+  font-size: 0.8rem;
+  color: #eee;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(6px);
+}
+
+.download-grid-tooltip__title {
+  font-weight: 600;
+  color: rgb(0, 200, 200);
+  margin-bottom: 0.35rem;
+  font-size: 0.85rem;
+}
+
+.download-grid-tooltip__row {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  line-height: 1.6;
+}
+
+.download-grid-tooltip__label {
+  color: #aaa;
+  white-space: nowrap;
+}
+
+.download-grid-tooltip__unavailable {
+  color: #f87171;
+  margin-top: 0.25rem;
+  font-size: 0.75rem;
 }
 
 /* Properties Box Styles */
