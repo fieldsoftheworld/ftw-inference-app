@@ -4,12 +4,14 @@ import { ref } from 'vue'
 import useSearch from '../composables/useSearch'
 import useSettings from '../composables/useSettings'
 import useMap from '../composables/useMap'
+import useDownloadGrid from '../composables/useDownloadGrid'
 import ProcessingPanel from './ProcessingPanel.vue'
 import GlobalDataPanel from './GlobalDataPanel.vue'
 
 const { searchStatus } = useSearch()
 const { modelTitle, settings } = useSettings()
 const { isLayerLoading } = useMap()
+const { isConverting } = useDownloadGrid()
 
 // Sidebar state
 const isWorking = ref(false)
@@ -21,7 +23,7 @@ const toggleCollapsible = () => {
 
 <template>
   <v-card
-    :loading="isWorking || isLayerLoading || searchStatus === true"
+    :loading="isWorking || isLayerLoading || isConverting || searchStatus === true"
     elevation="8"
     :class="{ closed: !isOpen, 'data-cabinet': true, sidebar: true, [settings.mode]: true }"
   >

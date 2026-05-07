@@ -1,10 +1,19 @@
-import { computed, shallowRef, watch } from 'vue'
+import { computed, shallowRef, ref, watch, getCurrentInstance } from 'vue'
 import type Map from 'ol/Map'
 import type VectorLayer from 'ol/layer/Vector'
 import type VectorSource from 'ol/source/Vector'
 import type { FeatureLike } from 'ol/Feature'
 import { createDownloadGridLayer, getDownloadParquetUrl } from '../layers/Download-Grid-Layer'
 import useSettings from './useSettings'
+import useNotifier from './useNotifier'
+import type { GeoParquetWorkerResponse } from '../workers/geoparquet-worker'
+
+// Lazily cached showError so that useNotifier() is only ever called from
+// a proper setup context (the first call to useDownloadGrid()).
+let _showError: ((msg: string) => void) | null = null
+function getShowError(): (msg: string) => void {
+  return _showError ?? console.error
+}
 
 export interface GridCell {
   tile_id: string
@@ -20,12 +29,15 @@ export interface GridCell {
 const { settings } = useSettings()
 
 // Singleton state shared by all consumers of the composable.
+const isConverting = ref(false)
 const hoveredGridFeature = shallowRef<FeatureLike | null>(null)
 const hoveredGridPosition = shallowRef<{ x: number; y: number } | null>(null)
 const downloadGridLayer = shallowRef<VectorLayer<VectorSource> | null>(null)
 const currentMap = shallowRef<Map | null>(null)
 
 const DOWNLOAD_GRID_MAX_ZOOM = 8
+
+const downloadFormat = ref<'parquet' | 'json'>('parquet')
 
 // Track maps we've already wired up so we don't register duplicate listeners.
 const initializedMaps = new WeakSet<Map>()
@@ -63,6 +75,34 @@ function triggerDownload(url: string, filename: string) {
   document.body.appendChild(a)
   a.click()
   document.body.removeChild(a)
+}
+
+function convertToGeoJson(parquetUrl: string, filename: string): void {
+  const showError = getShowError()
+  isConverting.value = true
+  const worker = new Worker(new URL('../workers/geoparquet-worker.ts', import.meta.url), {
+    type: 'module',
+  })
+  worker.onmessage = (event: MessageEvent<GeoParquetWorkerResponse>) => {
+    const msg = event.data
+    if (msg.type === 'done') {
+      const blob = new Blob([msg.buffer], { type: 'application/geo+json' })
+      const objectUrl = URL.createObjectURL(blob)
+      triggerDownload(objectUrl, filename)
+      // Revoke after the browser has had time to initiate the download
+      setTimeout(() => URL.revokeObjectURL(objectUrl), 10000)
+    } else {
+      showError(`GeoJSON conversion failed: ${msg.message}`)
+    }
+    isConverting.value = false
+    worker.terminate()
+  }
+  worker.onerror = (event) => {
+    showError(`GeoJSON conversion failed: ${event.message}`)
+    isConverting.value = false
+    worker.terminate()
+  }
+  worker.postMessage({ url: parquetUrl })
 }
 
 function ensureDownloadGridVisibleAtUsableZoom(map: Map | null) {
@@ -103,6 +143,11 @@ watch(
 )
 
 export default function useDownloadGrid() {
+  if (!_showError && getCurrentInstance()) {
+    const { showError } = useNotifier()
+    _showError = showError
+  }
+
   const hoveredGridCell = computed(() =>
     hoveredGridFeature.value ? featureToGridCell(hoveredGridFeature.value) : null,
   )
@@ -154,14 +199,21 @@ export default function useDownloadGrid() {
     }
 
     const url = getDownloadParquetUrl(settings.value.year, selectedGridCell.tile_id)
-    triggerDownload(url, `ftw-fields-${selectedGridCell.tile_id}-${settings.value.year}.parquet`)
-    return true
+    if (downloadFormat.value === 'parquet') {
+      triggerDownload(url, `ftw-fields-${selectedGridCell.tile_id}-${settings.value.year}.parquet`)
+      return true
+    } else {
+      convertToGeoJson(url, `ftw-fields-${selectedGridCell.tile_id}-${settings.value.year}.json`)
+      return true
+    }
   }
 
   return {
+    downloadFormat,
     downloadGridLayer,
     hoveredGridCell,
     hoveredGridPosition,
+    isConverting,
     initDownloadGridLayer,
     handleGridClick,
   }
