@@ -20,7 +20,7 @@ const basemapYearMismatch = computed(
 )
 const { fitToExtent } = useAreaOfInterest()
 const { showError } = useNotifier()
-useDownloadGrid()
+const { downloadFormat } = useDownloadGrid()
 
 const handleLocationSelected = (place: PlaceResult) => {
   if (!map.value) return
@@ -125,7 +125,7 @@ const handleLocationSelected = (place: PlaceResult) => {
             <v-sheet class="pa-3 text-body-2">
               <p class="pb-2">
                 After activation, click a tile to download the agricultural field boundary
-                predictions for that 1° cell as a GeoParquet file.
+                predictions for that 1° cell as a GeoParquet or GeoJSON file.
               </p>
               <p>
                 You can also download the entire dataset in various variants from
@@ -144,6 +144,19 @@ const handleLocationSelected = (place: PlaceResult) => {
           label="Show download grid"
           class="mb-1"
         />
+        <v-switch
+          v-if="settings.downloads"
+          v-model="downloadFormat"
+          color="teal"
+          density="compact"
+          hide-details
+          label="GeoJSON"
+          true-value="json"
+          false-value="parquet"
+          class="mb-1"
+        >
+          <template #prepend> GeoParquet </template>
+        </v-switch>
         <h3 class="group legend">
           Legend
           <v-menu open-on-hover :close-on-content-click="false" max-width="360">
