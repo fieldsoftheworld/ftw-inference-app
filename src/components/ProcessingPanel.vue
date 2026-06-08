@@ -693,8 +693,8 @@ defineExpose({ openModelSelection })
                 density="compact"
                 class="mt-2 note"
               >
-                Showing the {{ getEffectiveCloudlessYear(settings.year) }} basemap. The 2025 basemap
-                will be added soon.
+                Showing the {{ getEffectiveCloudlessYear(settings.year) }} basemap. The
+                {{ settings.year }} basemap will be added soon.
               </v-alert>
             </v-col>
           </v-row>

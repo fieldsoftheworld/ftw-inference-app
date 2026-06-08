@@ -2,7 +2,7 @@ import TileLayer from 'ol/layer/Tile'
 import { XYZ } from 'ol/source'
 
 export const MIN_CLOUDLESS_YEAR = 2016
-export const MAX_CLOUDLESS_YEAR = 2024
+export const MAX_CLOUDLESS_YEAR = 2025
 
 export function getEffectiveCloudlessYear(year: number): number {
   return Math.min(MAX_CLOUDLESS_YEAR, Math.max(MIN_CLOUDLESS_YEAR, year))
