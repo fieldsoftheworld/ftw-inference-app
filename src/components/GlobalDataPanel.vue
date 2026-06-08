@@ -125,7 +125,9 @@ const handleLocationSelected = (place: PlaceResult) => {
             <v-sheet class="pa-3 text-body-2">
               <p class="pb-2">
                 After activation, click a tile to download the agricultural field boundary
-                predictions for that 1° cell as a GeoParquet or GeoJSON file.
+                predictions for that 1° cell as a GeoParquet or GeoJSON file. The confidence
+                threshold and opacity settings do not affect the downloaded data; all fields
+                predicted by the model for the selected cell and year will be included.
               </p>
               <p>
                 You can also download the entire dataset in various variants from
