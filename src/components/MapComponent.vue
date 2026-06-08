@@ -172,6 +172,10 @@ defineExpose({
           <span class="download-grid-tooltip__label">Download size</span>
           {{ formatBytes(hoveredGridCell.size_bytes![String(settings.year)]) }}
         </div>
+        <div class="download-grid-tooltip__row">
+          <span class="download-grid-tooltip__label">Confidence</span>
+          0 – 100%
+        </div>
       </template>
       <div v-else class="download-grid-tooltip__unavailable">
         Not available for {{ settings.year }}
