@@ -176,6 +176,9 @@ export const get_global_pmtiles_url = (year: number) => {
   }
 }
 
+export const GLOBAL_CHANGE_PMTILES_URL =
+  'https://s3.us-west-2.amazonaws.com/us-west-2.opendata.source.coop/ftw/global-data-change/change.pmtiles'
+
 export const AREA_OVERVIEW_COG =
   'https://s3.us-west-2.amazonaws.com/us-west-2.opendata.source.coop/m-mohr/ftw-confidence-layers/prue_v1_field_area_500m_fieldsonly_uint8_3857.tif'
 export const CONFIDENCE_OVERVIEW_COG =

@@ -24,6 +24,15 @@ vi.mock('../../layers/Global-Overview-Layers', async () => {
     createGlobalOverviewLayer: vi.fn(() => new GlTileLayer()),
   }
 })
+vi.mock('../../layers/Global-Change-Layer', async () => {
+  const { default: TileLayer } = await import('ol/layer/Tile')
+  return {
+    createGlobalChangeLayer: vi.fn(() => ({
+      layer: new TileLayer(),
+      dispose: vi.fn(),
+    })),
+  }
+})
 
 global.ResizeObserver = ResizeObserver
 

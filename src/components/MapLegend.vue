@@ -3,7 +3,12 @@ import { computed, onMounted, onUnmounted, ref } from 'vue'
 import useMap from '../composables/useMap'
 import useSettings from '../composables/useSettings'
 import { GLOBAL_DATA_MAP_FIELD_START_ZOOM_LEVEL } from '../composables/useSettings'
-import { areaColorScale, confidenceColorScale, inferenceStyle } from '../layers/color-scales'
+import {
+  areaColorScale,
+  changeStyle,
+  confidenceColorScale,
+  inferenceStyle,
+} from '../layers/color-scales'
 
 const { settings } = useSettings()
 const { map, geoJsonResults } = useMap()
@@ -71,6 +76,16 @@ const legendThresholdPct = computed(() => {
       <span>{{ inferenceStyle.label }}</span>
     </div>
     <!-- Global fields swatch -->
+    <div v-if="showFields" class="legend-item">
+      <span
+        class="legend-swatch"
+        :style="{
+          backgroundColor: changeStyle.fill,
+          borderColor: changeStyle.stroke,
+        }"
+      ></span>
+      <span>{{ changeStyle.label }}</span>
+    </div>
     <div v-if="showFields" class="legend-item">
       <span
         class="legend-swatch"
