@@ -21,9 +21,10 @@ describe('buildGlobalPermalinkParts', () => {
       year: 2024,
       opacity: 55,
       downloads: true,
+      changes: false,
     })
 
-    expect(parts).toEqual(['threshold:0.65', 'year:2024', 'opacity:55', 'downloads:1'])
+    expect(parts).toEqual(['threshold:0.65', 'year:2024', 'opacity:55', 'downloads:1', 'change:0'])
   })
 })
 
@@ -34,7 +35,7 @@ describe('parsePermalinkHash', () => {
 
   it('restores global downloads visibility from the hash', () => {
     const state = parsePermalinkHash(
-      '#map=3.00/12.0000/48.0000/mode:global/threshold:0.8/year:2025/opacity:72/downloads:1',
+      '#map=3.00/12.0000/48.0000/mode:global/threshold:0.8/year:2025/opacity:72/downloads:1/change:1',
       'global',
       availableModes,
     ) as PermalinkStateGlobal
@@ -44,6 +45,7 @@ describe('parsePermalinkHash', () => {
     expect(state.year).toBe(2025)
     expect(state.opacity).toBe(72)
     expect(state.downloads).toBe(true)
+    expect(state.change).toBe(true)
   })
 
   it('defaults global downloads visibility to false when absent', () => {

@@ -4,28 +4,48 @@ import VectorTileLayer from 'ol/layer/VectorTile'
 import { PMTilesVectorSource } from 'ol-pmtiles'
 import { Fill, Stroke, Style } from 'ol/style'
 import { createXYZ } from 'ol/tilegrid'
-import { changeStyle } from '../layers/color-scales'
+import { changeStyleGain, changeStyleLoss } from '../layers/color-scales'
 
 const TILE_SIZE = 512
 const tileGrid = createXYZ({ tileSize: [TILE_SIZE, TILE_SIZE] })
 const canvas = new OffscreenCanvas(TILE_SIZE, TILE_SIZE)
 
-const stroke = new Stroke({
-  color: changeStyle.stroke,
-  width: 1,
-  lineCap: 'butt',
-  lineJoin: 'miter',
-  miterLimit: 1,
-})
-const fill = new Fill({ color: changeStyle.fill })
-const polyStyle = new Style({ stroke, fill })
+const classMap: Record<number, { stroke: string; fill: string }> = {
+  1: changeStyleGain,
+  2: changeStyleLoss,
+}
+
+const getStroke = (classNum: number): Stroke => {
+  return new Stroke({
+    color: classMap[classNum].stroke,
+    width: 1,
+    lineCap: 'butt',
+    lineJoin: 'miter',
+    miterLimit: 1,
+  })
+}
+const getFill = (classNum: number): Fill => {
+  return new Fill({
+    color: classMap[classNum].fill,
+  })
+}
+
+const polyStyleGain = new Style({ stroke: getStroke(1), fill: getFill(1) })
+const polyStyleLoss = new Style({ stroke: getStroke(2), fill: getFill(2) })
 
 const layer = new VectorTileLayer({
   renderMode: 'vector',
   declutter: false,
 })
 
-layer.setStyle(() => polyStyle)
+layer.setStyle((feature) => {
+  const cls = feature.get('class') as string
+  if (cls === '1') {
+    return polyStyleGain
+  } else if (cls === '2') {
+    return polyStyleLoss
+  }
+})
 
 const map = new Map({
   target: canvas,

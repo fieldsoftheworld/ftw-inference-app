@@ -117,6 +117,35 @@ const handleLocationSelected = (place: PlaceResult) => {
           hide-details
         />
         <div class="group group-with-help">
+          <h3>Change</h3>
+          <v-menu open-on-hover :close-on-content-click="false" max-width="400">
+            <template #activator="{ props }">
+              <v-icon :icon="mdiInformationOutline" size="small" v-bind="props"></v-icon>
+            </template>
+            <v-sheet class="pa-3 text-body-2">
+              <p class="pb-2">Shows the gains and losses in fields between 2024 and 2025.</p>
+              <p>The change was computed as follows:</p>
+              <ol style="padding-left: 1.25rem">
+                <li>
+                  Load predictions for both years and computed the positive and negative difference
+                </li>
+                <li>
+                  Thresholded anything greater than 0.9 change in the probability to a binary mask
+                </li>
+                <li>Polygonized using connected components</li>
+              </ol>
+            </v-sheet>
+          </v-menu>
+        </div>
+        <v-switch
+          v-model="settings.changes"
+          color="teal"
+          density="compact"
+          hide-details
+          label="Show changes between the years"
+          class="mb-1"
+        />
+        <div class="group group-with-help">
           <h3>Download Data</h3>
           <v-menu open-on-hover :close-on-content-click="false" max-width="400">
             <template #activator="{ props }">

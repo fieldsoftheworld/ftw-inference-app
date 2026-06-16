@@ -111,6 +111,29 @@ watch(
 )
 
 watch(
+  () => settings.value.changes,
+  (changes) => {
+    if (!map.value) {
+      return
+    }
+
+    if (changes) {
+      if (!globalChangeController.value) {
+        globalChangeController.value = createGlobalChangeLayer()
+        globalChangeController.value.layer.setOpacity(settings.value.opacity / 100)
+        map.value.addLayer(globalChangeController.value.layer)
+      }
+    } else {
+      if (globalChangeController.value) {
+        map.value.removeLayer(globalChangeController.value.layer)
+        globalChangeController.value.dispose()
+        globalChangeController.value = null
+      }
+    }
+  },
+)
+
+watch(
   () => settings.value.opacity,
   (opacity) => {
     const olOpacity = opacity / 100
@@ -163,7 +186,7 @@ const updateLayers = () => {
     }
 
     // Initialize with global predictions layers
-    if (!globalChangeController.value) {
+    if (!globalChangeController.value && settings.value.changes) {
       globalChangeController.value = createGlobalChangeLayer()
       globalChangeController.value.layer.setOpacity(settings.value.opacity / 100)
       map.value.addLayer(globalChangeController.value.layer)
