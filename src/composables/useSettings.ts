@@ -169,7 +169,11 @@ export const GLOBAL_DATA_PMTILES_THRESHOLD_METRIC = 'mean' // median / mean / mi
 export const GLOBAL_DATA_MAP_COMPLETE_ZOOM_LEVEL = 12
 export const GLOBAL_DATA_MAP_FIELD_START_ZOOM_LEVEL = 11
 export const get_global_pmtiles_url = (year: number) => {
-  return `https://data.source.coop/ftw/global-data/predictions/vectors/alpha/${year}_with_confidence.pmtiles`
+  if (year === 2025) {
+    return `https://data.source.coop/ftw/global-field-boundaries/pmtiles/ftw-global-fields-${year}.pmtiles`
+  } else {
+    return `https://data.source.coop/ftw/global-data/predictions/vectors/alpha/${year}_with_confidence.pmtiles`
+  }
 }
 
 export const AREA_OVERVIEW_COG =
