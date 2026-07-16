@@ -169,17 +169,17 @@ export const GLOBAL_DATA_PMTILES_THRESHOLD_METRIC = 'mean' // median / mean / mi
 export const GLOBAL_DATA_MAP_COMPLETE_ZOOM_LEVEL = 12
 export const GLOBAL_DATA_MAP_FIELD_START_ZOOM_LEVEL = 11
 export const get_global_pmtiles_url = (year: number) => {
-  if (year === 2024) {
-    return `https://geospatialvisualizer.z13.web.core.windows.net/ftw_visualizer/data/2024_with_confidence.pmtiles`
+  if (year === 2025) {
+    return `https://data.source.coop/ftw/global-field-boundaries/pmtiles/ftw-global-fields-${year}.pmtiles`
   } else {
-    return `https://s3.us-west-2.amazonaws.com/us-west-2.opendata.source.coop/ftw/global-field-boundaries/pmtiles/ftw-global-fields-${year}.pmtiles`
+    return `https://data.source.coop/ftw/global-data/predictions/vectors/alpha/${year}_with_confidence.pmtiles`
   }
 }
 
 export const AREA_OVERVIEW_COG =
-  'https://s3.us-west-2.amazonaws.com/us-west-2.opendata.source.coop/m-mohr/ftw-confidence-layers/prue_v1_field_area_500m_fieldsonly_uint8_3857.tif'
+  'https://data.source.coop/ftw/global-data/predictions/confidence/confidence/prue_v1_confidence_global_uint8_3857.tif'
 export const CONFIDENCE_OVERVIEW_COG =
-  'https://s3.us-west-2.amazonaws.com/us-west-2.opendata.source.coop/m-mohr/ftw-confidence-layers/prue_v1_confidence_global_uint8_3857.tif'
+  'https://data.source.coop/ftw/global-data/predictions/confidence/field-density/prue_v1_field_area_500m_fieldsonly_uint8_3857.tif'
 
 export default function useSettings() {
   return {
