@@ -16,6 +16,7 @@ const hasInferenceResults = computed(() => geoJsonResults.value.length > 0)
 const {
   options,
   sliderValue,
+  hasInteractedWithSlider,
   selectedLevel,
   detailsDialogOpen,
   detailsForm,
@@ -77,19 +78,23 @@ const sliderLabels = computed(() => {
             </v-slider>
           </div>
 
+          <div v-if="!hasInteractedWithSlider" class="interaction-hint">
+            Drag the slider to confirm your rating
+          </div>
+
           <div class="feedback-actions mt-3">
             <v-btn variant="outlined" color="teal" size="small" @click="openContributeDialog">
               Contribute
             </v-btn>
             <v-btn
               variant="flat"
-              color="teal"
+              :color="selectedLevel && hasInteractedWithSlider ? 'teal' : undefined"
               size="small"
               :loading="isSubmittingQuick"
-              :disabled="!selectedLevel"
+              :disabled="!selectedLevel || !hasInteractedWithSlider"
               @click="submitQuickFeedback"
             >
-              Submit
+              Continue
             </v-btn>
           </div>
         </template>
@@ -180,6 +185,12 @@ const sliderLabels = computed(() => {
 }
 
 .feedback-slider :deep(.v-slider__tick-label) {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.interaction-hint {
+  font-size: 0.75rem;
+  text-align: center;
   color: rgba(255, 255, 255, 0.7);
 }
 

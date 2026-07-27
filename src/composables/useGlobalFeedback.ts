@@ -127,6 +127,7 @@ export default function useGlobalFeedback(mapRef: ShallowRef<Map | null>) {
   const { tileRating: tileRatingEndpoint, tellUsMore: tellUsMoreEndpoint } = getEndpoints()
 
   const sliderValue = ref<number>(1)
+  const hasInteractedWithSlider = ref(false)
   const detailsDialogOpen = ref(false)
   const tagsDialogOpen = ref(false)
   const selectedTags = ref<RatingTag[]>([])
@@ -160,6 +161,10 @@ export default function useGlobalFeedback(mapRef: ShallowRef<Map | null>) {
     set: (rating: FeedbackRating | null) => {
       sliderValue.value = levelToSliderValue(rating)
     },
+  })
+
+  watch(sliderValue, () => {
+    hasInteractedWithSlider.value = true
   })
 
   const canProvideFeedback = computed(() => {
@@ -242,7 +247,7 @@ export default function useGlobalFeedback(mapRef: ShallowRef<Map | null>) {
       return
     }
 
-    if (!selectedLevel.value || !mapExtent.value) {
+    if (!selectedLevel.value || !hasInteractedWithSlider.value || !mapExtent.value) {
       showError('Unable to submit feedback. Please try again.')
       return
     }
@@ -296,6 +301,7 @@ export default function useGlobalFeedback(mapRef: ShallowRef<Map | null>) {
     if (ok) {
       showSuccess('Thanks for the feedback!')
       closeTagsDialog()
+      hasInteractedWithSlider.value = false
     }
   }
 
@@ -348,9 +354,11 @@ export default function useGlobalFeedback(mapRef: ShallowRef<Map | null>) {
       !detailsForm.value.qualityFeedback.trim() ||
       !detailsForm.value.useCase.trim()
     ) {
+      showError('Please fill out the required fields before submitting.')
       return
     }
     if (!isValidEmail(detailsForm.value.email)) {
+      showError('Please enter a valid email address, or leave it blank.')
       return
     }
     if (!mapExtent.value) {
@@ -384,6 +392,7 @@ export default function useGlobalFeedback(mapRef: ShallowRef<Map | null>) {
       closeDetailsDialog()
       resetDetailsForm()
       selectedTags.value = []
+      hasInteractedWithSlider.value = false
     } catch (error) {
       showError(error instanceof Error ? error.message : 'Failed to submit detailed feedback.')
     } finally {
@@ -394,6 +403,7 @@ export default function useGlobalFeedback(mapRef: ShallowRef<Map | null>) {
   return {
     options: FEEDBACK_OPTIONS,
     sliderValue,
+    hasInteractedWithSlider,
     selectedLevel,
     detailsDialogOpen,
     detailsForm,
