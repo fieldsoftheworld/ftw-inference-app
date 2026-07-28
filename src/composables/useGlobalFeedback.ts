@@ -127,7 +127,6 @@ export default function useGlobalFeedback(mapRef: ShallowRef<Map | null>) {
   const { tileRating: tileRatingEndpoint, tellUsMore: tellUsMoreEndpoint } = getEndpoints()
 
   const sliderValue = ref<number>(1)
-  const sliderTouched = ref(false)
   const detailsDialogOpen = ref(false)
   const tagsDialogOpen = ref(false)
   const selectedTags = ref<RatingTag[]>([])
@@ -163,37 +162,26 @@ export default function useGlobalFeedback(mapRef: ShallowRef<Map | null>) {
     },
   })
 
-  const resetSliderTouched = () => {
-    sliderTouched.value = false
-  }
-
-  watch(sliderValue, () => {
-    sliderTouched.value = true
-  })
-
   const canProvideFeedback = computed(() => {
     return mapZoom.value >= GLOBAL_DATA_MAP_COMPLETE_ZOOM_LEVEL
   })
 
-  const isMediumZoom = computed(() => {
-    return (
-      mapZoom.value >= GLOBAL_DATA_MAP_FIELD_START_ZOOM_LEVEL &&
-      mapZoom.value < GLOBAL_DATA_MAP_COMPLETE_ZOOM_LEVEL
-    )
-  })
+  const zoomLevelsRemaining = (target: number) => Math.max(1, Math.ceil(target - mapZoom.value))
 
   const zoomGateMessage = computed(() => {
     if (mapZoom.value < GLOBAL_DATA_MAP_FIELD_START_ZOOM_LEVEL) {
-      return 'Zoom in to see fields and to give feedback.'
+      const remaining = zoomLevelsRemaining(GLOBAL_DATA_MAP_FIELD_START_ZOOM_LEVEL)
+      return `Zoom in ${remaining} more level${remaining === 1 ? '' : 's'} to see fields and to give feedback.`
     }
     if (mapZoom.value < GLOBAL_DATA_MAP_COMPLETE_ZOOM_LEVEL) {
-      return 'Zoom in more to see all fields and to give feedback.'
+      const remaining = zoomLevelsRemaining(GLOBAL_DATA_MAP_COMPLETE_ZOOM_LEVEL)
+      return `Zoom in ${remaining} more level${remaining === 1 ? '' : 's'} to see all fields and to give feedback.`
     }
     return ''
   })
 
   const canSubmitQuick = computed(() => {
-    return Boolean(selectedLevel.value) && sliderTouched.value
+    return Boolean(selectedLevel.value)
   })
 
   const canSubmitDetailed = computed(() => {
@@ -309,7 +297,6 @@ export default function useGlobalFeedback(mapRef: ShallowRef<Map | null>) {
     if (ok) {
       showSuccess('Thanks for the feedback!')
       closeTagsDialog()
-      resetSliderTouched()
     }
   }
 
@@ -400,7 +387,6 @@ export default function useGlobalFeedback(mapRef: ShallowRef<Map | null>) {
       closeDetailsDialog()
       resetDetailsForm()
       selectedTags.value = []
-      resetSliderTouched()
     } catch (error) {
       showError(error instanceof Error ? error.message : 'Failed to submit detailed feedback.')
     } finally {
@@ -411,14 +397,12 @@ export default function useGlobalFeedback(mapRef: ShallowRef<Map | null>) {
   return {
     options: FEEDBACK_OPTIONS,
     sliderValue,
-    sliderTouched,
     selectedLevel,
     detailsDialogOpen,
     detailsForm,
     tagsDialogOpen,
     selectedTags,
     canProvideFeedback,
-    isMediumZoom,
     zoomGateMessage,
     canSubmitQuick,
     canSubmitDetailed,
