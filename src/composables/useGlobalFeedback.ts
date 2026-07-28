@@ -166,21 +166,22 @@ export default function useGlobalFeedback(mapRef: ShallowRef<Map | null>) {
     return mapZoom.value >= GLOBAL_DATA_MAP_COMPLETE_ZOOM_LEVEL
   })
 
-  const isMediumZoom = computed(() => {
-    return (
-      mapZoom.value >= GLOBAL_DATA_MAP_FIELD_START_ZOOM_LEVEL &&
-      mapZoom.value < GLOBAL_DATA_MAP_COMPLETE_ZOOM_LEVEL
-    )
-  })
+  const zoomLevelsRemaining = (target: number) => Math.max(1, Math.ceil(target - mapZoom.value))
 
   const zoomGateMessage = computed(() => {
     if (mapZoom.value < GLOBAL_DATA_MAP_FIELD_START_ZOOM_LEVEL) {
-      return 'Zoom in to see fields and to give feedback.'
+      const remaining = zoomLevelsRemaining(GLOBAL_DATA_MAP_FIELD_START_ZOOM_LEVEL)
+      return `Zoom in ~${remaining} more level${remaining === 1 ? '' : 's'} to see fields and to give feedback.`
     }
     if (mapZoom.value < GLOBAL_DATA_MAP_COMPLETE_ZOOM_LEVEL) {
-      return 'Zoom in more to see all fields and to give feedback.'
+      const remaining = zoomLevelsRemaining(GLOBAL_DATA_MAP_COMPLETE_ZOOM_LEVEL)
+      return `Zoom in ~${remaining} more level${remaining === 1 ? '' : 's'} to see all fields and to give feedback.`
     }
     return ''
+  })
+
+  const canSubmitQuick = computed(() => {
+    return Boolean(selectedLevel.value)
   })
 
   const canSubmitDetailed = computed(() => {
@@ -242,7 +243,7 @@ export default function useGlobalFeedback(mapRef: ShallowRef<Map | null>) {
       return
     }
 
-    if (!selectedLevel.value || !mapExtent.value) {
+    if (!canSubmitQuick.value || !mapExtent.value) {
       showError('Unable to submit feedback. Please try again.')
       return
     }
@@ -348,9 +349,11 @@ export default function useGlobalFeedback(mapRef: ShallowRef<Map | null>) {
       !detailsForm.value.qualityFeedback.trim() ||
       !detailsForm.value.useCase.trim()
     ) {
+      showError('Please fill out the required fields before submitting.')
       return
     }
     if (!isValidEmail(detailsForm.value.email)) {
+      showError('Please enter a valid email address, or leave it blank.')
       return
     }
     if (!mapExtent.value) {
@@ -400,8 +403,8 @@ export default function useGlobalFeedback(mapRef: ShallowRef<Map | null>) {
     tagsDialogOpen,
     selectedTags,
     canProvideFeedback,
-    isMediumZoom,
     zoomGateMessage,
+    canSubmitQuick,
     canSubmitDetailed,
     isSubmittingQuick,
     isSubmittingDetails,

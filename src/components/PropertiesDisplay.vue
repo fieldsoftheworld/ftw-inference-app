@@ -10,12 +10,22 @@
       {{ key }}:
     </v-list-item-title>
     <template #append>
-      <div
-        class="text-caption text-white text-right"
-        style="max-width: 120px; word-break: break-word"
+      <v-tooltip
+        location="top"
+        :disabled="!preciseAreaValue(key, value)"
+        :text="preciseAreaValue(key, value) || ''"
       >
-        {{ formattedValue(key, value) }}
-      </div>
+        <template #activator="{ props: tooltipProps }">
+          <div
+            v-bind="tooltipProps"
+            :tabindex="preciseAreaValue(key, value) ? 0 : -1"
+            class="text-caption text-white text-right"
+            style="max-width: 120px; word-break: break-word"
+          >
+            {{ formattedValue(key, value) }}
+          </div>
+        </template>
+      </v-tooltip>
     </template>
   </v-list-item>
 </template>
@@ -33,20 +43,35 @@ const propertiesWithoutGeometry = computed(() => {
   return propertiesWithoutGeometry
 })
 
+const SQUARE_METERS_PER_HECTARE = 10000
+
 const formatter = new Intl.NumberFormat(undefined, {
   maximumFractionDigits: 2,
 })
+
+const squareMetersFormatter = new Intl.NumberFormat(undefined, {
+  maximumFractionDigits: 0,
+})
+
+function preciseAreaValue(key: string | number, value: any): string | undefined {
+  if (typeof props.units === 'function' || key !== 'metrics:area' || typeof value !== 'number') {
+    return undefined
+  }
+  return `${squareMetersFormatter.format(value)} m²`
+}
 
 function formattedValue(key: string | number, value: any): string {
   if (typeof value !== 'number') {
     return value
   }
 
+  if (typeof props.units !== 'function' && key === 'metrics:area') {
+    return `${formatter.format(value / SQUARE_METERS_PER_HECTARE)} ha`
+  }
+
   const formatted = formatter.format(value)
   if (typeof props.units === 'function') {
     return `${formatted} ${props.units(key)}`
-  } else if (key === 'metrics:area') {
-    return `${formatted} m²`
   } else if (key === 'metrics:perimeter') {
     return `${formatted} m`
   }

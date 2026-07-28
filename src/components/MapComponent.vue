@@ -4,6 +4,7 @@ import { Map, View } from 'ol'
 import { ScaleLine } from 'ol/control'
 import DataCabinet from './DataCabinet.vue'
 import GlobalFeedbackWidget from './GlobalFeedbackWidget.vue'
+import GlobalContributeModal from './GlobalContributeModal.vue'
 import ProcessingResults from './ProcessingResults.vue'
 import PropertiesDisplay from './PropertiesDisplay.vue'
 import createLabelLayer from '../layers/Label-Layer'
@@ -13,7 +14,9 @@ import usePermalink from '../composables/usePermalink'
 import useMap from '../composables/useMap'
 import useSettings from '../composables/useSettings'
 import useDownloadGrid from '../composables/useDownloadGrid'
+import useGlobalContribute from '../composables/useGlobalContribute'
 import { createXYZ } from 'ol/tilegrid'
+import { mdiHandHeart } from '@mdi/js'
 
 const {
   map,
@@ -33,6 +36,17 @@ const { hoveredGridCell, hoveredGridPosition } = useDownloadGrid()
 
 const { addMapClickHandler } = useAreaOfInterest()
 const { setAvailableModels, settings } = useSettings()
+
+const {
+  CONTRIBUTION_OPTIONS,
+  contributeDialogOpen,
+  contributeForm,
+  canSubmit: canSubmitContribute,
+  isSubmitting: isSubmittingContribute,
+  openContributeDialog,
+  submitContribute,
+  updateFormField,
+} = useGlobalContribute()
 
 function formatDeg(value: number, isLat: boolean): string {
   const abs = Math.abs(value)
@@ -134,6 +148,30 @@ defineExpose({
 
     <GlobalFeedbackWidget v-if="map && settings.mode === 'global'" />
 
+    <v-btn
+      v-if="settings.mode === 'global'"
+      class="contribute-fab"
+      icon
+      color="teal"
+      elevation="8"
+      size="large"
+      @click="openContributeDialog"
+    >
+      <v-icon :icon="mdiHandHeart" size="26"></v-icon>
+      <v-tooltip activator="parent" location="left">Contribute</v-tooltip>
+    </v-btn>
+
+    <GlobalContributeModal
+      v-if="settings.mode === 'global'"
+      v-model="contributeDialogOpen"
+      :contribute-form="contributeForm"
+      :contribution-options="CONTRIBUTION_OPTIONS"
+      :can-submit="canSubmitContribute"
+      :is-submitting="isSubmittingContribute"
+      @update:form="updateFormField"
+      @submit="submitContribute"
+    />
+
     <!-- Download grid hover tooltip -->
     <div
       v-if="hoveredGridCell && hoveredGridPosition && settings.downloads"
@@ -227,6 +265,13 @@ defineExpose({
 </template>
 
 <style scoped>
+.contribute-fab {
+  position: absolute;
+  right: 1rem;
+  bottom: 1rem;
+  z-index: 1001;
+}
+
 #critical {
   position: absolute;
   bottom: 1rem;
