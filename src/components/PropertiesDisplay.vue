@@ -18,7 +18,7 @@
         <template #activator="{ props: tooltipProps }">
           <div
             v-bind="tooltipProps"
-            tabindex="0"
+            :tabindex="preciseAreaValue(key, value) ? 0 : -1"
             class="text-caption text-white text-right"
             style="max-width: 120px; word-break: break-word"
           >
