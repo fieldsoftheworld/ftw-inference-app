@@ -171,11 +171,11 @@ export default function useGlobalFeedback(mapRef: ShallowRef<Map | null>) {
   const zoomGateMessage = computed(() => {
     if (mapZoom.value < GLOBAL_DATA_MAP_FIELD_START_ZOOM_LEVEL) {
       const remaining = zoomLevelsRemaining(GLOBAL_DATA_MAP_FIELD_START_ZOOM_LEVEL)
-      return `Zoom in ${remaining} more level${remaining === 1 ? '' : 's'} to see fields and to give feedback.`
+      return `Zoom in ~${remaining} more level${remaining === 1 ? '' : 's'} to see fields and to give feedback.`
     }
     if (mapZoom.value < GLOBAL_DATA_MAP_COMPLETE_ZOOM_LEVEL) {
       const remaining = zoomLevelsRemaining(GLOBAL_DATA_MAP_COMPLETE_ZOOM_LEVEL)
-      return `Zoom in ${remaining} more level${remaining === 1 ? '' : 's'} to see all fields and to give feedback.`
+      return `Zoom in ~${remaining} more level${remaining === 1 ? '' : 's'} to see all fields and to give feedback.`
     }
     return ''
   })
