@@ -11,13 +11,14 @@
     </v-list-item-title>
     <template #append>
       <v-tooltip
-        v-if="preciseAreaValue(key, value)"
         location="top"
-        :text="preciseAreaValue(key, value)"
+        :disabled="!preciseAreaValue(key, value)"
+        :text="preciseAreaValue(key, value) || ''"
       >
         <template #activator="{ props: tooltipProps }">
           <div
             v-bind="tooltipProps"
+            tabindex="0"
             class="text-caption text-white text-right"
             style="max-width: 120px; word-break: break-word"
           >
@@ -25,13 +26,6 @@
           </div>
         </template>
       </v-tooltip>
-      <div
-        v-else
-        class="text-caption text-white text-right"
-        style="max-width: 120px; word-break: break-word"
-      >
-        {{ formattedValue(key, value) }}
-      </div>
     </template>
   </v-list-item>
 </template>
@@ -59,12 +53,8 @@ const squareMetersFormatter = new Intl.NumberFormat(undefined, {
   maximumFractionDigits: 0,
 })
 
-function isDefaultAreaField(key: string | number, value: any): boolean {
-  return typeof props.units !== 'function' && key === 'metrics:area' && typeof value === 'number'
-}
-
 function preciseAreaValue(key: string | number, value: any): string | undefined {
-  if (!isDefaultAreaField(key, value)) {
+  if (typeof props.units === 'function' || key !== 'metrics:area' || typeof value !== 'number') {
     return undefined
   }
   return `${squareMetersFormatter.format(value)} m²`
@@ -75,7 +65,7 @@ function formattedValue(key: string | number, value: any): string {
     return value
   }
 
-  if (isDefaultAreaField(key, value)) {
+  if (typeof props.units !== 'function' && key === 'metrics:area') {
     return `${formatter.format(value / SQUARE_METERS_PER_HECTARE)} ha`
   }
 
