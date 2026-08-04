@@ -9,9 +9,15 @@ const ftwAboutDialogShown = localStorage.getItem('ftw-about-dialog-shown') !== '
 const aboutDialog = ref(ftwAboutDialogShown)
 const dontShowAgain = ref(!ftwAboutDialogShown)
 
-watch(dontShowAgain, (newValue) => {
-  localStorage.setItem('ftw-about-dialog-shown', String(newValue))
-})
+function openAboutDialog() {
+  dontShowAgain.value = localStorage.getItem('ftw-about-dialog-shown') === 'true'
+  aboutDialog.value = true
+}
+
+function closeAboutDialog() {
+  localStorage.setItem('ftw-about-dialog-shown', String(dontShowAgain.value))
+  aboutDialog.value = false
+}
 
 const modeValue = ref(0)
 watch(
@@ -37,7 +43,7 @@ function setModeValue(newValue: number) {
         src="https://fieldsofthe.world/static/images/brand/logos/ftw-logo-light.svg"
         alt="Fields of The World (FTW) Explorer"
         class="logo"
-        @click="aboutDialog = true"
+        @click="openAboutDialog"
       />
       <v-card variant="outlined" rounded="lg" class="switch">
         <span class="switch-label">Mode</span>
@@ -78,7 +84,7 @@ function setModeValue(newValue: number) {
         <v-card-actions>
           <v-checkbox-btn v-model="dontShowAgain" label="Don't show again"></v-checkbox-btn>
           <v-spacer></v-spacer>
-          <v-btn variant="flat" color="primary" text="Ok" @click="aboutDialog = false"></v-btn>
+          <v-btn variant="flat" color="primary" text="Ok" @click="closeAboutDialog"></v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>

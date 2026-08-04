@@ -201,15 +201,17 @@ const loadAvailableTiles = () => {
 
   const layers = map.value.getLayers().getArray()
 
-  const s2GridLayer = layers.find(
-    (layer) =>
-      layer.get('name') === 's2-grid' ||
-      (layer.get('properties') && layer.get('properties').name === 's2-grid') ||
-      ((layer as any).getSource && (layer as any).getSource().getFeatures),
-  )
+  const s2GridLayer = layers.find((layer) => {
+    if (layer.get('name') === 's2-grid') return true
+    if (layer.get('properties') && layer.get('properties').name === 's2-grid') return true
+    const source = (layer as any).getSource ? (layer as any).getSource() : null
+    return !!(source && source.getFeatures)
+  })
 
-  if (s2GridLayer && (s2GridLayer as any).getSource) {
-    const features = (s2GridLayer as any).getSource().getFeatures()
+  const s2GridSource = s2GridLayer && (s2GridLayer as any).getSource?.()
+
+  if (s2GridSource && s2GridSource.getFeatures) {
+    const features = s2GridSource.getFeatures()
 
     availableTiles.value = features
       .map((feature: any) => ({
@@ -429,6 +431,13 @@ defineExpose({ openModelSelection })
       <template v-else>
         You are in <strong>small area mode</strong>. The processing usually takes less than 30
         seconds. Use this for a quick preview on smaller areas.
+      </template>
+      <template v-if="modelTitle && !settings.expertMode">
+        <br />
+        Using the ML model
+        <a href="#" @click.prevent="openModelSelection"
+          ><strong>{{ modelTitle }}</strong></a
+        >.
       </template>
     </v-alert>
 
