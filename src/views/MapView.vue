@@ -5,12 +5,13 @@ import useSettings from '../composables/useSettings'
 
 const { settings, availableModes } = useSettings()
 
-const ftwAboutDialogShown = localStorage.getItem('ftw-about-dialog-shown') !== 'true'
-const aboutDialog = ref(ftwAboutDialogShown)
-const dontShowAgain = ref(!ftwAboutDialogShown)
+const getDontShowAgainStored = () => localStorage.getItem('ftw-about-dialog-shown') === 'true'
+
+const dontShowAgain = ref(getDontShowAgainStored())
+const aboutDialog = ref(!dontShowAgain.value)
 
 function openAboutDialog() {
-  dontShowAgain.value = localStorage.getItem('ftw-about-dialog-shown') === 'true'
+  dontShowAgain.value = getDontShowAgainStored()
   aboutDialog.value = true
 }
 

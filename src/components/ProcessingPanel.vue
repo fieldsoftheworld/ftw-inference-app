@@ -193,6 +193,17 @@ watch(
 
 const availableTiles = shallowRef<any[]>([])
 
+// Find the s2-grid layer's source among the map's layers
+function getS2GridSource(layers: any[]) {
+  const s2GridLayer = layers.find((layer) => {
+    if (layer.get('name') === 's2-grid') return true
+    if (layer.get('properties') && layer.get('properties').name === 's2-grid') return true
+    const source = (layer as any).getSource ? (layer as any).getSource() : null
+    return !!(source && source.getFeatures)
+  })
+  return s2GridLayer && (s2GridLayer as any).getSource?.()
+}
+
 // Load available S2 tiles from the map layer
 const loadAvailableTiles = () => {
   if (!map.value) {
@@ -200,15 +211,7 @@ const loadAvailableTiles = () => {
   }
 
   const layers = map.value.getLayers().getArray()
-
-  const s2GridLayer = layers.find((layer) => {
-    if (layer.get('name') === 's2-grid') return true
-    if (layer.get('properties') && layer.get('properties').name === 's2-grid') return true
-    const source = (layer as any).getSource ? (layer as any).getSource() : null
-    return !!(source && source.getFeatures)
-  })
-
-  const s2GridSource = s2GridLayer && (s2GridLayer as any).getSource?.()
+  const s2GridSource = getS2GridSource(layers)
 
   if (s2GridSource && s2GridSource.getFeatures) {
     const features = s2GridSource.getFeatures()
@@ -361,15 +364,10 @@ const loadMore = async () => {
 const handleTileSelected = (tileName: string) => {
   // Find the tile feature on the map and trigger the tile selection
   const layers = map.value!.getLayers().getArray()
-  const s2GridLayer = layers.find(
-    (layer) =>
-      layer.get('name') === 's2-grid' ||
-      (layer.get('properties') && layer.get('properties').name === 's2-grid') ||
-      ((layer as any).getSource && (layer as any).getSource().getFeatures),
-  )
+  const s2GridSource = getS2GridSource(layers)
 
-  if (s2GridLayer && (s2GridLayer as any).getSource) {
-    const features = (s2GridLayer as any).getSource().getFeatures()
+  if (s2GridSource) {
+    const features = s2GridSource.getFeatures()
     const targetFeature = features.find((f: any) => f.get('Name') === tileName)
 
     if (targetFeature) {
@@ -435,8 +433,9 @@ defineExpose({ openModelSelection })
       <template v-if="modelTitle && !settings.expertMode">
         <br />
         Using the ML model
-        <a href="#" @click.prevent="openModelSelection"
+        <a v-if="currentMgrsTileId" href="#" @click.prevent="openModelSelection"
           ><strong>{{ modelTitle }}</strong></a
+        ><strong v-else>{{ modelTitle }}</strong
         >.
       </template>
     </v-alert>
