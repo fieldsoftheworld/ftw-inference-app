@@ -12,12 +12,16 @@ import { transformExtent } from 'ol/proj'
 import GeocodingSearch from './GeocodingSearch.vue'
 import MapLegend from './MapLegend.vue'
 
-const { settings } = useSettings()
+const { settings, defaultSettings } = useSettings()
 const { map } = useMap()
 
 const basemapYearMismatch = computed(
   () => settings.value.year !== getEffectiveCloudlessYear(settings.value.year),
 )
+const thresholdMayHideFields = computed(() => settings.value.threshold >= 90)
+const resetThreshold = () => {
+  settings.value.threshold = defaultSettings.threshold
+}
 const { fitToExtent } = useAreaOfInterest()
 const { showError } = useNotifier()
 const { downloadFormat } = useDownloadGrid()
@@ -105,6 +109,16 @@ const handleLocationSelected = (place: PlaceResult) => {
           thumb-color="teal"
           hide-details
         />
+        <v-alert
+          v-if="thresholdMayHideFields"
+          type="warning"
+          variant="tonal"
+          density="compact"
+          class="mt-2 note"
+        >
+          A high confidence threshold may hide most or all fields in this area.
+          <v-btn @click="resetThreshold" size="small" class="mt-2"> Reset threshold </v-btn>
+        </v-alert>
         <h3 class="group">Opacity: {{ settings.opacity }}%</h3>
         <v-slider
           v-model.number="settings.opacity"
@@ -146,19 +160,13 @@ const handleLocationSelected = (place: PlaceResult) => {
           label="Show download grid"
           class="mb-1"
         />
-        <v-switch
-          v-if="settings.downloads"
-          v-model="downloadFormat"
-          color="teal"
-          density="compact"
-          hide-details
-          label="GeoJSON"
-          true-value="json"
-          false-value="parquet"
-          class="mb-1"
-        >
-          <template #prepend> GeoParquet </template>
-        </v-switch>
+        <template v-if="settings.downloads">
+          <v-radio-group v-model="downloadFormat" density="compact" hide-details inline>
+            <v-radio label="GeoParquet" value="parquet"></v-radio>
+            <v-radio label="GeoJSON" value="json"></v-radio>
+          </v-radio-group>
+          <p class="text-caption text-medium-emphasis mb-1">Click any grid cell to download.</p>
+        </template>
         <h3 class="group legend">
           Legend
           <v-menu open-on-hover :close-on-content-click="false" max-width="360">

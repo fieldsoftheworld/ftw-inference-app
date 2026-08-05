@@ -149,7 +149,6 @@ defineExpose({
     <GlobalFeedbackWidget v-if="map && settings.mode === 'global'" />
 
     <v-btn
-      v-if="settings.mode === 'global'"
       class="contribute-fab"
       icon
       color="teal"
@@ -162,7 +161,6 @@ defineExpose({
     </v-btn>
 
     <GlobalContributeModal
-      v-if="settings.mode === 'global'"
       v-model="contributeDialogOpen"
       :contribute-form="contributeForm"
       :contribution-options="CONTRIBUTION_OPTIONS"

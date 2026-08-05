@@ -2,11 +2,18 @@
 import { ref, shallowRef, watch } from 'vue'
 import { debounce } from 'vuetify/lib/util/helpers.mjs'
 import type { PlaceResult } from '../composables/useAreaOfInterest'
+import useLocationSearchFocus from '../composables/useLocationSearchFocus'
 import { mdiInformationOutline } from '@mdi/js'
 
 const emit = defineEmits<{
   (e: 'location-selected', place: PlaceResult): void
 }>()
+
+const { focusRequestId } = useLocationSearchFocus()
+const searchField = ref<{ focus: () => void } | null>(null)
+watch(focusRequestId, () => {
+  searchField.value?.focus()
+})
 
 const isLoadingPlaces = ref(false)
 const placeSearch = ref('')
@@ -67,6 +74,7 @@ const onLocationSelected = (item: { value: PlaceResult; title: string } | null) 
 <template>
   <div class="d-flex align-center mb-2 ga-2">
     <v-autocomplete
+      ref="searchField"
       @update:model-value="onLocationSelected"
       v-model:search="placeSearch"
       :loading="isLoadingPlaces"
