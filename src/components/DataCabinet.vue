@@ -9,7 +9,7 @@ import ProcessingPanel from './ProcessingPanel.vue'
 import GlobalDataPanel from './GlobalDataPanel.vue'
 
 const { searchStatus } = useSearch()
-const { modelTitle, settings } = useSettings()
+const { settings } = useSettings()
 const { isLayerLoading } = useMap()
 const { isConverting } = useDownloadGrid()
 
@@ -36,16 +36,7 @@ const toggleCollapsible = () => {
         >
         </v-icon>
         <span class="title text-white">
-          <template v-if="settings.mode === 'inference'">
-            Processing
-            <v-badge
-              v-if="modelTitle && !settings.expertMode"
-              inline
-              :content="`Model: ${modelTitle}`"
-              @click.stop="($refs.panel as typeof ProcessingPanel).openModelSelection()"
-              class="clickable-badge"
-            ></v-badge>
-          </template>
+          <template v-if="settings.mode === 'inference'"> Custom Processing </template>
           <template v-else> Global Predictions </template>
         </span>
       </div>
@@ -54,7 +45,6 @@ const toggleCollapsible = () => {
     <v-card-text v-show="isOpen" class="content">
       <ProcessingPanel
         v-if="settings.mode === 'inference'"
-        ref="panel"
         @work-state-changed="(v) => (isWorking = v)"
       />
       <GlobalDataPanel v-else />
@@ -63,12 +53,6 @@ const toggleCollapsible = () => {
 </template>
 
 <style scoped>
-.clickable-badge {
-  cursor: pointer;
-}
-.clickable-badge:hover :deep(.v-badge__badge) {
-  background-color: white;
-}
 .data-cabinet {
   left: 1rem;
   min-width: 350px;
