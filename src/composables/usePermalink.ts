@@ -32,6 +32,7 @@ export interface PermalinkStateGlobal extends PermalinkState {
   threshold: number
   opacity: number
   downloads: boolean
+  change: boolean
 }
 
 export function buildGlobalPermalinkParts(settings: Settings): string[] {
@@ -41,6 +42,7 @@ export function buildGlobalPermalinkParts(settings: Settings): string[] {
   }
   hashParts.push(`opacity:${settings.opacity}`)
   hashParts.push(`downloads:${settings.downloads ? 1 : 0}`)
+  hashParts.push(`change:${settings.changes ? 1 : 0}`)
   return hashParts
 }
 
@@ -61,6 +63,7 @@ const DEFAULT_GLOBAL_STATE: PermalinkStateGlobal = {
   threshold: 0.4,
   opacity: 90,
   downloads: false,
+  change: false,
 }
 
 export function getDefaultPermalinkState(
@@ -102,6 +105,7 @@ export function parsePermalinkHash(
         'threshold:',
         'opacity:',
         'downloads:',
+        'change:',
       ]
       let mode = defaultMode
       let hasExplicitMode = false
@@ -177,6 +181,7 @@ export function parsePermalinkHash(
         threshold: DEFAULT_GLOBAL_STATE.threshold,
         opacity: DEFAULT_GLOBAL_STATE.opacity,
         downloads: DEFAULT_GLOBAL_STATE.downloads,
+        change: DEFAULT_GLOBAL_STATE.change,
       }
 
       for (const part of keyValueParts) {
@@ -191,6 +196,8 @@ export function parsePermalinkHash(
           result.opacity = isNaN(opacity) ? 90 : opacity
         } else if (part.startsWith('downloads:')) {
           result.downloads = part.substring(10) === '1'
+        } else if (part.startsWith('change:')) {
+          result.change = part.substring(7) === '1'
         }
       }
 
@@ -321,6 +328,7 @@ export default function usePermalink() {
         year: settings.value.year,
         opacity: settings.value.opacity,
         downloads: settings.value.downloads,
+        change: settings.value.changes,
       }
     }
 
@@ -359,6 +367,7 @@ export default function usePermalink() {
     settings.value.threshold = state.threshold
     settings.value.opacity = state.opacity
     settings.value.downloads = state.downloads
+    settings.value.changes = state.change
     if (state.year) {
       settings.value.year = state.year
     }
@@ -392,6 +401,7 @@ export default function usePermalink() {
         settings.value.threshold,
         settings.value.opacity,
         settings.value.downloads,
+        settings.value.changes,
       ],
       () => {
         if (!map.value) {

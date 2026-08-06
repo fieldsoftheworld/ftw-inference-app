@@ -16,6 +16,18 @@ export const inferenceStyle: FeatureStyle = {
   label: 'Inference',
 }
 
+export const changeStyleGain: FeatureStyle = {
+  fill: 'rgba(0, 255, 255, 0.25)',
+  stroke: 'rgb(0, 255, 255)',
+  label: 'Gain: 2024 -> 2025',
+}
+
+export const changeStyleLoss: FeatureStyle = {
+  fill: 'rgba(255, 0, 255, 0.25)',
+  stroke: 'rgb(255, 0, 255)',
+  label: 'Loss: 2024 -> 2025',
+}
+
 export const areaColorScale: ColorStop[] = [
   { value: 0, color: '#ff00ee', label: '0' },
   { value: 1, color: '#00ff00', label: '100' },
