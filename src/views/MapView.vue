@@ -22,11 +22,21 @@ function closeAboutDialog() {
   aboutDialog.value = false
 }
 
+let focusTimeout: ReturnType<typeof setTimeout> | null = null
 watch(aboutDialog, (isOpen, wasOpen) => {
+  if (focusTimeout) {
+    clearTimeout(focusTimeout)
+    focusTimeout = null
+  }
   if (!isOpen && wasOpen) {
     // Wait out Vuetify's dialog close transition + focus-restore, or our
     // focus call gets immediately overridden by it.
-    setTimeout(requestLocationSearchFocus, 300)
+    focusTimeout = setTimeout(() => {
+      focusTimeout = null
+      if (!aboutDialog.value) {
+        requestLocationSearchFocus()
+      }
+    }, 300)
   }
 })
 

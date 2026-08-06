@@ -165,7 +165,9 @@ const handleLocationSelected = (place: PlaceResult) => {
             <v-radio label="GeoParquet" value="parquet"></v-radio>
             <v-radio label="GeoJSON" value="json"></v-radio>
           </v-radio-group>
-          <p class="text-caption text-medium-emphasis mb-1">Click any grid cell to download.</p>
+          <p class="text-caption text-medium-emphasis mt-2 mb-1">
+            Click any grid cell on the map to download.
+          </p>
         </template>
         <h3 class="group legend">
           Legend
