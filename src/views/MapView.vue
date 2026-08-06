@@ -2,8 +2,10 @@
 import MapComponent from '../components/MapComponent.vue'
 import { ref, watch } from 'vue'
 import useSettings from '../composables/useSettings'
+import useLocationSearchFocus from '../composables/useLocationSearchFocus'
 
 const { settings, availableModes } = useSettings()
+const { requestLocationSearchFocus } = useLocationSearchFocus()
 
 const getDontShowAgainStored = () => localStorage.getItem('ftw-about-dialog-shown') === 'true'
 
@@ -19,6 +21,24 @@ function closeAboutDialog() {
   localStorage.setItem('ftw-about-dialog-shown', String(dontShowAgain.value))
   aboutDialog.value = false
 }
+
+let focusTimeout: ReturnType<typeof setTimeout> | null = null
+watch(aboutDialog, (isOpen, wasOpen) => {
+  if (focusTimeout) {
+    clearTimeout(focusTimeout)
+    focusTimeout = null
+  }
+  if (!isOpen && wasOpen) {
+    // Wait out Vuetify's dialog close transition + focus-restore, or our
+    // focus call gets immediately overridden by it.
+    focusTimeout = setTimeout(() => {
+      focusTimeout = null
+      if (!aboutDialog.value) {
+        requestLocationSearchFocus()
+      }
+    }, 300)
+  }
+})
 
 const modeValue = ref(0)
 watch(
@@ -73,14 +93,20 @@ function setModeValue(newValue: number) {
           <p class="mb-2">This app has two modes, switched at the top of the screen:</p>
           <ul class="ps-5 mb-0">
             <li class="mb-2">
-              <strong>Global:</strong> Browse pre-computed global field boundaries for 2024 and
-              2025. Zoom in to explore individual fields, or download a 1° tile as GeoParquet.
+              <p class="mb-1">
+                <strong>Global:</strong> Browse pre-computed global field boundaries for 2024 and
+                2025. Zoom in to explore individual fields, or download a 1° tile as GeoParquet.
+              </p>
+              <p class="mb-0">
+                Rate the field boundaries you see — your feedback helps improve the model.
+              </p>
             </li>
             <li>
               <strong>Custom:</strong> Run the FTW model on-demand over an area you choose, using
               Sentinel-2 Level 2A imagery.
             </li>
           </ul>
+          <p class="mt-3 mb-0">Ready to explore? Try searching for a region.</p>
         </v-card-text>
         <v-card-actions>
           <v-checkbox-btn v-model="dontShowAgain" label="Don't show again"></v-checkbox-btn>
