@@ -113,7 +113,7 @@ const sliderLabels = computed(() => {
   bottom: 1rem;
   transform: translateX(-50%);
   z-index: 1001;
-  width: min(90vw, 350px);
+  width: min(90vw, 300px);
 }
 
 .feedback-card {
@@ -164,7 +164,7 @@ const sliderLabels = computed(() => {
 
 .feedback-actions {
   display: flex;
-  justify-content: flex-end;
+  justify-content: center;
   gap: 0.35rem;
   margin-top: 1.2rem;
 }
