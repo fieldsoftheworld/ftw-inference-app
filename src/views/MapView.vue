@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import MapComponent from '../components/MapComponent.vue'
+import PartnerLogos from '../components/PartnerLogos.vue'
 import { ref, watch } from 'vue'
 import useSettings from '../composables/useSettings'
 import useLocationSearchFocus from '../composables/useLocationSearchFocus'
@@ -85,6 +86,8 @@ function setModeValue(newValue: number) {
     </header>
 
     <MapComponent />
+
+    <PartnerLogos />
 
     <!-- About Dialog -->
     <v-dialog v-model="aboutDialog" width="auto">
