@@ -30,7 +30,7 @@ import tgLogo from '../assets/logos/taylor-geo-logo-ivory-rgb.svg'
   --fab-inset: 1rem;
 
   position: absolute;
-  right: calc(var(--fab-inset) + var(--fab-size) + 1.5rem);
+  right: calc(var(--fab-inset) + var(--fab-size) + 1rem);
   bottom: calc(var(--fab-inset) + (var(--fab-size) - 2rem) / 2);
   /* Below the .sidebar panels (z-index: 1000) on purpose: this is passive
      attribution, so the results panel and data cabinet must cover it rather
@@ -77,13 +77,13 @@ import tgLogo from '../assets/logos/taylor-geo-logo-ivory-rgb.svg'
   height: 1.75rem;
 }
 
-/* Too narrow to sit beside the FAB without crowding the feedback card, so stack
-   above it instead. */
-@media (width <= 900px) {
+/* Too narrow to sit beside the FAB without crowding the feedback card, so the
+   logos take the corner and the FAB moves up (see .contribute-fab). */
+@media (width <= 1000px) {
   .partner-logos {
     gap: 0.5rem;
     right: var(--fab-inset);
-    bottom: calc(var(--fab-inset) + var(--fab-size) + 0.5rem);
+    bottom: var(--fab-inset);
   }
 
   .partner-logos .rule {

@@ -270,6 +270,12 @@ defineExpose({
   z-index: 1001;
 }
 
+@media (width <= 1000px) {
+  .contribute-fab {
+    bottom: 3.5rem;
+  }
+}
+
 #critical {
   position: absolute;
   bottom: 1rem;
