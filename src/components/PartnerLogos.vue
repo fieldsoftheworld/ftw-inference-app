@@ -42,19 +42,18 @@ import tgLogo from '../assets/logos/taylor-geo-logo-ivory-rgb.svg'
   gap: 0.75rem;
   pointer-events: none;
   user-select: none;
-  opacity: 0.72;
-  transition: opacity 0.2s ease;
-}
-
-/* Descendant links keep pointer-events, so hovering either mark still matches. */
-.partner-logos:hover {
-  opacity: 0.95;
 }
 
 .partner-logos a {
   pointer-events: auto;
   display: flex;
   align-items: center;
+  opacity: 0.72;
+  transition: opacity 0.2s ease;
+}
+
+.partner-logos a:hover {
+  opacity: 0.95;
 }
 
 .partner-logos img {
@@ -67,6 +66,7 @@ import tgLogo from '../assets/logos/taylor-geo-logo-ivory-rgb.svg'
   width: 1px;
   height: 1.75rem;
   background-color: rgba(244, 244, 235, 0.45);
+  opacity: 0.72;
 }
 
 .partner-logos .tg {
