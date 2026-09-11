@@ -14,6 +14,7 @@ export interface Settings {
   threshold: number
   opacity: number
   downloads: boolean
+  changes: boolean
 }
 
 export interface ModelInfo {
@@ -63,6 +64,7 @@ const defaultSettings: Settings = {
   threshold: defaultThreshold,
   opacity: 90,
   downloads: false,
+  changes: false,
 }
 
 const defaultModel = computed(() => {
@@ -175,6 +177,9 @@ export const get_global_pmtiles_url = (year: number) => {
     return `https://data.source.coop/ftw/global-data/predictions/vectors/alpha/${year}_with_confidence.pmtiles`
   }
 }
+
+export const GLOBAL_CHANGE_PMTILES_URL =
+  'https://s3.us-west-2.amazonaws.com/us-west-2.opendata.source.coop/ftw/global-data-change/change.pmtiles'
 
 export const AREA_OVERVIEW_COG =
   'https://data.source.coop/ftw/global-data/predictions/confidence/confidence/prue_v1_confidence_global_uint8_3857.tif'

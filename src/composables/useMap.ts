@@ -17,6 +17,7 @@ import {
   createGlobalPredictionsLayer,
   type GlobalPredictionsController,
 } from '../layers/Global-Predictions-Layer'
+import { createGlobalChangeLayer, type GlobalChangeController } from '../layers/Global-Change-Layer'
 import { Fill, Stroke, Style } from 'ol/style'
 import { type FeatureLike } from 'ol/Feature'
 import {
@@ -65,6 +66,12 @@ const showPropertiesBox = ref(false)
 
 export const geoJsonResults = shallowRef<any[]>([])
 
+// Global predictions and S2 grid layer management
+const s2GridLayer = shallowRef<VectorLayer<VectorSource> | null>(null)
+const globalPredictionsController = shallowRef<GlobalPredictionsController | null>(null)
+const globalOverviewLayer = shallowRef<GlTileLayer | null>(null)
+const globalChangeController = shallowRef<GlobalChangeController | null>(null)
+
 // Cloudless layer management
 const cloudlessLayer = shallowRef<TileLayer<XYZ> | null>(null)
 
@@ -104,11 +111,35 @@ watch(
 )
 
 watch(
+  () => settings.value.changes,
+  (changes) => {
+    if (!map.value) {
+      return
+    }
+
+    if (changes) {
+      if (!globalChangeController.value) {
+        globalChangeController.value = createGlobalChangeLayer()
+        globalChangeController.value.layer.setOpacity(settings.value.opacity / 100)
+        map.value.addLayer(globalChangeController.value.layer)
+      }
+    } else {
+      if (globalChangeController.value) {
+        map.value.removeLayer(globalChangeController.value.layer)
+        globalChangeController.value.dispose()
+        globalChangeController.value = null
+      }
+    }
+  },
+)
+
+watch(
   () => settings.value.opacity,
   (opacity) => {
     const olOpacity = opacity / 100
     globalPredictionsController.value?.layer.setOpacity(olOpacity)
     globalOverviewLayer.value?.setOpacity(olOpacity)
+    globalChangeController.value?.layer.setOpacity(olOpacity)
   },
 )
 
@@ -119,11 +150,6 @@ const initCloudlessLayer = () => {
   cloudlessLayer.value = createCloudlessLayer(settings.value.year)
   map.value.getLayers().insertAt(0, cloudlessLayer.value)
 }
-
-// Global predictions and S2 grid layer management
-const s2GridLayer = shallowRef<VectorLayer<VectorSource> | null>(null)
-const globalPredictionsController = shallowRef<GlobalPredictionsController | null>(null)
-const globalOverviewLayer = shallowRef<GlTileLayer | null>(null)
 
 let thresholdDebounce: ReturnType<typeof setTimeout> | null = null
 watch(
@@ -160,6 +186,11 @@ const updateLayers = () => {
     }
 
     // Initialize with global predictions layers
+    if (!globalChangeController.value && settings.value.changes) {
+      globalChangeController.value = createGlobalChangeLayer()
+      globalChangeController.value.layer.setOpacity(settings.value.opacity / 100)
+      map.value.addLayer(globalChangeController.value.layer)
+    }
     if (!globalPredictionsController.value) {
       // Only handle first initialization here, year changes are handled by a watcher on year above
       globalPredictionsController.value = createGlobalPredictionsLayer(settings.value)
@@ -187,6 +218,16 @@ const updateLayers = () => {
     if (globalOverviewLayer.value) {
       map.value.removeLayer(globalOverviewLayer.value)
       globalOverviewLayer.value = null
+    }
+    if (globalPredictionsController.value) {
+      map.value.removeLayer(globalPredictionsController.value.layer)
+      globalPredictionsController.value.dispose()
+      globalChangeController.value = null
+    }
+    if (globalChangeController.value) {
+      map.value.removeLayer(globalChangeController.value.layer)
+      globalChangeController.value.dispose()
+      globalChangeController.value = null
     }
   }
 }
