@@ -285,10 +285,24 @@ const returnToResultsHandler = () => {
 <style scoped>
 .processing-results {
   right: 1em;
-  max-height: calc(100vh - 3rem - 40px);
   min-width: 250px;
   width: 260px;
   max-width: 45vw;
+
+  --bottom-clearance: 5.5rem;
+  max-height: calc(100vh - 1rem - var(--bottom-clearance));
+}
+
+@media (width <= 1200px) {
+  .processing-results {
+    max-height: calc(100vh - 4rem - var(--bottom-clearance));
+  }
+}
+
+@media (width <= 1000px) {
+  .processing-results {
+    --bottom-clearance: 8rem;
+  }
 }
 
 .processing-results .v-list {
