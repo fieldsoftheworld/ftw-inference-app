@@ -176,9 +176,9 @@ export const get_global_pmtiles_url = (year: number) => {
   }
 }
 
-export const AREA_OVERVIEW_COG =
-  'https://data.source.coop/ftw/global-data/predictions/confidence/confidence/prue_v1_confidence_global_uint8_3857.tif'
 export const CONFIDENCE_OVERVIEW_COG =
+  'https://data.source.coop/ftw/global-data/predictions/confidence/confidence/prue_v1_confidence_global_uint8_3857.tif'
+export const AREA_OVERVIEW_COG =
   'https://data.source.coop/ftw/global-data/predictions/confidence/field-density/prue_v1_field_area_500m_fieldsonly_uint8_3857.tif'
 
 export default function useSettings() {
