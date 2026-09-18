@@ -71,7 +71,7 @@ import tgLogo from '../assets/logos/taylor-geo-logo-ivory-rgb.svg'
   /* Beside the map attribution button. */
   left: 3rem;
   bottom: 4.25rem;
-  opacity: 0.6;
+  opacity: 0.8;
 }
 
 .cloud-credit:hover,
@@ -138,10 +138,6 @@ import tgLogo from '../assets/logos/taylor-geo-logo-ivory-rgb.svg'
 }
 
 @media (width <= 600px) {
-  .cloud-credit {
-    opacity: 0.8;
-  }
-
   .partner-row {
     bottom: 2rem;
     gap: 0.375rem;
