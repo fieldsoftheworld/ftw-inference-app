@@ -2,15 +2,6 @@
 
 A Vue 3 application for running inference on satellite imagery using the FTW API.
 
-## Map attribution
-
-The bottom-right corner pairs Taylor Geospatial with Microsoft AI for Good Lab.
-A smaller Powered by AWS credit sits at the far right, after Microsoft, at full opacity.
-Logo assets are bundled in `src/assets/logos/`; the Microsoft SVG comes from
-[TorchGeo governance](https://github.com/torchgeo/governance/blob/main/logos/ai4g_dark.svg).
-Both partner logos use light lettering and transparent backgrounds over the map.
-The Microsoft SVG includes a sans-serif fallback for devices without Segoe UI.
-
 ## Running the Application Locally
 
 ### Step 1: Clone the Repositories
