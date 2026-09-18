@@ -43,7 +43,7 @@ import tgLogo from '../assets/logos/taylor-geo-logo-ivory-rgb.svg'
 </template>
 
 <style scoped>
-/* Transparent partner marks sit above a separate, smaller cloud credit. */
+/* The smaller cloud credit follows the transparent partner marks. */
 .partner-logos {
   /* Leave room for the Contribute FAB on wide screens. */
   --fab-size: 3.5rem;
@@ -58,8 +58,7 @@ import tgLogo from '../assets/logos/taylor-geo-logo-ivory-rgb.svg'
      PartnerLogos mounts after MapComponent. */
   z-index: 999;
   display: flex;
-  flex-direction: column;
-  align-items: flex-end;
+  align-items: center;
   gap: 0.5rem;
   pointer-events: none;
   user-select: none;
@@ -69,28 +68,18 @@ import tgLogo from '../assets/logos/taylor-geo-logo-ivory-rgb.svg'
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  padding: 0.5rem 0.75rem;
+  padding: 0.5rem 0;
 }
 
 .partner-logos a {
   pointer-events: auto;
   display: flex;
   align-items: center;
-  transition: opacity 0.2s ease;
 }
 
 .partner-logos a:focus-visible {
   outline: 2px solid #008888;
   outline-offset: 4px;
-}
-
-.partner-logos .cloud-credit {
-  opacity: 0.55;
-}
-
-.partner-logos .cloud-credit:hover,
-.partner-logos .cloud-credit:focus-visible {
-  opacity: 1;
 }
 
 .partner-logos img {
@@ -119,14 +108,13 @@ import tgLogo from '../assets/logos/taylor-geo-logo-ivory-rgb.svg'
 
 /* Too narrow to sit beside the FAB without crowding the feedback card, so the
    logos take the corner and the FAB moves up (see .contribute-fab). */
-@media (width <= 1280px) {
+@media (width <= 1400px) {
   .partner-logos {
     right: var(--fab-inset);
   }
 
   .partner-row {
     gap: 0.5rem;
-    padding: 0.5rem 0.625rem;
   }
 
   .partner-logos .rule {
@@ -147,9 +135,12 @@ import tgLogo from '../assets/logos/taylor-geo-logo-ivory-rgb.svg'
 }
 
 @media (width <= 600px) {
+  .partner-logos {
+    bottom: 3.5rem;
+  }
+
   .partner-row {
     gap: 0.375rem;
-    padding: 0.5rem;
   }
 
   .partner-logos .tg {
@@ -158,6 +149,20 @@ import tgLogo from '../assets/logos/taylor-geo-logo-ivory-rgb.svg'
 
   .partner-logos .microsoft {
     height: 0.875rem;
+  }
+}
+
+@media (width <= 380px) {
+  .partner-row {
+    gap: 0.25rem;
+  }
+
+  .partner-logos .tg {
+    height: 1rem;
+  }
+
+  .partner-logos .microsoft {
+    height: 0.75rem;
   }
 }
 </style>

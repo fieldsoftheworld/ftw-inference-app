@@ -117,9 +117,15 @@ const sliderLabels = computed(() => {
 }
 
 /* Reserve the bottom-right partner attribution on narrow screens. */
-@media (width <= 1000px) {
+@media (width <= 1100px) {
   .feedback-wrapper {
     bottom: 6rem;
+  }
+}
+
+@media (width <= 600px) {
+  .feedback-wrapper {
+    bottom: 7rem;
   }
 }
 
