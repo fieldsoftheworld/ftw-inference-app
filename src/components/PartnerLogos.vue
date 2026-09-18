@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import awsLogo from '../assets/logos/powered-by-aws-white.png'
-import microsoftLogo from '../assets/logos/ai4g_light.svg'
-import tgLogo from '../assets/logos/taylor-geo-logo-rgb.svg'
+import microsoftLogo from '../assets/logos/ai4g_dark.svg'
+import tgLogo from '../assets/logos/taylor-geo-logo-ivory-rgb.svg'
 </script>
 
 <template>
@@ -43,7 +43,7 @@ import tgLogo from '../assets/logos/taylor-geo-logo-rgb.svg'
 </template>
 
 <style scoped>
-/* Primary partners share a light surface; the cloud credit sits separately below. */
+/* Transparent partner marks sit above a separate, smaller cloud credit. */
 .partner-logos {
   /* Leave room for the Contribute FAB on wide screens. */
   --fab-size: 3.5rem;
@@ -70,8 +70,6 @@ import tgLogo from '../assets/logos/taylor-geo-logo-rgb.svg'
   align-items: center;
   gap: 0.75rem;
   padding: 0.5rem 0.75rem;
-  border-radius: 0.25rem;
-  background-color: #f4f4eb;
 }
 
 .partner-logos a {
@@ -104,7 +102,7 @@ import tgLogo from '../assets/logos/taylor-geo-logo-rgb.svg'
 .partner-logos .rule {
   width: 1px;
   height: 1.5rem;
-  background-color: #3b1e1c;
+  background-color: #f4f4eb;
 }
 
 .partner-logos .tg {
