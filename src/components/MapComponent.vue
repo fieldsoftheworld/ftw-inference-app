@@ -266,14 +266,8 @@ defineExpose({
 .contribute-fab {
   position: absolute;
   right: 1rem;
-  bottom: 1rem;
+  bottom: 6rem;
   z-index: 1001;
-}
-
-@media (width <= 1400px) {
-  .contribute-fab {
-    bottom: 6rem;
-  }
 }
 
 @media (width <= 600px) {

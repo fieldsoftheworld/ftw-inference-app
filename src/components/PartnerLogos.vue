@@ -30,7 +30,6 @@ import tgLogo from '../assets/logos/taylor-geo-logo-ivory-rgb.svg'
         />
       </a>
     </div>
-    <span class="rule" aria-hidden="true"></span>
     <a
       href="https://aws.amazon.com/"
       target="_blank"
@@ -44,32 +43,34 @@ import tgLogo from '../assets/logos/taylor-geo-logo-ivory-rgb.svg'
 </template>
 
 <style scoped>
-/* The smaller cloud credit follows the transparent partner marks. */
+/* Partner marks sit on the right; the smaller cloud credit sits on the left. */
 .partner-logos {
-  /* Leave room for the Contribute FAB on wide screens. */
-  --fab-size: 3.5rem;
-  --fab-inset: 1rem;
-
   position: absolute;
-  right: calc(var(--fab-inset) + var(--fab-size) + 1rem);
-  bottom: var(--fab-inset);
+  inset: 0;
   /* Below the .sidebar panels (z-index: 1000) on purpose: this is passive
      attribution, so the results panel and data cabinet must cover it rather
      than the other way round. On a tie the later DOM node would win, and
      PartnerLogos mounts after MapComponent. */
   z-index: 999;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
   pointer-events: none;
   user-select: none;
 }
 
 .partner-row {
+  position: absolute;
+  right: 1rem;
+  bottom: 1rem;
   display: flex;
   align-items: center;
   gap: 0.75rem;
   padding: 0.5rem 0;
+}
+
+.cloud-credit {
+  position: absolute;
+  /* Beside the map attribution button. */
+  left: 3rem;
+  bottom: 4.25rem;
 }
 
 .partner-logos a {
@@ -107,13 +108,8 @@ import tgLogo from '../assets/logos/taylor-geo-logo-ivory-rgb.svg'
   height: 0.875rem;
 }
 
-/* Too narrow to sit beside the FAB without crowding the feedback card, so the
-   logos take the corner and the FAB moves up (see .contribute-fab). */
+/* Compact marks leave room for the feedback card at narrower widths. */
 @media (width <= 1400px) {
-  .partner-logos {
-    right: var(--fab-inset);
-  }
-
   .partner-row {
     gap: 0.5rem;
   }
@@ -136,12 +132,17 @@ import tgLogo from '../assets/logos/taylor-geo-logo-ivory-rgb.svg'
 }
 
 @media (width <= 600px) {
-  .partner-logos {
-    bottom: 3.5rem;
-    gap: 0.375rem;
+  .cloud-credit {
+    opacity: 0.8;
+  }
+
+  .cloud-credit:hover,
+  .cloud-credit:focus-visible {
+    opacity: 1;
   }
 
   .partner-row {
+    bottom: 2rem;
     gap: 0.375rem;
   }
 
@@ -151,20 +152,6 @@ import tgLogo from '../assets/logos/taylor-geo-logo-ivory-rgb.svg'
 
   .partner-logos .microsoft {
     height: 0.875rem;
-  }
-}
-
-@media (width <= 380px) {
-  .partner-row {
-    gap: 0.25rem;
-  }
-
-  .partner-logos .tg {
-    height: 1rem;
-  }
-
-  .partner-logos .microsoft {
-    height: 0.75rem;
   }
 }
 </style>
