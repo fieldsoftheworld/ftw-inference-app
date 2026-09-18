@@ -30,6 +30,7 @@ import tgLogo from '../assets/logos/taylor-geo-logo-ivory-rgb.svg'
         />
       </a>
     </div>
+    <span class="rule" aria-hidden="true"></span>
     <a
       href="https://aws.amazon.com/"
       target="_blank"
@@ -137,6 +138,7 @@ import tgLogo from '../assets/logos/taylor-geo-logo-ivory-rgb.svg'
 @media (width <= 600px) {
   .partner-logos {
     bottom: 3.5rem;
+    gap: 0.375rem;
   }
 
   .partner-row {
