@@ -1,59 +1,93 @@
 <script setup lang="ts">
 import awsLogo from '../assets/logos/powered-by-aws-white.png'
+import microsoftLogo from '../assets/logos/ai4g_dark.svg'
 import tgLogo from '../assets/logos/taylor-geo-logo-ivory-rgb.svg'
 </script>
 
 <template>
   <div class="partner-logos">
+    <div class="partner-row">
+      <a
+        href="https://taylorgeospatial.org/"
+        target="_blank"
+        rel="noopener"
+        aria-label="Taylor Geospatial"
+      >
+        <img :src="tgLogo" alt="Taylor Geospatial" class="tg" draggable="false" />
+      </a>
+      <span class="rule" aria-hidden="true"></span>
+      <a
+        href="https://www.microsoft.com/en-us/research/group/ai-for-good-research-lab/"
+        target="_blank"
+        rel="noopener"
+        aria-label="Microsoft AI for Good Lab"
+      >
+        <img
+          :src="microsoftLogo"
+          alt="Microsoft AI for Good Lab"
+          class="microsoft"
+          draggable="false"
+        />
+      </a>
+    </div>
     <a
-      href="https://taylorgeospatial.org/"
+      href="https://aws.amazon.com/"
       target="_blank"
       rel="noopener"
-      aria-label="Taylor Geospatial Institute"
+      aria-label="Powered by AWS"
+      class="cloud-credit"
     >
-      <img :src="tgLogo" alt="Taylor Geospatial Institute" class="tg" draggable="false" />
-    </a>
-    <span class="rule" aria-hidden="true"></span>
-    <a href="https://aws.amazon.com/" target="_blank" rel="noopener" aria-label="Powered by AWS">
       <img :src="awsLogo" alt="Powered by AWS" class="aws" draggable="false" />
     </a>
   </div>
 </template>
 
 <style scoped>
-/* Attribution overlay in the bottom-right map corner. No card or plate: just the
-   two marks over the map. */
+/* Partner marks sit on the right; the smaller cloud credit sits on the left. */
 .partner-logos {
-  /* The Contribute FAB owns the corner itself (right: 1rem, 56px across), so the
-     logos sit to its left, centred on the same line. */
-  --fab-size: 3.5rem;
-  --fab-inset: 1rem;
-
   position: absolute;
-  right: calc(var(--fab-inset) + var(--fab-size) + 1rem);
-  bottom: calc(var(--fab-inset) + (var(--fab-size) - 2rem) / 2);
+  inset: 0;
   /* Below the .sidebar panels (z-index: 1000) on purpose: this is passive
      attribution, so the results panel and data cabinet must cover it rather
      than the other way round. On a tie the later DOM node would win, and
      PartnerLogos mounts after MapComponent. */
   z-index: 999;
+  pointer-events: none;
+  user-select: none;
+}
+
+.partner-row {
+  position: absolute;
+  right: 1rem;
+  bottom: 1rem;
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  pointer-events: none;
-  user-select: none;
+  padding: 0.5rem 0;
+}
+
+.cloud-credit {
+  position: absolute;
+  /* Beside the map attribution button. */
+  left: 3rem;
+  bottom: 4.25rem;
+  opacity: 0.8;
+}
+
+.cloud-credit:hover,
+.cloud-credit:focus-visible {
+  opacity: 1;
 }
 
 .partner-logos a {
   pointer-events: auto;
   display: flex;
   align-items: center;
-  opacity: 0.72;
-  transition: opacity 0.2s ease;
 }
 
-.partner-logos a:hover {
-  opacity: 0.95;
+.partner-logos a:focus-visible {
+  outline: 2px solid #008888;
+  outline-offset: 4px;
 }
 
 .partner-logos img {
@@ -64,26 +98,26 @@ import tgLogo from '../assets/logos/taylor-geo-logo-ivory-rgb.svg'
 /* Co-branding rule, per the TG brand guide: a hairline in the logo colour. */
 .partner-logos .rule {
   width: 1px;
-  height: 1.75rem;
-  background-color: rgba(244, 244, 235, 0.45);
-  opacity: 0.72;
+  height: 1.5rem;
+  background-color: #f4f4eb;
 }
 
 .partner-logos .tg {
-  height: 2rem;
-}
-
-.partner-logos .aws {
   height: 1.75rem;
 }
 
-/* Too narrow to sit beside the FAB without crowding the feedback card, so the
-   logos take the corner and the FAB moves up (see .contribute-fab). */
-@media (width <= 1000px) {
-  .partner-logos {
+.partner-logos .microsoft {
+  height: 1.25rem;
+}
+
+.partner-logos .aws {
+  height: 1.125rem;
+}
+
+/* Compact marks leave room for the feedback card at narrower widths. */
+@media (width <= 1400px) {
+  .partner-row {
     gap: 0.5rem;
-    right: var(--fab-inset);
-    bottom: var(--fab-inset);
   }
 
   .partner-logos .rule {
@@ -91,11 +125,34 @@ import tgLogo from '../assets/logos/taylor-geo-logo-ivory-rgb.svg'
   }
 
   .partner-logos .tg {
-    height: 1.5rem;
+    height: 1.375rem;
+  }
+
+  .partner-logos .microsoft {
+    height: 1rem;
   }
 
   .partner-logos .aws {
-    height: 1.25rem;
+    height: 1rem;
+  }
+}
+
+@media (width <= 600px) {
+  .partner-row {
+    bottom: 2rem;
+    gap: 0.375rem;
+  }
+
+  .partner-logos .tg {
+    height: 1.125rem;
+  }
+
+  .partner-logos .microsoft {
+    height: 0.875rem;
+  }
+
+  .partner-logos .aws {
+    height: 0.875rem;
   }
 }
 </style>
