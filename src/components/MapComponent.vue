@@ -270,9 +270,16 @@ defineExpose({
   z-index: 1001;
 }
 
-@media (width <= 1000px) {
+@media (width <= 1280px) {
   .contribute-fab {
-    bottom: 3.5rem;
+    bottom: 6rem;
+  }
+}
+
+@media (width <= 600px) {
+  .contribute-fab {
+    top: 4.5rem;
+    bottom: auto;
   }
 }
 

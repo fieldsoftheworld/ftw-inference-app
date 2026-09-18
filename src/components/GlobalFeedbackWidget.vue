@@ -116,6 +116,13 @@ const sliderLabels = computed(() => {
   width: min(90vw, 300px);
 }
 
+/* Reserve the bottom-right partner attribution on narrow screens. */
+@media (width <= 1000px) {
+  .feedback-wrapper {
+    bottom: 6rem;
+  }
+}
+
 .feedback-card {
   background-color: rgba(0, 0, 0, 0.9);
   border: 1px solid rgba(0, 136, 136, 0.65);
