@@ -71,6 +71,12 @@ import tgLogo from '../assets/logos/taylor-geo-logo-ivory-rgb.svg'
   /* Beside the map attribution button. */
   left: 3rem;
   bottom: 4.25rem;
+  opacity: 0.6;
+}
+
+.cloud-credit:hover,
+.cloud-credit:focus-visible {
+  opacity: 1;
 }
 
 .partner-logos a {
@@ -105,7 +111,7 @@ import tgLogo from '../assets/logos/taylor-geo-logo-ivory-rgb.svg'
 }
 
 .partner-logos .aws {
-  height: 0.875rem;
+  height: 1.125rem;
 }
 
 /* Compact marks leave room for the feedback card at narrower widths. */
@@ -127,18 +133,13 @@ import tgLogo from '../assets/logos/taylor-geo-logo-ivory-rgb.svg'
   }
 
   .partner-logos .aws {
-    height: 0.75rem;
+    height: 1rem;
   }
 }
 
 @media (width <= 600px) {
   .cloud-credit {
     opacity: 0.8;
-  }
-
-  .cloud-credit:hover,
-  .cloud-credit:focus-visible {
-    opacity: 1;
   }
 
   .partner-row {
@@ -151,6 +152,10 @@ import tgLogo from '../assets/logos/taylor-geo-logo-ivory-rgb.svg'
   }
 
   .partner-logos .microsoft {
+    height: 0.875rem;
+  }
+
+  .partner-logos .aws {
     height: 0.875rem;
   }
 }
