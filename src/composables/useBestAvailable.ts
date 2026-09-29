@@ -4,7 +4,12 @@ import { transformExtent } from 'ol/proj'
 import { map } from './useMap'
 import useSettings, { GLOBAL_DATA_MAP_FIELD_START_ZOOM_LEVEL } from './useSettings'
 import index from '../data/best-available.json'
-import { applyColor, colorFor, createBestAvailableLayer, PALETTE } from '../layers/Best-Available-Layer'
+import {
+  applyColor,
+  colorFor,
+  createBestAvailableLayer,
+  PALETTE,
+} from '../layers/Best-Available-Layer'
 
 export interface BestAvailableCollection {
   id: string

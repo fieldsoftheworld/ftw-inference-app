@@ -196,8 +196,8 @@ const handleLocationSelected = (place: PlaceResult) => {
             </template>
             <v-sheet class="pa-3 text-body-2">
               Field boundaries published by national and regional authorities for this area,
-              harmonized by Fields of the World. Use the icons to reach the provider, or the
-              full set of years on Source Cooperative.
+              harmonized by Fields of the World. Use the icons to reach the provider, or the full
+              set of years on Source Cooperative.
             </v-sheet>
           </v-menu>
         </h3>
@@ -233,8 +233,8 @@ const handleLocationSelected = (place: PlaceResult) => {
             <div class="alt-text">
               {{ c.title }}
               <span class="text-caption text-medium-emphasis">
-                {{ c.year }}<template v-if="c.editions > 1">
-                  &middot; {{ c.editions }} years</template>
+                {{ c.year
+                }}<template v-if="c.editions > 1"> &middot; {{ c.editions }} years</template>
               </span>
               <span v-if="coverageOf(c) === 'none'" class="alt-nocover">
                 Nothing in this view
