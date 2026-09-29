@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { mdiInformationOutline } from '@mdi/js'
+import { mdiInformationOutline, mdiOpenInNew, mdiDatabaseOutline } from '@mdi/js'
+import useBestAvailable from '../composables/useBestAvailable'
 import useSettings from '../composables/useSettings'
 import useMap from '../composables/useMap'
 import { getEffectiveCloudlessYear } from '../layers/S2-Cloudless-Layer'
@@ -22,6 +23,19 @@ const thresholdMayHideFields = computed(() => settings.value.threshold >= 90)
 const resetThreshold = () => {
   settings.value.threshold = defaultSettings.threshold
 }
+const {
+  collections: alternatives,
+  blocksAvailable,
+  tooFarOut,
+  enabled: altEnabled,
+  showBlocks,
+  toggle: toggleAlternative,
+  colorOf,
+  setColor,
+  coverageOf,
+  palette,
+} = useBestAvailable()
+
 const { fitToExtent } = useAreaOfInterest()
 const { showError } = useNotifier()
 const { downloadFormat } = useDownloadGrid()
@@ -169,6 +183,106 @@ const handleLocationSelected = (place: PlaceResult) => {
             Click any grid cell on the map to download.
           </p>
         </template>
+        <h3 class="group alternatives">
+          Alternative Data
+          <v-menu open-on-hover :close-on-content-click="false" max-width="360">
+            <template #activator="{ props }">
+              <v-icon
+                class="ml-2"
+                :icon="mdiInformationOutline"
+                size="small"
+                v-bind="props"
+              ></v-icon>
+            </template>
+            <v-sheet class="pa-3 text-body-2">
+              Field boundaries published by national and regional authorities for this area,
+              harmonized by Fields of the World. Use the icons to reach the provider, or the full
+              set of years on Source Cooperative.
+            </v-sheet>
+          </v-menu>
+        </h3>
+        <template v-if="alternatives.length">
+          <div v-for="c in alternatives" :key="c.id" class="alt-row">
+            <v-checkbox
+              :model-value="altEnabled.has(c.id)"
+              density="compact"
+              hide-details
+              class="alt-check"
+              :aria-label="c.title"
+              @update:model-value="toggleAlternative(c)"
+            />
+            <v-menu :close-on-content-click="true">
+              <template #activator="{ props }">
+                <button
+                  class="swatch"
+                  :style="{ background: colorOf(c) }"
+                  :title="`Change colour for ${c.title}`"
+                  v-bind="props"
+                ></button>
+              </template>
+              <v-sheet class="pa-2 swatch-menu">
+                <button
+                  v-for="hex in palette"
+                  :key="hex"
+                  class="swatch swatch-option"
+                  :style="{ background: hex }"
+                  @click="setColor(c, hex)"
+                ></button>
+              </v-sheet>
+            </v-menu>
+            <div class="alt-text">
+              {{ c.title }}
+              <span class="text-caption text-medium-emphasis">
+                {{ c.year
+                }}<template v-if="c.editions > 1"> &middot; {{ c.editions }} years</template>
+              </span>
+              <span v-if="coverageOf(c) === 'none'" class="alt-nocover">
+                Nothing in this view
+              </span>
+            </div>
+            <span class="alt-links">
+              <v-btn
+                v-if="c.providerUrl"
+                :href="c.providerUrl"
+                target="_blank"
+                rel="noopener"
+                icon
+                size="x-small"
+                variant="text"
+                :title="`Source: ${c.provider} (${c.license})`"
+              >
+                <v-icon :icon="mdiOpenInNew" size="small"></v-icon>
+              </v-btn>
+              <v-btn
+                :href="c.catalogUrl"
+                target="_blank"
+                rel="noopener"
+                icon
+                size="x-small"
+                variant="text"
+                title="fiboa data on Source Cooperative"
+              >
+                <v-icon :icon="mdiDatabaseOutline" size="small"></v-icon>
+              </v-btn>
+            </span>
+          </div>
+        </template>
+        <p v-else class="text-caption text-medium-emphasis mb-1">
+          {{
+            tooFarOut
+              ? 'Zoom in to see alternative field data for an area.'
+              : 'No alternative field data available for this region.'
+          }}
+        </p>
+        <v-checkbox
+          v-if="blocksAvailable"
+          v-model="showBlocks"
+          label="Include field blocks"
+          density="compact"
+          hide-details
+          class="mt-1"
+        />
+
         <h3 class="group legend">
           Legend
           <v-menu open-on-hover :close-on-content-click="false" max-width="360">
@@ -208,10 +322,62 @@ const handleLocationSelected = (place: PlaceResult) => {
   font-weight: inherit;
   font-size: inherit;
 }
-.group.legend {
+.group.legend,
+.group.alternatives {
   margin-top: 1rem;
   border-top: 1px solid rgba(136, 136, 136, 0.65);
   padding-top: 1rem;
+}
+.alt-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.4rem;
+  padding-block: 0.3rem;
+}
+.alt-row + .alt-row {
+  border-top: 1px solid rgba(136, 136, 136, 0.18);
+}
+.alt-check {
+  flex: none;
+  margin-top: -0.35rem;
+}
+/* Sits on the optical centre of the title's first line. */
+.swatch {
+  flex: none;
+  width: 0.8rem;
+  height: 0.8rem;
+  margin-top: 0.3rem;
+  border: 1px solid rgba(0, 0, 0, 0.35);
+  border-radius: 2px;
+  cursor: pointer;
+  padding: 0;
+}
+.swatch-menu {
+  display: grid;
+  grid-template-columns: repeat(4, auto);
+  gap: 0.35rem;
+}
+.swatch-option {
+  width: 1.15rem;
+  height: 1.15rem;
+  margin-top: 0;
+}
+.alt-text {
+  flex: 1;
+  min-width: 0;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+.alt-nocover {
+  display: block;
+  font-size: 0.72rem;
+  opacity: 0.75;
+  font-style: italic;
+}
+.alt-links {
+  flex: none;
+  display: flex;
+  margin-top: -0.1rem;
 }
 :deep(.v-selection-control-group--inline) {
   gap: 1rem;
